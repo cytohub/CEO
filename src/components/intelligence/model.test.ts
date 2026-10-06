@@ -12,6 +12,7 @@ import {
   getIn,
   humanizeKey,
   inferType,
+  isEmptyField,
   proposalFields,
   readCandidates,
   readChanges,
@@ -195,6 +196,13 @@ describe("proposal field model", () => {
     assert.equal(displayValue({ type: "list", value: [] }), "—");
     assert.equal(severityLabel(1), "Minimal");
     assert.equal(fieldChangeLabel("expectedClose"), "Expected close");
+  });
+
+  it("treats empty optional fields as hideable in read views", () => {
+    const fields = proposalFields("TASK", { title: "T", ownerPersonId: null, ownerName: null, dueDate: null, companyId: null, priority: "P2", confidence: 0.5 });
+    const hidden = fields.filter(isEmptyField).map((f) => f.key);
+    assert.deepEqual(hidden, ["companyId"]);
+    assert.equal(isEmptyField({ value: null, nameValue: "Priya", spec: undefined }), false);
   });
 
   it("infers editors for unknown values", () => {

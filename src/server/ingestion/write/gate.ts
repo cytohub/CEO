@@ -3,8 +3,8 @@
  *
  *   High   (≥ 0.80)  written automatically, unless the record is protected
  *   Medium (≥ 0.55)  Brain Review Queue
- *   Low    (< 0.55)  review only when the source is High/Critical relevance,
- *                    otherwise kept only in the extraction record
+ *   Low    (< 0.55)  kept only in the extraction record — except protected
+ *                    proposals from a Critical source, which a human still sees
  *
  * Protected classes always go to a human, whatever the confidence: they change
  * company truth that someone else already relies on.
@@ -41,21 +41,16 @@ export interface GateResult {
   reason: string;
 }
 
-const LOUD: ReadonlySet<Relevance> = new Set(["HIGH", "CRITICAL"]);
-
 export function gate(input: { confidence: number; relevance: Relevance | null | undefined; protectedClass?: ProtectedClass | null }): GateResult {
   const score = Math.max(0, Math.min(1, Number.isFinite(input.confidence) ? input.confidence : 0));
   const band = confidenceFromScore(score);
-  const loud = input.relevance ? LOUD.has(input.relevance) : false;
 
   if (input.protectedClass) {
-    // Even protected proposals are not worth a reviewer's time when both the
-    // evidence and the source are weak.
-    if (band === "LOW" && !loud) return { outcome: "DROP", band, reason: "Low confidence on a low-relevance source." };
+    // Weak evidence is only worth a reviewer's time when the source is critical.
+    if (band === "LOW" && input.relevance !== "CRITICAL") return { outcome: "DROP", band, reason: "Low confidence; kept in the extraction record only." };
     return { outcome: "REVIEW", band, reason: PROTECTED_REASONS[input.protectedClass] };
   }
   if (band === "HIGH") return { outcome: "WRITE", band, reason: "High confidence." };
   if (band === "MEDIUM") return { outcome: "REVIEW", band, reason: `Medium confidence (${Math.round(score * 100)}%).` };
-  if (loud) return { outcome: "REVIEW", band, reason: `Low confidence (${Math.round(score * 100)}%) on a ${input.relevance === "CRITICAL" ? "critical" : "high"}-relevance source.` };
   return { outcome: "DROP", band, reason: "Low confidence; kept in the extraction record only." };
 }

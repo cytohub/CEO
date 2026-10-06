@@ -45,8 +45,10 @@ export interface ExtractedEntry {
   title: string;
   detail?: string;
   href?: string;
-  /** Proposed by the Brain and waiting in the Review Queue (or not written yet). */
+  /** Extracted but not written yet (pipeline still running, or below the confidence gate). */
   pending?: boolean;
+  /** Waiting for a human decision in the Brain Review Queue. */
+  review?: boolean;
 }
 
 export interface MeetingNotesSummary {
@@ -304,7 +306,7 @@ async function loadMeetingNotes(meetingId: string, scope: AccessScope, onlyItemI
   return items.map((item) => {
     const x = (item.extraction ?? null) as Partial<IntelligenceExtraction> | null;
     const pendingOf = (kinds: string[]) =>
-      reviews.filter((r) => r.sourceItemId === item.id && kinds.includes(r.kind) && r.status === "PENDING").map((r) => ({ title: r.title, detail: "In Review Queue", href: "/brain/review", pending: true }));
+      reviews.filter((r) => r.sourceItemId === item.id && kinds.includes(r.kind) && r.status === "PENDING").map((r) => ({ title: r.title, href: "/brain/review", review: true }));
     const taskIds = refsFor(item.id, "TASK");
     const commitIds = refsFor(item.id, "COMMITMENT");
     const decisionIds = refsFor(item.id, "DECISION");

@@ -4,7 +4,7 @@
  * anchor) and the run's summary/counters. The pipeline writer and review
  * approvals build the same environment so approval runs the same code.
  */
-import type { EntityType, Relevance, SourceItemKind, SourceProvider } from "@/generated/prisma/enums";
+import type { EntityType, Relevance, ReviewKind, Sensitivity, SourceItemKind, SourceProvider } from "@/generated/prisma/enums";
 import type { Tx } from "@/lib/db";
 import type { WriteSummary } from "../types";
 
@@ -28,6 +28,23 @@ export interface WriteCounters {
   duplicatesPrevented: number;
 }
 
+/** A review item waiting to be filed (the writer files at most a few per source item, highest impact first). */
+export interface ReviewDraft {
+  kind: ReviewKind;
+  title: string;
+  reason: string;
+  /** 1–5 */
+  impact: number;
+  confidenceScore: number;
+  proposal: unknown;
+  targetType?: EntityType | null;
+  targetId?: string | null;
+  candidates?: { entityId: string; label: string; score: number }[] | null;
+  excerpt?: string | null;
+  fingerprint: string;
+  sensitivity?: Sensitivity;
+}
+
 export interface WriteEnv {
   tx: Tx;
   /** Pipeline clock: every created row is stamped with it. */
@@ -46,6 +63,8 @@ export interface WriteEnv {
   counters: WriteCounters;
   /** Who approved, when the write comes from the review queue. */
   approvedBy?: { userId: string; email: string } | null;
+  /** When set, review items are collected here and filed by flushReviews() instead of immediately. */
+  reviewBuffer?: ReviewDraft[];
 }
 
 export function emptySummary(): WriteSummary {

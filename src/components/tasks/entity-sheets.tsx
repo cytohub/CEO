@@ -260,7 +260,7 @@ function MeetingSheet({ meetingId, onClose }: { meetingId: string | null; onClos
 
   return (
     <Sheet open={Boolean(meetingId)} onOpenChange={(o) => !o && onClose()}>
-      <SheetContent className="w-full gap-0 overflow-y-auto p-0 sm:max-w-[680px]">
+      <SheetContent className="w-full gap-0 overflow-y-auto p-0 sm:max-w-[680px] data-[side=right]:sm:max-w-[680px]">
         {!m ? (
           <SheetSkeleton />
         ) : (
@@ -649,7 +649,7 @@ export function PrepBriefView({ brief }: { brief: PrepBrief }) {
                 key={d.id}
                 href={d.href}
                 title={d.title}
-                detail={[[d.docType, `v${d.version}`, d.modifiedAt].filter(Boolean).join(" · "), d.changeSummary, ...d.changes].filter(Boolean).join(" — ")}
+                detail={[[d.docType, d.version > 1 ? `v${d.version}` : null, d.modifiedAt].filter(Boolean).join(" · "), d.changeSummary, ...d.changes].filter(Boolean).join(" — ")}
                 meta={d.changeSummary ? <span className="shrink-0 rounded bg-warning-soft px-1.5 py-px text-2xs font-medium text-warning-ink">Changed</span> : undefined}
               />
             ))}
@@ -863,7 +863,7 @@ function MeetingNotesPanel({ meetingId, notes, canEdit, past, onNotes }: { meeti
   );
 }
 
-function NotesGroup({ title, items }: { title: string; items: { title: string; detail?: string; href?: string; pending?: boolean }[] }) {
+function NotesGroup({ title, items }: { title: string; items: { title: string; detail?: string; href?: string; pending?: boolean; review?: boolean }[] }) {
   if (!items.length) return null;
   return (
     <section>
@@ -872,7 +872,19 @@ function NotesGroup({ title, items }: { title: string; items: { title: string; d
       </h4>
       <ul className="divide-y divide-hairline rounded-md border border-border">
         {items.map((it, i) => (
-          <LinkRow key={i} href={it.href} title={it.title} detail={it.detail} meta={it.pending ? <span className="shrink-0 rounded bg-muted px-1.5 py-px text-2xs text-ink-2">Proposed</span> : undefined} />
+          <LinkRow
+            key={i}
+            href={it.href}
+            title={it.title}
+            detail={it.detail}
+            meta={
+              it.review ? (
+                <span className="shrink-0 rounded bg-brain-soft px-1.5 py-px text-2xs font-medium text-brain">In review</span>
+              ) : it.pending ? (
+                <span className="shrink-0 rounded bg-muted px-1.5 py-px text-2xs text-ink-2">Proposed</span>
+              ) : undefined
+            }
+          />
         ))}
       </ul>
     </section>

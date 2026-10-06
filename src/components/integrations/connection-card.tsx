@@ -59,7 +59,8 @@ export function ConnectionCard({ c, now, timezone }: { c: Card; now: Date; timez
         <div className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-border bg-surface-2">
           <Icon className="size-4 text-ink-3" aria-hidden />
         </div>
-        <div className="min-w-0 flex-1">
+        {/* A minimum width makes the actions wrap below on narrow screens instead of crushing the title. */}
+        <div className="min-w-[min(100%,14rem)] flex-1">
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
             <h3 id={`${idp}-title`} className="min-w-0 truncate text-[13px] font-medium text-foreground" title={title}>
               {title}

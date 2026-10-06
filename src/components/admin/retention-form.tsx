@@ -85,8 +85,10 @@ function describeDays(days: number | null) {
   return `${days} days`;
 }
 
-export function RetentionForm({ policy, defaults }: { policy: RetentionPolicy; defaults: RetentionPolicy }) {
-  const [draft, setDraft] = useState<Draft>(() => toDraft(policy));
+export function RetentionForm({ policy: initial, defaults }: { policy: RetentionPolicy; defaults: RetentionPolicy }) {
+  // The last saved policy: updated on a successful save, before the page's refreshed props arrive.
+  const [policy, setPolicy] = useState(initial);
+  const [draft, setDraft] = useState<Draft>(() => toDraft(initial));
   const [preview, setPreview] = useState<{ rows: RetentionPreviewRow[]; forDraft: string } | null>(null);
   const [lastSweep, setLastSweep] = useState<Record<string, number> | null>(null);
   const [confirmSweep, setConfirmSweep] = useState(false);
@@ -113,7 +115,7 @@ export function RetentionForm({ policy, defaults }: { policy: RetentionPolicy; d
       className="panel @container"
       onSubmit={(e) => {
         e.preventDefault();
-        if (current) save.run(() => saveRetentionPolicy(current));
+        if (current) save.run(() => saveRetentionPolicy(current), { onSuccess: () => setPolicy(current) });
       }}
     >
       <ul className="divide-y divide-hairline">

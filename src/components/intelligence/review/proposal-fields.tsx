@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { CompanySelect, GoalSelect, PersonSelect, SimpleSelect } from "@/components/common/fields";
 import { useLookups } from "@/components/shell/ui-context";
 import { cn } from "@/lib/utils";
-import { displayValue, getIn, severityLabel, type ProposalField } from "../model";
+import { displayValue, getIn, isEmptyField, severityLabel, type ProposalField } from "../model";
 
 type Names = Record<string, string>;
 
@@ -23,8 +23,9 @@ function useNameFor(names: Names) {
 }
 
 /** Read-only key/value view of a proposal. */
-export function ProposalFieldsView({ fields, names }: { fields: ProposalField[]; names: Names }) {
+export function ProposalFieldsView({ fields: all, names }: { fields: ProposalField[]; names: Names }) {
   const nameFor = useNameFor(names);
+  const fields = all.filter((f) => !isEmptyField(f));
   if (!fields.length) return null;
   return (
     <dl className="grid gap-x-4 gap-y-2 sm:grid-cols-2">

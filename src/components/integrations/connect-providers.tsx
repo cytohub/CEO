@@ -19,7 +19,7 @@ export function ConnectProviders({ providers, kindLabel }: { providers: Provider
       <ul className="divide-y divide-hairline">
         {providers.map((p) => (
           <li key={p.provider} className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-2.5">
-            <div className="min-w-0 flex-1">
+            <div className="min-w-[min(100%,16rem)] flex-1">
               <p className="text-[13px] font-medium text-foreground">
                 {p.label} <span className="font-normal text-muted-foreground">· {p.vendor}</span>
               </p>

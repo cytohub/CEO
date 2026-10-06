@@ -116,8 +116,8 @@ function SourceCard({ r, timezone }: { r: ProvenanceRef; timezone: string }) {
     <li className="rounded-lg border border-border bg-surface p-3.5">
       <div className="flex items-center gap-2 text-2xs text-muted-foreground">
         <SourceKindIcon kind={r.kind} />
-        <span className="font-medium text-ink-2">{providerLabel(r.provider)}</span>
-        {r.author && <span className="truncate">· {r.author}</span>}
+        <span className="shrink-0 font-medium whitespace-nowrap text-ink-2">{providerLabel(r.provider)}</span>
+        {r.author && <span className="min-w-0 truncate">· {r.author}</span>}
         <span className="ml-auto flex shrink-0 items-center gap-1.5">
           {r.confidence != null && <ConfidenceBadge score={r.confidence} compact />}
           <span className="rounded bg-muted px-1.5 py-0.5 font-medium">{REFERENCE_ROLE[r.role]}</span>

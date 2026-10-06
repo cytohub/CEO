@@ -17,7 +17,7 @@ import type { Prisma } from "@/generated/prisma/client";
 import type { Sensitivity } from "@/generated/prisma/enums";
 import { db } from "@/lib/db";
 import { addDays, dayKey, daysBetween, formatDateTime, formatDay, timeAgo } from "@/lib/dates";
-import { COMPANY_TYPES, DECISION_STATUS, MEETING_TYPES, OPEN_TASK_STATUSES, PERSON_TYPES } from "@/lib/domain";
+import { COMPANY_TYPES, DECISION_STATUS, MEETING_TYPES, OPEN_TASK_STATUSES, PERSON_TYPES, RESOURCE_TYPES } from "@/lib/domain";
 import { formatCurrency, formatMetric } from "@/lib/format";
 import { DOCUMENT_TYPES, THREAD_STATUS } from "@/lib/intelligence";
 import { generateJson } from "@/server/ai/claude";
@@ -78,7 +78,7 @@ export async function buildPrepBrief(meetingId: string, access: PrepAccess): Pro
     AND: [emailThreadWhere(scope), { OR: [...(companyIds.length ? [{ companyId: { in: companyIds } }] : []), ...(dealIds.length ? [{ dealId: { in: dealIds } }] : []), ...participantThreads, { id: "__none__" }] }],
   };
 
-  const [pastMeetings, openTasks, decisions, decided, inbox, signals, insights, riskyMilestones, metrics, threads, commitmentsRaw, documents, risksRaw, notesItems] = await Promise.all([
+  const [pastMeetings, openTasks, decisions, decided, inbox, signals, insights, riskyMilestones, metrics, threads, commitmentsRaw, documents, risksRaw, notesItems, resources] = await Promise.all([
     db.meeting.findMany({
       where: {
         id: { not: meeting.id },
@@ -189,6 +189,21 @@ export async function buildPrepBrief(meetingId: string, access: PrepAccess): Pro
       orderBy: { occurredAt: "desc" },
       take: 4,
       select: { id: true, title: true, snippet: true, occurredAt: true, sensitivity: true, meetingId: true },
+    }),
+    // Workspace resources (decks, notes, contracts) linked to the company, goal or participants.
+    db.resource.findMany({
+      where: {
+        document: { is: null },
+        OR: [
+          ...(companyIds.length ? [{ companies: { some: { id: { in: companyIds } } } }] : []),
+          ...(meeting.goalId ? [{ goals: { some: { id: meeting.goalId } } }] : []),
+          ...(personIds.length ? [{ people: { some: { id: { in: personIds } } } }] : []),
+          { id: "__none__" },
+        ],
+      },
+      orderBy: { updatedAt: "desc" },
+      take: 5,
+      select: { id: true, title: true, type: true, summary: true, updatedAt: true, url: true },
     }),
   ]);
   const commitments = await filterByProvenance(scope, "COMMITMENT", commitmentsRaw);
@@ -319,6 +334,10 @@ export async function buildPrepBrief(meetingId: string, access: PrepAccess): Pro
       href: links.document(d.id),
     };
   });
+  for (const r of resources) {
+    if (briefDocuments.length >= 8) break;
+    briefDocuments.push({ id: r.id, title: r.title, docType: RESOURCE_TYPES[r.type].label, version: 1, modifiedAt: formatDay(r.updatedAt, true), changeSummary: undefined, changes: r.summary ? [trim(r.summary, 160)!] : [], href: links.resource(r.id) });
+  }
   const briefTasks = openTasks.map((t) => ({
     id: t.id,
     title: t.title,

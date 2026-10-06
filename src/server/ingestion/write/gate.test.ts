@@ -15,9 +15,9 @@ describe("confidence gate", () => {
     assert.equal(gate({ confidence: 0.55, relevance: "LOW" }).outcome, "REVIEW");
   });
 
-  it("reviews low confidence only on loud sources", () => {
-    assert.equal(gate({ confidence: 0.4, relevance: "HIGH" }).outcome, "REVIEW");
-    assert.equal(gate({ confidence: 0.4, relevance: "CRITICAL" }).outcome, "REVIEW");
+  it("drops low confidence, whatever the source", () => {
+    assert.equal(gate({ confidence: 0.4, relevance: "HIGH" }).outcome, "DROP");
+    assert.equal(gate({ confidence: 0.4, relevance: "CRITICAL" }).outcome, "DROP");
     assert.equal(gate({ confidence: 0.4, relevance: "NORMAL" }).outcome, "DROP");
     assert.equal(gate({ confidence: 0.4, relevance: null }).outcome, "DROP");
   });
@@ -29,7 +29,8 @@ describe("confidence gate", () => {
       assert.ok(g.reason.length > 10);
     }
     assert.equal(gate({ confidence: 0.3, relevance: "LOW", protectedClass: "DECISION_MADE" }).outcome, "DROP");
-    assert.equal(gate({ confidence: 0.3, relevance: "HIGH", protectedClass: "DECISION_MADE" }).outcome, "REVIEW");
+    assert.equal(gate({ confidence: 0.3, relevance: "HIGH", protectedClass: "DECISION_MADE" }).outcome, "DROP");
+    assert.equal(gate({ confidence: 0.3, relevance: "CRITICAL", protectedClass: "DECISION_MADE" }).outcome, "REVIEW", "protected + critical");
   });
 
   it("clamps nonsense confidences", () => {

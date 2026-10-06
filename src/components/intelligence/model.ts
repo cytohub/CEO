@@ -166,6 +166,7 @@ export const PROPOSAL_FIELDS: Record<ReviewKind, FieldSpec[]> = {
     companyF,
     f("mirrorTask", "Track as a CEO task", "boolean"),
     f("priority", "Priority", "enum", { options: PRIORITY_OPTIONS }),
+    f("focusArea", "Function", "enum", { options: FOCUS_OPTIONS }),
     f("text", "As written", "textarea"),
   ],
   DEADLINE: [
@@ -174,6 +175,7 @@ export const PROPOSAL_FIELDS: Record<ReviewKind, FieldSpec[]> = {
     f("hard", "Hard deadline", "boolean", { always: true }),
     ownerF(),
     f("priority", "Priority", "enum", { options: PRIORITY_OPTIONS }),
+    f("focusArea", "Function", "enum", { options: FOCUS_OPTIONS }),
   ],
   DECISION: [
     f("status", "Status", "enum", { options: [{ value: "MADE", label: "Decision made" }, { value: "NEEDED", label: "Decision needed" }], always: true }),
@@ -238,7 +240,7 @@ export const PROPOSAL_FIELDS: Record<ReviewKind, FieldSpec[]> = {
     f("createDeal", "Open a fundraising deal", "boolean", { always: true }),
     f("dealName", "Deal name", "text"),
   ],
-  FIELD_CHANGE: [f("note", "Note", "textarea")],
+  FIELD_CHANGE: [f("note", "Note on the change", "textarea")],
   DOCUMENT_CHANGE: [],
 };
 
@@ -463,6 +465,14 @@ export function validateEdit(kind: ReviewKind, proposal: unknown, edited: Record
     if (key in edited && !out[key]) out[key] = issue.message;
   }
   return out;
+}
+
+/** Nothing worth showing in a read-only view (empty and not a headline field). */
+export function isEmptyField(field: Pick<ProposalField, "value" | "nameValue" | "spec">): boolean {
+  if (field.spec?.always) return false;
+  const v = field.value;
+  const empty = v == null || v === "" || (Array.isArray(v) && v.length === 0);
+  return empty && !field.nameValue;
 }
 
 /** Read-only display string for a field value. */

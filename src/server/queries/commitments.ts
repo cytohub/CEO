@@ -44,8 +44,7 @@ function tabWhere(tab: CommitmentTab, today: Date): Prisma.CommitmentWhereInput 
 
 /** The tab a commitment lives in (for ?highlight= deep links). */
 export async function tabForCommitment(id: string): Promise<CommitmentTab | null> {
-  const ceo = await getCeoContext();
-  const c = await db.commitment.findUnique({ where: { id }, select: { status: true, direction: true, dueDate: true } });
+  const c = await db.commitment.findUnique({ where: { id }, select: { status: true, direction: true } });
   if (!c) return null;
   if (c.status !== "OPEN") return "fulfilled";
   return c.direction === "OUTBOUND" ? "owe" : c.direction === "INBOUND" ? "owed" : "internal";

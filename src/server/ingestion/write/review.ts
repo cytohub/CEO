@@ -6,12 +6,12 @@
  * writer uses, with provenance, history and an audit entry.
  */
 import type { Prisma } from "@/generated/prisma/client";
-import type { EntityType, ReviewKind, ReviewStatus, Sensitivity } from "@/generated/prisma/enums";
+import type { EntityType, ReviewKind, ReviewStatus } from "@/generated/prisma/enums";
 import { db, type Tx } from "@/lib/db";
 import { audit } from "@/server/security/audit";
 import { loadCeoContext } from "@/server/context";
-import { findDuplicateTask } from "./dedupe";
-import { BRAIN_ACTOR, emptyCounters, emptySummary, snapshotOf, type WriteEnv } from "./env";
+import { actionSimilarity, findDuplicateTask } from "./dedupe";
+import { BRAIN_ACTOR, emptyCounters, emptySummary, snapshotOf, type ReviewDraft, type WriteEnv } from "./env";
 import { recordActivity, type ActivityLinks } from "./history";
 import { mergeCompanies, mergePeople } from "./merge";
 import { addSourceReference } from "./provenance";
@@ -56,21 +56,7 @@ export class ReviewError extends Error {
 
 // ─── Filing ──────────────────────────────────────────────────────────────────
 
-export interface CreateReviewInput<K extends ReviewKind = ReviewKind> {
-  kind: K;
-  title: string;
-  /** Why this needs a human (shown to the reviewer). */
-  reason: string;
-  /** 1–5 */
-  impact: number;
-  confidenceScore: number;
-  proposal: unknown;
-  targetType?: EntityType | null;
-  targetId?: string | null;
-  candidates?: { entityId: string; label: string; score: number }[] | null;
-  excerpt?: string | null;
-  fingerprint: string;
-  sensitivity?: Sensitivity;
+export interface CreateReviewInput extends ReviewDraft {
   sourceItemId?: string | null;
   now?: Date;
 }
@@ -129,13 +115,93 @@ export async function createReviewItem(tx: Tx, input: CreateReviewInput): Promis
   return { id: row.id, created: true };
 }
 
-/** createReviewItem bound to a write environment (summary + counters). */
-export async function queueReview(env: WriteEnv, input: Omit<CreateReviewInput, "sourceItemId" | "now"> & { sensitivity?: Sensitivity }): Promise<string | null> {
+/**
+ * createReviewItem bound to a write environment (summary + counters). Inside
+ * the item writer the draft is buffered and filed by flushReviews(); returns
+ * the id only when filed immediately.
+ */
+export async function queueReview(env: WriteEnv, input: ReviewDraft): Promise<string | null> {
+  if (env.reviewBuffer) {
+    env.reviewBuffer.push(input);
+    return null;
+  }
+  return fileReview(env, input);
+}
+
+async function fileReview(env: WriteEnv, input: ReviewDraft): Promise<string | null> {
   const r = await createReviewItem(env.tx, { ...input, sourceItemId: env.source?.id ?? null, now: env.now });
   if (!r) return null;
   if (!env.summary.reviewItemIds.includes(r.id)) env.summary.reviewItemIds.push(r.id);
   if (r.created) env.counters.reviewItems++;
   return r.id;
+}
+
+/** At most this many review items per source item: a reviewer sees the few that matter, the rest stay in the extraction record. */
+export const MAX_REVIEWS_PER_SOURCE = 2;
+
+/** Protected proposals change existing company truth; they win ties for the per-source slots. */
+export function isProtectedDraft(d: Pick<ReviewDraft, "kind" | "proposal">): boolean {
+  if (d.kind === "FIELD_CHANGE" || d.kind === "ENTITY_MERGE" || d.kind === "NEW_INVESTOR") return true;
+  return d.kind === "DECISION" && (d.proposal as { status?: string } | null)?.status === "MADE";
+}
+
+const KIND_PREFERENCE: Partial<Record<ReviewKind, number>> = { DECISION: 4, COMMITMENT: 3, TASK: 2, DEADLINE: 1 };
+const ACTION_KINDS = new Set<ReviewKind>(["TASK", "COMMITMENT", "DECISION", "DEADLINE"]);
+
+function subjectOf(d: ReviewDraft): string {
+  const p = (d.proposal ?? {}) as { title?: string; what?: string; targetLabel?: string };
+  return p.title ?? p.what ?? p.targetLabel ?? d.title;
+}
+
+function rank(a: ReviewDraft, b: ReviewDraft): number {
+  return b.impact - a.impact || Number(isProtectedDraft(b)) - Number(isProtectedDraft(a)) || b.confidenceScore - a.confidenceScore || (KIND_PREFERENCE[b.kind] ?? 0) - (KIND_PREFERENCE[a.kind] ?? 0);
+}
+
+/**
+ * Pick which buffered drafts to file (pure): drop repeats of the same action
+ * (a task, a deadline and a decision quoting the same ask), then keep the
+ * highest-impact ones within the per-source budget. Drafts already pending
+ * from an earlier run are kept first so the queue does not churn.
+ */
+export function selectReviewDrafts(drafts: ReviewDraft[], opts: { alreadyPending: Set<string>; slots: number }): ReviewDraft[] {
+  const byFingerprint = new Map<string, ReviewDraft>();
+  for (const d of drafts) {
+    const prev = byFingerprint.get(d.fingerprint);
+    if (!prev || rank(d, prev) < 0) byFingerprint.set(d.fingerprint, d);
+  }
+  const unique: ReviewDraft[] = [];
+  for (const d of [...byFingerprint.values()].sort(rank)) {
+    const twin = unique.find((u) => (u.kind === d.kind || (ACTION_KINDS.has(u.kind) && ACTION_KINDS.has(d.kind))) && u.kind !== "FIELD_CHANGE" && actionSimilarity(subjectOf(u), subjectOf(d)) >= 0.6);
+    if (!twin) unique.push(d);
+  }
+  const pending = unique.filter((d) => opts.alreadyPending.has(d.fingerprint));
+  const fresh = unique.filter((d) => !opts.alreadyPending.has(d.fingerprint));
+  return [...pending, ...fresh].slice(0, Math.max(opts.slots, pending.length));
+}
+
+/** File the buffered review drafts of one source item (see selectReviewDrafts). */
+export async function flushReviews(env: WriteEnv): Promise<string[]> {
+  const drafts = env.reviewBuffer ?? [];
+  env.reviewBuffer = undefined;
+  if (!drafts.length) return [];
+  const fingerprints = [...new Set(drafts.map((d) => d.fingerprint))];
+  const existing = await env.tx.reviewQueueItem.findMany({ where: { fingerprint: { in: fingerprints } }, select: { fingerprint: true, status: true } });
+  // A rejected or ignored conclusion is never asked again — and must not take a slot.
+  const resolved = new Set(existing.filter((e) => e.status !== "PENDING").map((e) => e.fingerprint));
+  const alreadyPending = new Set(existing.filter((e) => e.status === "PENDING").map((e) => e.fingerprint));
+  const others = env.source
+    ? await env.tx.reviewQueueItem.count({ where: { sourceItemId: env.source.id, status: "PENDING", fingerprint: { notIn: fingerprints } } })
+    : 0;
+  const chosen = selectReviewDrafts(
+    drafts.filter((d) => !resolved.has(d.fingerprint)),
+    { alreadyPending, slots: MAX_REVIEWS_PER_SOURCE - others },
+  );
+  const ids: string[] = [];
+  for (const d of chosen) {
+    const id = await fileReview(env, d);
+    if (id) ids.push(id);
+  }
+  return ids;
 }
 
 // ─── Resolution ──────────────────────────────────────────────────────────────
