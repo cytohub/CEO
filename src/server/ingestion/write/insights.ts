@@ -37,6 +37,8 @@ export interface InsightInput {
   occurredAt?: Date;
   excerpt?: string | null;
   confidence?: number | null;
+  /** Another source reporting the same thing: keep the insight as first written, add a CORROBORATED_BY reference. */
+  corroborateOnly?: boolean;
 }
 
 export interface InsightResult {
@@ -74,9 +76,17 @@ export async function upsertInsight(env: WriteEnv, input: InsightInput): Promise
     documentId: links.documentId ?? null,
     meetingId: links.meetingId ?? null,
   };
-  const existing = await env.tx.brainInsight.findUnique({ where: { fingerprint: input.fingerprint }, select: { id: true, status: true } });
+  const existing = await env.tx.brainInsight.findUnique({ where: { fingerprint: input.fingerprint }, select: { id: true, status: true, importance: true, requiresCeo: true, title: true } });
   let id: string;
   let created = false;
+  if (existing && input.corroborateOnly) {
+    if (existing.status === "DISMISSED") return null;
+    if (env.source && !(await hasReferenceFrom(env.tx, "INSIGHT", existing.id, env.source.id))) {
+      await reference(env, "INSIGHT", existing.id, "CORROBORATED_BY", { excerpt: input.excerpt, confidence: input.confidence });
+    }
+    if (!env.summary.insightIds.includes(existing.id)) env.summary.insightIds.push(existing.id);
+    return { id: existing.id, created: false, importance: existing.importance, requiresCeo: existing.requiresCeo, type: input.type, changeKind: data.changeKind, title: existing.title };
+  }
   if (existing) {
     if (existing.status === "DISMISSED") return null;
     // Keep links already established when the new evidence lacks them.

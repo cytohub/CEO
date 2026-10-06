@@ -303,7 +303,7 @@ function dueLabel(dueText: string | null | undefined, due: Date | null, today: D
 function usefulRecommendation(actions: { action: string; urgency: string }[], titles: (string | null | undefined)[]): string | null {
   for (const a of actions) {
     const text = a.action.trim();
-    if (!text || /and reply to|^(address|track|review)[: ]/i.test(text)) continue;
+    if (!text || /\band reply to\b|^(address|track|review)\b[: ]/i.test(text)) continue;
     if (titles.some((t) => t && tokenCoverage(t, text) >= 0.6)) continue;
     return cleanTitle(text, 160).replace(/(?<![.?!])$/, ".");
   }

@@ -11,7 +11,7 @@
  * updates the same insight and a dismissed change never comes back.
  */
 import type { DocumentType } from "@/generated/prisma/enums";
-import { dayKey, formatDay } from "@/lib/dates";
+import { dayFromKey, dayKey, formatDay } from "@/lib/dates";
 import { DOCUMENT_TYPES } from "@/lib/intelligence";
 import { companyShortName, conversationalName } from "../resolve/names";
 import type { StageData } from "../types";
@@ -20,7 +20,7 @@ import { PROTECTED_REASONS } from "./gate";
 import { recordActivity } from "./history";
 import { upsertInsight, type InsightLinks } from "./insights";
 import { dealFor, personName, type ItemCtx } from "./item";
-import { deliverablePhrase, describeChange, documentShortTitle, longDay, significanceRank, signedSentence, type SignificantChange } from "./phrasing";
+import { deliverablePhrase, describeChange, documentShortTitle, isMeaningfulMetricLabel, longDay, metricKey, requestedObject, significanceRank, signedSentence, type SignificantChange } from "./phrasing";
 import { formatMoney } from "./records";
 import { queueReview } from "./review";
 
@@ -35,6 +35,8 @@ export interface ChangeInput {
   links: InsightLinks;
   excerpt?: string | null;
   confidence?: number | null;
+  /** Same change reported by another source: corroborate the existing insight instead of rewriting it. */
+  corroborateOnly?: boolean;
 }
 
 export async function raiseChange(w: ItemCtx, c: ChangeInput) {
@@ -50,6 +52,7 @@ export async function raiseChange(w: ItemCtx, c: ChangeInput) {
     links: c.links,
     excerpt: c.excerpt,
     confidence: c.confidence,
+    corroborateOnly: c.corroborateOnly,
   });
   if (r && !w.written.changes.some((x) => x.insightId === r.id)) {
     w.written.changes.push({ insightId: r.id, changeKind: c.changeKind, importance: r.importance, requiresCeo: r.requiresCeo, title: r.title });
@@ -77,12 +80,20 @@ async function customerDeliverable(w: ItemCtx) {
   const companyId = w.resolution.primaryCompanyId;
   const company = companyId ? w.refs.companies.get(companyId) : null;
   if (!inbound || !company || (company.type !== "CUSTOMER" && company.type !== "PROSPECT")) return;
-  const asks = [
-    ...w.written.tasks.filter((t) => t.created && t.dueDate).map((t) => ({ title: t.title, due: t.dueDate!, ownerId: t.ownerId, taskId: t.id as string | null, commitmentId: null as string | null, evidence: t.evidence })),
+  type Ask = { title: string; due: Date; ownerId: string | null; taskId: string | null; commitmentId: string | null; evidence: string | null };
+  const asks: Ask[] = [
+    ...w.written.tasks.filter((t) => t.created && t.dueDate).map((t) => ({ title: t.title, due: t.dueDate!, ownerId: t.ownerId, taskId: t.id, commitmentId: null, evidence: t.evidence })),
     ...w.written.commitments
       .filter((c) => c.created && c.dueDate && c.direction !== "INBOUND")
-      .map((c) => ({ title: c.title, due: c.dueDate!, ownerId: c.ownerPersonId, taskId: c.taskId, commitmentId: c.id as string | null, evidence: null as string | null })),
-  ].sort((a, b) => a.due.getTime() - b.due.getTime());
+      .map((c) => ({ title: c.title, due: c.dueDate!, ownerId: c.ownerPersonId, taskId: c.taskId, commitmentId: c.id, evidence: null })),
+    // The request stands even when the task itself waits for review…
+    ...w.written.queuedTasks.filter((t) => t.dueDate).map((t) => ({ title: t.title, due: t.dueDate!, ownerId: t.ownerId, taskId: null, commitmentId: null, evidence: t.evidence })),
+    // …or when only a dated "we need X by <date>" was extracted.
+    ...w.extraction.deadlines
+      .filter((d) => d.hard && requestedObject(d.evidence))
+      .map((d) => ({ title: requestedObject(d.evidence)!, due: dayFromKey(d.date), ownerId: null, taskId: null, commitmentId: null, evidence: d.evidence })),
+  ];
+  asks.sort((a, b) => a.due.getTime() - b.due.getTime() || Number(!!b.taskId) - Number(!!a.taskId));
   const ask = asks[0];
   if (!ask) return;
   const short = companyShortName(company.name);
@@ -169,23 +180,26 @@ const SCIENCE_DOCS: DocumentType[] = ["EXPERIMENT_REPORT", "SCIENTIFIC_DATA_SUMM
 
 async function scientificResult(w: ItemCtx) {
   const doc = w.item.document;
-  const metrics = w.extraction.facts.filter((f) => f.kind === "METRIC" || f.kind === "PERCENT");
-  let subject: string | null = null;
-  if (doc && SCIENCE_DOCS.includes(doc.docType)) {
-    const v = await w.tx.documentVersion.findFirst({ where: { documentId: doc.id }, orderBy: { version: "desc" }, select: { version: true, isSignificant: true } });
-    if (!v || v.version === 1 || v.isSignificant) subject = `${doc.id}:v${v?.version ?? 1}`;
-  } else if (!doc && metrics.length && (w.classification.category === "SCIENTIFIC_LEADERSHIP" || w.extraction.activityTags.includes("SCIENTIFIC"))) {
-    subject = `${w.threadId ?? w.item.id}:${w.item.id}`;
+  // A result is a named metric ("Hold-out AUC: 0.88"), never a bare "Percentage: 94%".
+  const metrics = w.extraction.facts.filter((f) => (f.kind === "METRIC" || f.kind === "PERCENT") && isMeaningfulMetricLabel(f.label));
+  const top = metrics.find((f) => f.kind === "METRIC") ?? metrics[0] ?? null;
+  const scienceDoc = !!doc && SCIENCE_DOCS.includes(doc.docType);
+  if (scienceDoc) {
+    const v = await w.tx.documentVersion.findFirst({ where: { documentId: doc!.id }, orderBy: { version: "desc" }, select: { version: true, isSignificant: true } });
+    if (v && v.version > 1 && !v.isSignificant) return;
+  } else if (!top || !(w.classification.category === "SCIENTIFIC_LEADERSHIP" || w.extraction.activityTags.includes("SCIENTIFIC"))) {
+    return;
   }
-  if (!subject) return;
-  const top = metrics[0] ?? null;
+  if (!top && !scienceDoc) return;
+  // One insight per reported result: the deck, the report and the email quoting the same AUC corroborate it.
+  const subject = top ? metricKey(top.label, top.value) : `doc:${doc!.id}`;
   const text = `${top?.label ?? ""} ${doc?.title ?? w.item.title}`;
   const milestone = w.refs.milestones
     .filter((m) => ["AI_MODEL", "SCIENTIFIC_VALIDATION", "PUBLICATION", "THERAPEUTIC"].includes(m.type))
     .map((m) => ({ m, s: tokenCoverage(text, m.title) }))
     .filter((x) => x.s >= 0.3)
     .sort((a, b) => b.s - a.s)[0]?.m;
-  const label = top ? `${top.label}: ${top.value}` : doc ? `${DOCUMENT_TYPES[doc.docType].label} — ${documentShortTitle(doc.title)}` : w.item.title;
+  const label = top ? `${top.label}: ${top.value}` : `${DOCUMENT_TYPES[doc!.docType].label} — ${documentShortTitle(doc!.title)}`;
   await raiseChange(w, {
     changeKind: "new_scientific_result",
     fingerprint: `change:new_scientific_result:${subject}`,
@@ -196,6 +210,7 @@ async function scientificResult(w: ItemCtx) {
     requiresCeo: !!milestone,
     links: { documentId: doc?.id ?? null, milestoneId: milestone?.id ?? null, goalId: milestone?.goalId ?? null, companyId: w.resolution.primaryCompanyId },
     excerpt: top?.evidence ?? null,
+    corroborateOnly: true,
   });
 }
 

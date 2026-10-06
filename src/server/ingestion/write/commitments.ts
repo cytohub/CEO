@@ -16,7 +16,7 @@ import { BRAIN_ACTOR, emptyCounters, emptySummary, type WriteEnv } from "./env";
 import { upsertInsight } from "./insights";
 import type { ItemCtx } from "./item";
 import { hasReferenceFrom } from "./provenance";
-import { fulfilmentMatch, hasDeliveryCue } from "./phrasing";
+import { actionClause, actionWithRecipient, cleanTitle, fulfilmentMatch, hasDeliveryCue } from "./phrasing";
 import { fulfillCommitment } from "./records";
 import { queueReview } from "./review";
 
@@ -113,15 +113,18 @@ export async function sweepCommitments(ctx: PipelineContext): Promise<{ overdue:
 
         if (c.direction !== "INBOUND") {
           const late = c.dueDate ? daysBetween(c.dueDate, today) : 0;
-          const party = (c.counterparty ? conversationalName(c.counterparty.name) : null) ?? company ?? "them";
+          // Never print "Someone"/"them": name the counterparty when known, otherwise leave it out.
+          const party = (c.counterparty && c.counterpartyPersonId !== ctx.ceo.personId ? conversationalName(c.counterparty.name) : null) ?? company;
+          const first = c.counterparty && c.counterpartyPersonId !== ctx.ceo.personId ? conversationalName(c.counterparty.name).split(" ")[0] : null;
+          const what = cleanTitle(c.title);
           if (c.dueDate && late > 0) {
             result.overdue++;
             const insight = await upsertInsight(env, {
               type: "COMMITMENT",
               fingerprint: `commitment:overdue:${c.id}`,
-              title: ceoOwes ? `Overdue: you promised ${party} “${c.title}”` : `Overdue: ${c.owner?.name ?? "the team"} owes ${party} “${c.title}”`,
+              title: ceoOwes ? `Overdue: you promised ${party ? `${party} ` : ""}“${what}”` : `Overdue: ${c.owner ? conversationalName(c.owner.name) : "the team"} owes ${party ? `${party} ` : ""}“${what}”`,
               summary: `Due ${formatDay(c.dueDate)} (${late} day${late === 1 ? "" : "s"} ago)${c.dueText ? ` — “${c.dueText}”` : ""}.`,
-              recommendation: ceoOwes ? `Deliver it today or tell ${party} when it will arrive.` : `Check with ${c.owner?.name ?? "the owner"} and agree a new date.`,
+              recommendation: ceoOwes ? `${actionWithRecipient(c.title, first)} today${first ? `, or tell ${first} when it will arrive` : ""}.` : `Check with ${c.owner ? conversationalName(c.owner.name).split(" ")[0] : "the owner"} and agree a new date.`,
               importance: ceoOwes ? (late >= 2 || key ? 5 : 4) : 3,
               requiresCeo: ceoOwes,
               links: { ...links, personId: c.counterpartyPersonId },
@@ -133,9 +136,9 @@ export async function sweepCommitments(ctx: PipelineContext): Promise<{ overdue:
                 fingerprint: `inbox:commitment:${c.id}`,
                 type: "COMMITMENT",
                 level: "IMMEDIATE",
-                title: `You owe ${party}: ${c.title}`,
-                whyCeo: `You promised ${party}${company && c.counterparty ? ` (${company})` : ""} to ${c.title.charAt(0).toLowerCase()}${c.title.slice(1)} by ${formatDay(c.dueDate)}; it is ${late} day${late === 1 ? "" : "s"} overdue.`,
-                recommendedAction: `Send it today or tell ${party} when it will arrive.`,
+                title: party ? `You owe ${party}: ${what}` : `You promised: ${what}`,
+                whyCeo: `You promised ${party ? `${party} ` : ""}to ${actionClause(c.title)} by ${formatDay(c.dueDate)}; it is ${late} day${late === 1 ? "" : "s"} overdue.`,
+                recommendedAction: `${actionWithRecipient(c.title, first)} today${first ? `, or tell ${first} when it will arrive` : ""}.`,
                 dueDate: c.dueDate,
                 confidence: c.confidence,
                 links: { ...links, personId: c.counterpartyPersonId, insightId: insight?.id ?? null },
@@ -148,9 +151,9 @@ export async function sweepCommitments(ctx: PipelineContext): Promise<{ overdue:
               fingerprint: `inbox:commitment:${c.id}`,
               type: "COMMITMENT",
               level: "TODAY",
-              title: `You owe ${party}: ${c.title}`,
-              whyCeo: `You promised ${party} to ${c.title.charAt(0).toLowerCase()}${c.title.slice(1)} by ${formatDay(c.dueDate)}.`,
-              recommendedAction: "Block time to deliver it, or delegate the preparation and send it yourself.",
+              title: party ? `You owe ${party}: ${what}` : `You promised: ${what}`,
+              whyCeo: `You promised ${party ? `${party} ` : ""}to ${actionClause(c.title)} by ${formatDay(c.dueDate)}.`,
+              recommendedAction: `${actionWithRecipient(c.title, first)} by ${formatDay(c.dueDate)} — block the time now.`,
               dueDate: c.dueDate,
               confidence: c.confidence,
               links: { ...links, personId: c.counterpartyPersonId },

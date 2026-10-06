@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 import type { SearchGroup, SearchResultType } from "@/server/ingestion/search/types";
 import { HighlightParts, Highlight, RESULT_ICONS } from "./highlight";
 
-export function SearchResults({ groups, query, terms, limitPerType }: { groups: SearchGroup[]; query: string; terms: string[]; limitPerType: number }) {
+export function SearchResults({ groups, terms, limitPerType }: { groups: SearchGroup[]; terms: string[]; limitPerType: number }) {
   const [filter, setFilter] = useState<SearchResultType | "all">("all");
   const total = useMemo(() => groups.reduce((n, g) => n + g.results.length, 0), [groups]);
   const visible = filter === "all" ? groups : groups.filter((g) => g.type === filter);

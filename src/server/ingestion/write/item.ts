@@ -103,7 +103,10 @@ export interface ItemCtx extends WriteEnv {
   written: {
     tasks: WrittenTask[];
     commitments: WrittenCommitment[];
-    decisions: { id: string; title: string; status: "MADE" | "NEEDED"; deadline: Date | null; created: boolean; queued: boolean }[];
+    /** id is the Decision (null while only proposed for review). */
+    decisions: { id: string | null; title: string; status: "MADE" | "NEEDED"; deadline: Date | null; created: boolean; queued: boolean }[];
+    /** Tasks proposed for review (not written), still evidence of what was asked. */
+    queuedTasks: { title: string; dueDate: Date | null; evidence: string | null; ownerId: string | null }[];
     risks: { id: string; title: string; severity: number; created: boolean; companyId: string | null }[];
     opportunities: { id: string; title: string; value: number | null; created: boolean; companyId: string | null }[];
     dueChanges: DueChange[];

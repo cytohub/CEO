@@ -389,7 +389,7 @@ function LinkRow({ href, title, detail, meta, className }: { href?: string; titl
   const body = (
     <>
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-[13px] text-foreground">{title}</span>
+        <span className="line-clamp-2 block text-[13px] text-foreground">{title}</span>
         {detail && <span className="mt-0.5 line-clamp-2 block text-xs text-muted-foreground">{detail}</span>}
       </span>
       {meta}

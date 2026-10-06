@@ -15,7 +15,6 @@ import { dayFromKey, dayKey, daysBetween, formatDay, toDay } from "@/lib/dates";
 import { SOURCE_ITEM_KINDS } from "@/lib/intelligence";
 import { titleKey } from "../extract/text";
 import {
-  normalizeForEvidence,
   type ExtractedCommitmentT,
   type ExtractedDecisionT,
   type ExtractedOpportunityT,
@@ -23,7 +22,7 @@ import {
   type ExtractedTaskT,
   type IntelligenceExtraction,
 } from "../extraction-schema";
-import { companyShortName, normalizePersonName } from "../resolve/names";
+import { companyShortName, normalizePersonName, stripAccents } from "../resolve/names";
 import { upsertRelationship } from "../resolve/relationships";
 import type { Classification, LoadedSourceItem, PipelineContext, ResolutionContext, WriteSummary } from "../types";
 import { applyAttention } from "./attention";
@@ -49,6 +48,7 @@ import {
   type ItemCtx,
 } from "./item";
 import { completeMeetingFromNotes, syncCalendarMeeting } from "./meetings";
+import { cleanDecisionTitle, cleanTitle, sameSentence, sentencesOf, thirdPartyActor } from "./phrasing";
 import { hasReferenceFrom, reference } from "./provenance";
 import {
   applyDecision,
@@ -64,7 +64,7 @@ import {
   riskFingerprint,
   sourceToItemSource,
 } from "./records";
-import { queueReview } from "./review";
+import { flushReviews, queueReview } from "./review";
 import type { CommitmentProposalT, TaskProposalT } from "./review-schemas";
 import { defaultPriority, focusAreaFor, isHardDeadline, taskScores } from "./task-scoring";
 
@@ -101,7 +101,9 @@ export async function writeIntelligence(
         threadId: item.emailMessage?.threadId ?? null,
         meetingId: item.meetingId ?? item.calendarEvent?.meetingId ?? null,
         refs: await loadWriteRefs(tx, resolution),
-        written: { tasks: [], commitments: [], decisions: [], risks: [], opportunities: [], dueChanges: [], changes: [], meeting: null },
+        written: { tasks: [], commitments: [], decisions: [], queuedTasks: [], risks: [], opportunities: [], dueChanges: [], changes: [], meeting: null },
+        // Review items are collected and filed together: at most a few per source item, highest impact first.
+        reviewBuffer: [],
       };
 
       // Meetings first: tasks and decisions from the item attach to them.
@@ -126,6 +128,7 @@ export async function writeIntelligence(
       if (item.kind === "MEETING_NOTES" && item.meetingId) await completeMeetingFromNotes(w, item.meetingId);
 
       await detectChanges(w);
+      await flushReviews(w);
       await applyAttention(w);
     },
     { timeout: 120_000, maxWait: 10_000 },
@@ -313,6 +316,7 @@ async function placeTask(w: ItemCtx, p: TaskProposalT, opts: { forceReview?: str
     const t = await createTask(w, p);
     w.written.tasks.push({ id: t.id, title: p.title, ownerId: p.ownerPersonId, dueDate: p.dueDate ? dayFromKey(p.dueDate) : null, hard: p.hardDeadline, priority: p.priority, created: true, confidence: p.confidence, companyId: p.companyId, evidence: p.evidence, dueText: p.dueText });
   } else if (outcome === "REVIEW") {
+    w.written.queuedTasks.push({ title: p.title, dueDate: p.dueDate ? dayFromKey(p.dueDate) : null, evidence: p.evidence, ownerId: p.ownerPersonId });
     await queueReview(w, {
       kind: "TASK",
       title: opts.reviewTitle ?? `Possible task: ${p.title}`,
@@ -516,24 +520,51 @@ function companyLevel(name: string | null | undefined): boolean {
 
 // ─── Decisions ───────────────────────────────────────────────────────────────
 
-async function matchOpenDecision(w: ItemCtx, title: string): Promise<string | null> {
+interface OpenDecision {
+  id: string;
+  title: string;
+  deadline: Date | null;
+  status: string;
+}
+
+/**
+ * The open Decision this extraction is about. Beyond title similarity, a
+ * decision that names the same people or companies as the item matches on
+ * weaker wording ("Decide on the offer package" ↔ "Hire Laura Mitchell as VP
+ * Sales at the requested package?", whose context lists the package).
+ */
+async function matchOpenDecision(w: ItemCtx, d: { title: string; decision: string | null; evidence: string }): Promise<OpenDecision | null> {
   const open = await w.tx.decision.findMany({
     where: { status: { in: ["NEEDED", "WAITING_INFO", "DEFERRED"] } },
-    select: { id: true, title: true, companies: { select: { id: true } }, goalId: true },
+    select: { id: true, title: true, context: true, deadline: true, status: true, companies: { select: { id: true, name: true } } },
     take: 300,
   });
   const companies = new Set(w.resolution.companies.map((c) => c.id));
-  let best: { id: string; score: number } | null = null;
-  for (const d of open) {
-    const shared = d.companies.some((c) => companies.has(c.id));
-    const score = Math.max(actionSimilarity(title, d.title), tokenCoverage(d.title, title) * 0.9);
-    if (score >= (shared ? 0.5 : 0.75) && (!best || score > best.score)) best = { id: d.id, score };
+  const itemText = stripAccents(`${w.item.title}\n${w.item.text ?? ""}`).toLowerCase();
+  const names = w.resolution.people
+    .filter((p) => !p.isCeo)
+    .flatMap((p) => {
+      const n = normalizePersonName(p.label);
+      const last = n.split(" ").slice(-1)[0];
+      return [n, ...(last && last.length >= 4 ? [last] : [])];
+    });
+  const asked = `${d.title} ${d.decision ?? ""}`;
+  let best: { o: OpenDecision; score: number } | null = null;
+  for (const o of open) {
+    const hay = `${o.title} ${o.context ?? ""}`;
+    const hayNorm = stripAccents(hay).toLowerCase();
+    const sharedCompany = o.companies.some((c) => companies.has(c.id) || itemText.includes(companyShortName(c.name).toLowerCase()));
+    const titleNames = (o.title.match(/\b[A-Z][a-z]+ [A-Z][a-z]+\b/g) ?? []).map((x) => stripAccents(x).toLowerCase());
+    const sharedPerson = names.some((n) => hayNorm.includes(n)) || titleNames.some((n) => itemText.includes(n));
+    const score = Math.max(actionSimilarity(asked, o.title), tokenCoverage(d.title, hay) * 0.9, tokenCoverage(d.evidence, hay) * 0.8);
+    if (score >= (sharedCompany || sharedPerson ? 0.45 : 0.75) && (!best || score > best.score)) best = { o, score };
   }
-  return best?.id ?? null;
+  return best?.o ?? null;
 }
 
 async function writeDecision(w: ItemCtx, d: ExtractedDecisionT) {
-  const match = await matchOpenDecision(w, d.decision ? `${d.title} ${d.decision}` : d.title);
+  const open = await matchOpenDecision(w, d);
+  const match = open?.id ?? null;
   const goalId = await matchGoal(w, w.resolution.primaryCompanyId);
   const category = w.classification.category;
   const impact = Math.max(Math.round(1 + 4 * w.extraction.strategicRelevance.score), category === "BOARD" || category === "INVESTOR" || category === "FUNDRAISING" ? 4 : 3);
@@ -561,7 +592,7 @@ async function writeDecision(w: ItemCtx, d: ExtractedDecisionT) {
     if (g.outcome === "DROP") return;
     const id = await queueReview(w, {
       kind: "DECISION",
-      title: `Decision made? ${d.title}`,
+      title: `Decision made? ${cleanDecisionTitle(d.title)}`,
       reason: `${g.reason}${match ? " It appears to resolve an open decision." : ""}`,
       impact: proposal.strategicImpact,
       confidenceScore: d.confidence,
@@ -572,14 +603,35 @@ async function writeDecision(w: ItemCtx, d: ExtractedDecisionT) {
       fingerprint: `review:DECISION:MADE:${match ?? ctxKey(w)}:${shortHash(actionKey(d.title))}`,
       sensitivity: w.item.sensitivity,
     });
-    if (id) w.written.decisions.push({ id: match ?? id, title: d.title, status: "MADE", deadline: null, created: false, queued: true });
+    w.written.decisions.push({ id: match ?? id, title: open?.title ?? d.title, status: "MADE", deadline: null, created: false, queued: true });
     return;
   }
 
-  if (match) {
-    // Same open decision raised again: corroborate (and fill a missing deadline).
-    const r = await applyDecision(w, proposal);
-    w.written.decisions.push({ id: r.id, title: d.title, status: "NEEDED", deadline: d.deadline ? dayFromKey(d.deadline) : null, created: false, queued: false });
+  if (open) {
+    // The same open decision raised again: link the source; a different deadline is a protected change.
+    if (open.deadline && d.deadline && dayKey(open.deadline) !== d.deadline) {
+      const g = gate({ confidence: d.confidence, relevance: w.classification.relevance, protectedClass: "DEADLINE_CHANGE" });
+      if (g.outcome === "REVIEW") {
+        await queueReview(w, {
+          kind: "FIELD_CHANGE",
+          title: `Move decision deadline? ${cleanDecisionTitle(open.title)}: ${formatDay(open.deadline)} → ${formatDay(dayFromKey(d.deadline))}`,
+          reason: g.reason,
+          impact: proposal.strategicImpact,
+          confidenceScore: d.confidence,
+          proposal: { targetType: "DECISION", targetId: open.id, targetLabel: open.title, field: "deadline", from: dayKey(open.deadline), to: d.deadline, fromLabel: formatDay(open.deadline), toLabel: formatDay(dayFromKey(d.deadline)), changeKind: "deadline_moved", note: null, confidence: d.confidence, evidence: d.evidence },
+          targetType: "DECISION",
+          targetId: open.id,
+          excerpt: d.evidence,
+          fingerprint: `field:DECISION:${open.id}:deadline:${d.deadline}`,
+          sensitivity: w.item.sensitivity,
+        });
+      }
+      await applyDecision(w, { ...proposal, deadline: null });
+    } else {
+      await applyDecision(w, proposal);
+    }
+    const deadline = open.deadline ?? (d.deadline ? dayFromKey(d.deadline) : null);
+    w.written.decisions.push({ id: open.id, title: open.title, status: "NEEDED", deadline, created: false, queued: false });
     return;
   }
   const g = gate({ confidence: d.confidence, relevance: w.classification.relevance });
@@ -589,7 +641,7 @@ async function writeDecision(w: ItemCtx, d: ExtractedDecisionT) {
   } else if (g.outcome === "REVIEW") {
     const id = await queueReview(w, {
       kind: "DECISION",
-      title: `Decision needed? ${d.title}`,
+      title: `Decision needed? ${cleanDecisionTitle(d.title)}`,
       reason: g.reason,
       impact: proposal.strategicImpact,
       confidenceScore: d.confidence,
@@ -598,21 +650,27 @@ async function writeDecision(w: ItemCtx, d: ExtractedDecisionT) {
       fingerprint: `review:DECISION:NEEDED:${ctxKey(w)}:${shortHash(actionKey(d.title))}`,
       sensitivity: w.item.sensitivity,
     });
-    if (id) w.written.decisions.push({ id, title: d.title, status: "NEEDED", deadline: d.deadline ? dayFromKey(d.deadline) : null, created: false, queued: true });
+    w.written.decisions.push({ id, title: d.title, status: "NEEDED", deadline: d.deadline ? dayFromKey(d.deadline) : null, created: false, queued: true });
   }
 }
 
 // ─── Deadlines ───────────────────────────────────────────────────────────────
 
 async function writeDeadline(w: ItemCtx, d: IntelligenceExtraction["deadlines"][number]) {
-  // The extractor repeats the date of a dated task/commitment as a deadline from the same sentence:
-  // that record (written, deduplicated or queued) already carries the date and its firmness.
-  const ev = normalizeForEvidence(d.evidence);
-  const twins = [...w.extraction.tasks, ...w.extraction.commitments, ...w.extraction.followUps];
-  if (twins.some((x) => {
-    const e = normalizeForEvidence(x.evidence);
-    return e.includes(ev) || ev.includes(e) || (titleKey(x.title) === titleKey(d.what) && "dueDate" in x && x.dueDate === d.date);
-  })) return;
+  // The extractor repeats the date of an ask it also reported as a task, commitment, decision or
+  // risk from the same sentence: that record already carries the date (and its firmness).
+  const sentences = sentencesOf(w.item.text ?? "");
+  const x = w.extraction;
+  const others = [...x.tasks, ...x.commitments, ...x.followUps, ...x.decisions, ...x.risks, ...x.opportunities, ...x.meetingRequests].map((r) => r.evidence);
+  const covered =
+    others.some((e) => sameSentence(d.evidence, e, sentences)) ||
+    [...x.tasks, ...x.commitments].some((r) => titleKey(r.title) === titleKey(d.what) && r.dueDate === d.date);
+  const ms = milestoneFor(w, d.what);
+  if (covered) {
+    if (ms) await milestoneDate(w, ms, d);
+    return;
+  }
+
   // 1. Work written from this item.
   const local = [
     ...w.written.tasks.map((t) => ({ type: "TASK" as const, id: t.id, title: t.title, score: actionSimilarity(d.what, t.title) })),
@@ -652,59 +710,23 @@ async function writeDeadline(w: ItemCtx, d: IntelligenceExtraction["deadlines"][
   }
 
   // 3. A milestone date: later than planned means it is slipping (protected).
-  const ms = w.refs.milestones
-    .map((m) => ({ m, score: Math.max(actionSimilarity(d.what, m.title), tokenCoverage(m.title, d.what) * 0.9) }))
-    .filter((x) => x.score >= 0.6)
-    .sort((a, b) => b.score - a.score)[0]?.m;
-  if (ms) {
-    const next = dayFromKey(d.date);
-    if (next.getTime() === ms.dueDate.getTime()) return;
-    const slipped = next > ms.dueDate;
-    const gateResult = gate({ confidence: d.confidence, relevance: w.classification.relevance, protectedClass: "MILESTONE_DATE_CHANGE" });
-    if (gateResult.outcome === "DROP") return;
-    await queueReview(w, {
-      kind: "FIELD_CHANGE",
-      title: `${slipped ? "Milestone slipping" : "Milestone date change"}? ${ms.title}: ${formatDay(ms.dueDate)} → ${formatDay(next)}`,
-      reason: PROTECTED_REASONS.MILESTONE_DATE_CHANGE,
-      impact: 4,
-      confidenceScore: d.confidence,
-      proposal: { targetType: "MILESTONE", targetId: ms.id, targetLabel: ms.title, field: "dueDate", from: dayKey(ms.dueDate), to: d.date, fromLabel: formatDay(ms.dueDate), toLabel: formatDay(next), changeKind: slipped ? "milestone_slipped" : "milestone_date_changed", note: null, confidence: d.confidence, evidence: d.evidence },
-      targetType: "MILESTONE",
-      targetId: ms.id,
-      excerpt: d.evidence,
-      fingerprint: `field:MILESTONE:${ms.id}:dueDate:${d.date}`,
-      sensitivity: w.item.sensitivity,
-    });
-    if (slipped) {
-      await raiseChange(w, {
-        changeKind: "milestone_slipped",
-        fingerprint: `change:milestone_slipped:${ms.id}:${d.date}`,
-        title: `Important change: “${ms.title}” is slipping — ${formatDay(ms.dueDate)} → ${formatDay(next)}`,
-        summary: `${w.item.title} puts this milestone ${daysBetween(ms.dueDate, next)} days late. Impact: the goal it supports and any dependent board or customer commitments.`,
-        recommendation: "Confirm the new date with the owner, then approve the date change in the Review Queue or push back.",
-        importance: 4,
-        requiresCeo: true,
-        links: { milestoneId: ms.id, goalId: ms.goalId },
-        excerpt: d.evidence,
-        confidence: d.confidence,
-      });
-    }
-    return;
-  }
+  if (ms) return milestoneDate(w, ms, d);
 
-  // 4. Nothing to attach to: worth a reviewer's look only when it matters.
-  if (!(isLoud(w) || d.hard)) return;
+  // 4. Nothing to attach to: a reviewer only sees firm dates the CEO owns or was asked about, on important sources.
+  const ceoNames = [w.ceo.name, w.ceo.name.split(" ")[0], "CEO"];
+  const concernsCeo = ceoIsDirect(w) && !thirdPartyActor(d.evidence, ceoNames) && !thirdPartyActor(d.what, ceoNames);
+  if (!concernsCeo || !isLoud(w) || !d.hard) return;
   const g = gate({ confidence: d.confidence, relevance: w.classification.relevance });
   if (g.outcome === "DROP") return;
   const companyId = w.resolution.primaryCompanyId;
   await queueReview(w, {
     kind: "DEADLINE",
-    title: `Deadline: ${d.what} — ${formatDay(dayFromKey(d.date))}`,
-    reason: "A dated commitment that is not attached to any task yet.",
-    impact: d.hard ? 4 : 3,
+    title: `Deadline: ${cleanTitle(d.what)} — ${formatDay(dayFromKey(d.date))}`,
+    reason: "A firm date for the CEO that is not attached to any task yet.",
+    impact: 4,
     confidenceScore: d.confidence,
     proposal: {
-      what: d.what,
+      what: cleanTitle(d.what, 300),
       date: d.date,
       hard: d.hard,
       targetType: null,
@@ -722,6 +744,49 @@ async function writeDeadline(w: ItemCtx, d: IntelligenceExtraction["deadlines"][
     fingerprint: `review:DEADLINE:${ctxKey(w)}:${d.date}:${shortHash(actionKey(d.what))}`,
     sensitivity: w.item.sensitivity,
   });
+}
+
+function milestoneFor(w: ItemCtx, what: string) {
+  return w.refs.milestones
+    .map((m) => ({ m, score: Math.max(actionSimilarity(what, m.title), tokenCoverage(m.title, what) * 0.9) }))
+    .filter((x) => x.score >= 0.6)
+    .sort((a, b) => b.score - a.score)[0]?.m;
+}
+
+/** A dated statement about a milestone: a later date means it is slipping (protected change + insight). */
+async function milestoneDate(w: ItemCtx, ms: ItemCtx["refs"]["milestones"][number], d: IntelligenceExtraction["deadlines"][number]) {
+  const next = dayFromKey(d.date);
+  if (next.getTime() === ms.dueDate.getTime()) return;
+  const slipped = next > ms.dueDate;
+  const gateResult = gate({ confidence: d.confidence, relevance: w.classification.relevance, protectedClass: "MILESTONE_DATE_CHANGE" });
+  if (gateResult.outcome === "DROP") return;
+  await queueReview(w, {
+    kind: "FIELD_CHANGE",
+    title: `${slipped ? "Milestone slipping" : "Milestone date change"}? ${ms.title}: ${formatDay(ms.dueDate)} → ${formatDay(next)}`,
+    reason: PROTECTED_REASONS.MILESTONE_DATE_CHANGE,
+    impact: 4,
+    confidenceScore: d.confidence,
+    proposal: { targetType: "MILESTONE", targetId: ms.id, targetLabel: ms.title, field: "dueDate", from: dayKey(ms.dueDate), to: d.date, fromLabel: formatDay(ms.dueDate), toLabel: formatDay(next), changeKind: slipped ? "milestone_slipped" : "milestone_date_changed", note: null, confidence: d.confidence, evidence: d.evidence },
+    targetType: "MILESTONE",
+    targetId: ms.id,
+    excerpt: d.evidence,
+    fingerprint: `field:MILESTONE:${ms.id}:dueDate:${d.date}`,
+    sensitivity: w.item.sensitivity,
+  });
+  if (slipped) {
+    await raiseChange(w, {
+      changeKind: "milestone_slipped",
+      fingerprint: `change:milestone_slipped:${ms.id}:${d.date}`,
+      title: `Important change: “${ms.title}” is slipping — ${formatDay(ms.dueDate)} → ${formatDay(next)}`,
+      summary: `${w.item.title} puts this milestone ${daysBetween(ms.dueDate, next)} days late. Impact: the goal it supports and any dependent board or customer commitments.`,
+      recommendation: "Confirm the new date with the owner, then approve the date change in the Review Queue or push back.",
+      importance: 4,
+      requiresCeo: true,
+      links: { milestoneId: ms.id, goalId: ms.goalId },
+      excerpt: d.evidence,
+      confidence: d.confidence,
+    });
+  }
 }
 
 // ─── Risks & opportunities ───────────────────────────────────────────────────

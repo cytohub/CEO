@@ -64,7 +64,7 @@ export async function POST(request: Request) {
       try {
         if (engine === "claude") {
           try {
-            for await (const ev of streamClaudeAnswer(ceo, history, body.message, citations)) {
+            for await (const ev of streamClaudeAnswer(ceo, history, body.message, citations, viewer)) {
               if (ev.type === "delta") answer += ev.text;
               send(ev);
             }
@@ -78,7 +78,7 @@ export async function POST(request: Request) {
         }
         if (usedEngine === "brain-rules") {
           send({ type: "status", text: "Querying CytoHub Brain" });
-          const res = await answerWithRules(ceo, body.message);
+          const res = await answerWithRules(ceo, body.message, viewer);
           answer = res.markdown;
           citations.push(...res.citations);
           send({ type: "delta", text: answer });

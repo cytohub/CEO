@@ -58,7 +58,7 @@ describe("SQL access filter (scope → where)", () => {
   });
   it("one clause per scope field, all parameterized", () => {
     const sql = sourceItemAccessSql(scope({ levels: ["INTERNAL", "CONFIDENTIAL"], connectionIds: ["c1"], sourceItemIds: ["s1"], documentIds: ["d1"], threadIds: ["t1"] }));
-    assert.match(sql.text, /^\(.*\)$/s);
+    assert.ok(sql.text.startsWith("(") && sql.text.endsWith(")"));
     assert.equal(sql.text.split(" OR ").length, 5);
     assert.match(sql.text, /"si"\."sensitivity"::text = ANY\(\$1::text\[\]\)/);
     assert.match(sql.text, /"si"\."connectionId" = ANY\(\$2::text\[\]\)/);

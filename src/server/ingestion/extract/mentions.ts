@@ -207,9 +207,16 @@ export function scanSignatures(text: string): { name: string; title: string | nu
       const block = lines.slice(i + 1, i + 6).filter(Boolean);
       const nameIdx = block.findIndex((l) => nameShape.test(l));
       if (nameIdx < 0) continue;
-      const title = block[nameIdx + 1] && TITLE_WORDS.test(block[nameIdx + 1]) && block[nameIdx + 1].length < 80 ? block[nameIdx + 1] : null;
-      const orgLine = block[title ? nameIdx + 2 : nameIdx + 1];
-      const org = orgLine && /^\p{Lu}/u.test(orgLine) && !/[@:/]|\d{3}/.test(orgLine) && orgLine.length < 80 ? orgLine : null;
+      let title = block[nameIdx + 1] && TITLE_WORDS.test(block[nameIdx + 1]) && block[nameIdx + 1].length < 80 ? block[nameIdx + 1] : null;
+      // "Partner, Halvorsen Capital" / "Chief Scientific Officer | Calder Biosciences": title and organization on one line.
+      let org: string | null = null;
+      const split = title ? /^(.+?)(?:,\s+|\s+[|·]\s+)(\p{Lu}[^,|·]+)$/u.exec(title) : null;
+      if (split && !TITLE_WORDS.test(split[2])) {
+        title = split[1];
+        org = split[2].trim();
+      }
+      const orgLine = org ? null : block[title ? nameIdx + 2 : nameIdx + 1];
+      if (orgLine && /^\p{Lu}/u.test(orgLine) && !/[@:/]|\d{3}/.test(orgLine) && orgLine.length < 80) org = orgLine.split(/\s+[|·]\s+/)[0].trim();
       if (title || org) found.push({ name: block[nameIdx], title, org });
     }
   }

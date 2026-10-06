@@ -21,7 +21,8 @@ export async function searchForViewer(viewer: Viewer, query: string, opts: Searc
   const { source, ...searchOpts } = opts;
   try {
     const response = await searchBrain(viewer, q, searchOpts);
-    await audit({ action: "search.query", viewer, metadata: { length: q.length, source, intent: response.plan.intent, results: response.total } });
+    // Type-ahead in the command bar fires on every pause; auditing each would drown the log.
+    if (source !== "command-bar") await audit({ action: "search.query", viewer, metadata: { length: q.length, source, intent: response.plan.intent, results: response.total } });
     return { ok: true, response };
   } catch (error) {
     console.error("[search] failed", error instanceof Error ? error.message : error);

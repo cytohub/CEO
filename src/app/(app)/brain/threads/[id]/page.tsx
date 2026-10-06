@@ -20,7 +20,7 @@ export const metadata: Metadata = { title: "Email thread" };
 
 export default async function ThreadPage(props: { params: Promise<{ id: string }> }) {
   const { id } = await props.params;
-  const viewer = await requirePage("brain.view", `/brain/threads/${id}`);
+  const viewer = await requirePage("search.use", `/brain/threads/${id}`);
   const data = await getThreadDetail(viewer, id);
   if (!data) notFound();
   await audit({ action: "source.view", viewer, targetType: "EmailThread", targetId: id, metadata: { messages: data.messages.length } });

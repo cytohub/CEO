@@ -22,7 +22,7 @@ export const metadata: Metadata = { title: "Source" };
 
 export default async function SourcePage(props: { params: Promise<{ id: string }> }) {
   const { id } = await props.params;
-  const viewer = await requirePage("brain.view", `/sources/${id}`);
+  const viewer = await requirePage("search.use", `/sources/${id}`);
   const data = await getSourceDetail(viewer, id);
   if (!data) notFound();
   await audit({ action: "source.view", viewer, targetType: "SourceItem", targetId: id });

@@ -131,7 +131,7 @@ export default async function SearchPage(props: { searchParams: Promise<{ q?: st
                 })}
                 {response.plan.timeRange && !when && <span className="text-2xs text-muted-foreground">· question asks for {response.plan.timeRange.label.toLowerCase()}</span>}
               </nav>
-              <SearchResults groups={response.groups} query={q} terms={response.plan.terms} limitPerType={LIMIT_PER_TYPE} />
+              <SearchResults key={`${q}|${when ?? ""}`} groups={response.groups} terms={response.plan.terms} limitPerType={LIMIT_PER_TYPE} />
             </>
           ) : q.length === 1 ? (
             <div className="panel">

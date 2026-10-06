@@ -50,6 +50,8 @@ export interface TitleContext {
   thirdParty?: string | null;
   /** Rewrite "your" as "our": the CEO is the one asked, so "your team" is CytoHub's. */
   ceoPerspective?: boolean;
+  /** Keep the article after the verb (for running text: "send the revised data package"). */
+  keepArticle?: boolean;
 }
 
 /** Normalize an action clause to a title ("Send revised data package"); null when nothing actionable is left. */
@@ -82,7 +84,7 @@ export function actionTitle(clause: string, ctx: TitleContext = {}, max = 64): s
   s = s.replace(OBJECT_PRONOUN, "$1 ");
   // "have comments back" → "send comments back"; "have the model ready" → "finish the model".
   s = s.replace(/^have\s+(.+?)\s+(back|over|across)(?=$|\s+to\b)/i, "send $1 $2").replace(/^have\s+(.+?)\s+(?:ready|done|finished|completed|wrapped up)$/i, "finish $1");
-  s = s.replace(ARTICLE_AFTER_VERB, "$1 ");
+  if (!ctx.keepArticle) s = s.replace(ARTICLE_AFTER_VERB, "$1 ");
   if (ctx.ceoPerspective) s = s.replace(/\byour\b/gi, "our");
   s = s.replace(/\s+/g, " ").replace(/\s+([,.;:!?])/g, "$1").replace(/[\s,;:–—-]+$/, "").trim();
   if (s.length < 3) return null;
@@ -118,7 +120,8 @@ export function fitTitle(input: string, max: number): string {
 /** A title whose object is too thin to act on: "Make time in the morning", "Sign via DocuSign", "Follow up". */
 export function weakObject(title: string): boolean {
   if (hasPronounObject(title)) return true;
-  if (/^(?:make|find|take|have|get|set aside) (?:some )?(?:time|a look|a moment)\b|^(?:follow up|circle back|check in|touch base|get back|reach out|join|attend|be|come)\b/i.test(title)) return true;
+  if (/^(?:make|find|take|have|get|set aside) (?:some )?(?:time|a look|a moment)\b|^(?:join|attend|be|come)\b/i.test(title)) return true;
+  if (/^(?:follow up|circle back|check in|touch base|get back|reach out)(?:\s+(?:today|tomorrow|soon|later|next week|this week))?$/i.test(title)) return true;
   const words = title.split(/\s+/);
   if (words.length < 2) return true;
   // Verb followed directly by a preposition or adverb: no object at all ("Sign via DocuSign", "Reply today").
@@ -132,7 +135,7 @@ export function leadVerb(clause: string): string {
 
 /** "Send them to Karen", "Review it": the object is only a pronoun, so the title needs context. */
 export function hasPronounObject(title: string): boolean {
-  return /^\S+\s+(?:(?:it|them|this|that|these|those|one)\b)(?!\s+(?:the|a|an)\b)/i.test(title);
+  return /^\S+\s+(?:(?:it|them|this|that|these|those|one|both)\b)(?!\s+(?:the|a|an)\b)/i.test(title);
 }
 
 export function startsWithActionVerb(clause: string): boolean {
