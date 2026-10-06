@@ -186,7 +186,8 @@ export function ConnectionCard({ c, now, timezone }: { c: Card; now: Date; timez
               }}
             >
               <SelectTrigger id={`${idp}-freq`} size="sm" className="w-full text-[13px]">
-                <SelectValue />
+                {/* Explicit label: Radix fills the value only after hydration. */}
+                <SelectValue>{SYNC_FREQUENCY[frequency].label}</SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {FREQUENCIES.map((f) => (
@@ -234,7 +235,7 @@ export function ConnectionCard({ c, now, timezone }: { c: Card; now: Date; timez
               }}
             >
               <SelectTrigger id={`${idp}-sens`} size="sm" className="w-full text-[13px]">
-                <SelectValue />
+                <SelectValue>{SENSITIVITY[sensitivity].label}</SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {SENSITIVITIES.map((s) => (

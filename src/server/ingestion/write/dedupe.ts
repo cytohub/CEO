@@ -11,6 +11,7 @@
  */
 import { createHash } from "node:crypto";
 import type { Tx } from "@/lib/db";
+import { titleKey } from "../extract/text";
 import { stripAccents } from "../resolve/names";
 import { targetsReferencedBy } from "./provenance";
 
@@ -82,7 +83,9 @@ export const SHARED_CONTEXT_THRESHOLD = 0.6;
 export const NO_CONTEXT_THRESHOLD = 0.85;
 
 export function isDuplicateAction(a: string, b: string, sharedContext: boolean): { match: boolean; score: number } {
-  const score = actionSimilarity(a, b);
+  // Extractor titles are normalized imperatives: an identical title key is the same action.
+  const ka = titleKey(a);
+  const score = ka && ka === titleKey(b) ? 1 : actionSimilarity(a, b);
   return { match: score >= (sharedContext ? SHARED_CONTEXT_THRESHOLD : NO_CONTEXT_THRESHOLD), score };
 }
 

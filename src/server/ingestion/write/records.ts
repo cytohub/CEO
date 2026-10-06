@@ -8,6 +8,7 @@ import type { EntityType } from "@/generated/prisma/enums";
 import type { Tx } from "@/lib/db";
 import { addDays, dayFromKey, dayKey, formatDay } from "@/lib/dates";
 import { confidenceFromScore, SOURCE_ITEM_KINDS } from "@/lib/intelligence";
+import { registrableDomain } from "../extract/text";
 import { domainOf, normalizeCompanyName, normalizePersonName } from "../resolve/names";
 import { upsertRelationship } from "../resolve/relationships";
 import { actionKey, shortHash } from "./dedupe";
@@ -786,8 +787,9 @@ export async function addAlias(
   confidence = 1,
   now?: Date,
 ): Promise<boolean> {
+  // Domains are stored as lower-case registrable domains so classification (registrableDomain) and resolution agree.
   const normalized =
-    kind === "EMAIL" || kind === "DOMAIN" ? alias.trim().toLowerCase() : entityType === "PERSON" ? normalizePersonName(alias) : normalizeCompanyName(alias);
+    kind === "DOMAIN" ? registrableDomain(alias.trim()) : kind === "EMAIL" ? alias.trim().toLowerCase() : entityType === "PERSON" ? normalizePersonName(alias) : normalizeCompanyName(alias);
   if (!normalized) return false;
   const existing = await tx.entityAlias.findUnique({ where: { entityType_entityId_normalized: { entityType, entityId, normalized } }, select: { id: true } });
   if (existing) return false;
@@ -799,6 +801,7 @@ export async function addAlias(
 async function attachPeople(env: WriteEnv, companyId: string, companyType: string, personIds: string[], domain: string | null) {
   const { tx } = env;
   const ids = new Set(personIds);
+  domain = domain ? registrableDomain(domain) : null;
   if (domain) {
     const byDomain = await tx.person.findMany({ where: { companyId: null, email: { endsWith: `@${domain}` } }, select: { id: true } });
     for (const p of byDomain) ids.add(p.id);
@@ -808,14 +811,15 @@ async function attachPeople(env: WriteEnv, companyId: string, companyType: strin
   const people = await tx.person.findMany({ where: { id: { in: [...ids] }, companyId: null, isCeo: false }, select: { id: true, type: true, email: true } });
   for (const p of people) {
     await tx.person.update({ where: { id: p.id }, data: { companyId, ...(p.type === "OTHER" ? { type } : {}) } });
-    if (p.email && domainOf(p.email) === domain) {
+    if (p.email && domain && registrableDomain(domainOf(p.email) ?? "") === registrableDomain(domain)) {
       await upsertRelationship(tx, { fromType: "PERSON", fromId: p.id, relation: "WORKS_AT", toType: "COMPANY", toId: companyId, confidence: 0.95, sourceItemId: env.source?.id ?? null, at: env.now });
     }
   }
 }
 
-async function createCompanyRow(env: WriteEnv, input: { name: string; domain: string | null; type: "INVESTOR" | "CUSTOMER" | "PROSPECT" | "PARTNER" | "ACADEMIC" | "VENDOR" | "COMPETITOR" | "OTHER"; industry?: string | null; website?: string | null }, why: string) {
+async function createCompanyRow(env: WriteEnv, raw: { name: string; domain: string | null; type: "INVESTOR" | "CUSTOMER" | "PROSPECT" | "PARTNER" | "ACADEMIC" | "VENDOR" | "COMPETITOR" | "OTHER"; industry?: string | null; website?: string | null }, why: string) {
   const { tx } = env;
+  const input = { ...raw, domain: raw.domain ? registrableDomain(raw.domain) : null };
   const sameName = await tx.company.findUnique({ where: { name: input.name }, select: { id: true, type: true, name: true } });
   if (sameName) {
     if (input.domain) await addAlias(tx, "COMPANY", sameName.id, input.domain, "DOMAIN", "LEARNED", 0.9, env.now);

@@ -18,6 +18,7 @@ import {
   today as todayIn,
 } from "../src/lib/dates";
 import { runBrainRefresh } from "../src/server/brain/refresh";
+import { createDemoConnection } from "../src/server/ingestion/connections";
 import { DEFAULT_WEIGHTS, scoreTask } from "../src/server/brain/scoring";
 import { DEFAULT_THRESHOLDS } from "../src/server/settings";
 import { CONNECTOR_DEFINITIONS } from "../src/server/brain/connectors";
@@ -465,7 +466,9 @@ async function main() {
   await db.timeEntry.createMany({ data: entries });
 
   // ── Brain sources & signals ───────────────────────────────────────────────
-  const sampleSources = new Set(["outlook-mail", "outlook-calendar", "teams", "sharepoint", "hubspot", "granola"]);
+  // Email, calendar and documents arrive through the ingestion pipeline (demo
+  // connections below); these legacy connectors still provide sample signals.
+  const sampleSources = new Set(["teams", "hubspot", "granola"]);
   const sourceId: Record<string, string> = {};
   for (const c of CONNECTOR_DEFINITIONS) {
     const row = await db.brainSource.create({
@@ -491,6 +494,7 @@ async function main() {
     return out;
   };
   for (const [i, s] of SIGNALS.entries()) {
+    if (!sampleSources.has(s.source)) continue;
     const meta = { ...s.meta } as Record<string, unknown>;
     if (meta.links) meta.links = resolveLinks(meta.links as Record<string, string>);
     if (typeof meta.dueOffset === "number") meta.dueDate = dayKey(workday(meta.dueOffset as number));
@@ -519,12 +523,24 @@ async function main() {
     await db.brainSource.update({ where: { key }, data: { itemsIndexed: await db.brainSignal.count({ where: { sourceId: sourceId[key] } }) * 37 + 120 } });
   }
 
+  // ── Ingestion: demo mailbox, calendar and drive (mock providers) ──────────
+  // Fixtures are anchored to now: each refresh below reveals what had
+  // "arrived" by its clock, and later hourly syncs reveal the rest.
+  const ceoUser = await db.user.findFirstOrThrow({ where: { role: "CEO" } });
+  for (const [kind, provider] of [
+    ["EMAIL", "OUTLOOK_MAIL"],
+    ["CALENDAR", "OUTLOOK_CALENDAR"],
+    ["DOCUMENTS", "GOOGLE_DRIVE"],
+  ] as const) {
+    await createDemoConnection(kind, provider, { userId: ceoUser.id }, { anchor: NOW });
+  }
+
   // ── History: activities, goals, day plans, reviews ───────────────────────
   await seedHistory({ taskId, goalId, milestoneId, decisionId, personId });
 
   // ── Brain: yesterday's and today's refresh through the real pipeline ─────
   const yesterdayRun = hoursAgo(24);
-  const y = await runBrainRefresh({ trigger: "SCHEDULED", now: yesterdayRun });
+  const y = await runBrainRefresh({ trigger: "SCHEDULED", now: yesterdayRun, ingestBudgetMs: 900_000 });
   console.log(`  Yesterday's refresh: ${y.status}, ${y.insightsCreated} insights, ${y.inboxCreated} inbox items`);
   const yesterday = addDays(TODAY, -1);
   await db.dailyBrief.updateMany({ where: { date: yesterday }, data: { reviewedAt: new Date(yesterdayRun.getTime() + 0.4 * HOUR) } });
@@ -543,11 +559,24 @@ async function main() {
     await db.inboxItem.update({ where: { id: h.id }, data: { status: "DONE", resolvedAt: new Date(yesterdayRun.getTime() + 6 * HOUR), resolution: "Handled yesterday." } });
   }
 
-  const t = await runBrainRefresh({ trigger: "SCHEDULED" });
+  const t = await runBrainRefresh({ trigger: "SCHEDULED", ingestBudgetMs: 900_000 });
   console.log(`  Today's refresh: ${t.status}, ${t.insightsCreated} insights, ${t.inboxCreated} inbox items, ${t.tasksCreated} commitments captured`);
 
   const counts = await Promise.all([db.task.count(), db.goal.count(), db.milestone.count(), db.brainInsight.count(), db.inboxItem.count({ where: { status: "OPEN" } })]);
   console.log(`  ${counts[0]} tasks · ${counts[1]} goals · ${counts[2]} milestones · ${counts[3]} insights · ${counts[4]} open inbox items`);
+  const ingested = await Promise.all([
+    db.sourceItem.count(),
+    db.sourceItem.count({ where: { status: "PROCESSED" } }),
+    db.sourceItem.count({ where: { status: "SKIPPED" } }),
+    db.emailThread.count(),
+    db.document.count(),
+    db.commitment.count(),
+    db.reviewQueueItem.count({ where: { status: "PENDING" } }),
+    db.ingestionJob.count({ where: { status: { in: ["QUEUED", "FAILED", "DEAD"] } } }),
+  ]);
+  console.log(
+    `  Ingested ${ingested[0]} source items (${ingested[1]} processed, ${ingested[2]} skipped as noise/duplicates) · ${ingested[3]} threads · ${ingested[4]} documents · ${ingested[5]} commitments · ${ingested[6]} awaiting review · ${ingested[7]} jobs not finished`,
+  );
 }
 
 async function seedDerivedHistory(metricId: string, key: string, factors: number[]) {

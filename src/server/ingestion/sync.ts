@@ -114,13 +114,16 @@ export async function syncConnection(ctx: PipelineContext, connectionId: string,
     throw new ProviderAuthError(message);
   }
 
-  // One sync per connection at a time: a run already in flight covers this request.
-  const inFlight = await db.ingestionJob.findFirst({
-    where: { connectionId, type: SYNC_JOB[conn.kind], status: "RUNNING", runId: { not: run.id } },
+  // One sync per connection at a time: the earliest-started running job wins, later ones
+  // fold into it (a deterministic order, so two simultaneous jobs never both step aside).
+  const running = await db.ingestionJob.findMany({
+    where: { connectionId, type: SYNC_JOB[conn.kind], status: "RUNNING" },
+    orderBy: [{ startedAt: "asc" }, { id: "asc" }],
     select: { runId: true },
+    take: 1,
   });
-  if (inFlight) {
-    await finishRun(run, "SUCCEEDED", { notes: [`Merged into the sync already running (run ${inFlight.runId ?? "unknown"})`] });
+  if (running[0] && running[0].runId !== run.id) {
+    await finishRun(run, "SUCCEEDED", { notes: [`Merged into the sync already running (run ${running[0].runId ?? "unknown"})`] });
     return base;
   }
 
@@ -646,7 +649,11 @@ async function recordFailure(state: SyncState, cursor: SyncCursor | null, error:
       log: appendLog(run, state.notes),
     },
   });
-  if (error instanceof ProviderAuthError) return; // the worker marks the connection NEEDS_REAUTH
+  if (error instanceof ProviderAuthError) {
+    // The worker does this too; doing it here keeps direct callers (scripts, tests) consistent.
+    await db.sourceConnection.update({ where: { id: conn.id }, data: { status: "NEEDS_REAUTH", lastError: message, lastErrorAt: ctx.now } });
+    return;
+  }
   const failures = conn.consecutiveFailures + 1;
   await db.sourceConnection.update({
     where: { id: conn.id },

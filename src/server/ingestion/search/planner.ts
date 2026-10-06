@@ -627,6 +627,30 @@ export function planQuery(rawQuery: string, lexicon: Lexicon, ctx: PlanContext):
   };
 }
 
+/** A plan built in code (Chief of Staff tools) rather than parsed from a question. */
+export function explicitPlan(query: string, patch: Partial<QueryPlan>): QueryPlan {
+  return {
+    query,
+    intent: "keyword",
+    text: "",
+    terms: [],
+    entities: [],
+    topic: null,
+    recordTypes: [],
+    direction: null,
+    companyTypes: [],
+    categories: [],
+    timeRange: null,
+    timeField: "occurred",
+    openOnly: false,
+    sort: "relevance",
+    confidence: 1,
+    engine: "rules",
+    explanation: [],
+    ...patch,
+  };
+}
+
 /** The residual tokens as a phrase, trimmed of leading/trailing stopwords ("the series b" → "series b"). */
 function residualPhrase(tokens: Token[]): string | null {
   const ws = tokens.map((t) => t.norm);

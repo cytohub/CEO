@@ -27,7 +27,7 @@ export interface IngestStageResult {
 export async function runIngestStage(opts: { trigger: RunTrigger; now: Date; budgetMs: number }): Promise<IngestStageResult> {
   const errors: string[] = [];
   const runs = await requestAllSyncs(opts.trigger === "SEED" ? "SEED" : "REFRESH");
-  const drain = await drainQueue({ budgetMs: opts.budgetMs, now: opts.now });
+  const drain = await drainQueue({ budgetMs: opts.budgetMs, now: opts.now, settleMs: 10_000 });
 
   const ctx = await createPipelineContext({ trigger: "REFRESH", now: opts.now });
   const meetingsCompleted = await markCompletedMeetings(ctx).catch((e: unknown) => {

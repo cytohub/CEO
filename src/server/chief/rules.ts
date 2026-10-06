@@ -5,6 +5,10 @@
  */
 import type { CeoContext } from "@/server/context";
 import type { PrepBrief } from "@/server/brain/prepare";
+import { loadLexicon } from "@/server/ingestion/search/lexicon";
+import { planQuery } from "@/server/ingestion/search/planner";
+import { snippetText } from "@/server/ingestion/search/snippets";
+import { RESULT_LABELS, type SearchResponse, type SearchViewer } from "@/server/ingestion/search/types";
 import * as tools from "./tools";
 import type { Citation } from "./tools";
 
@@ -38,13 +42,46 @@ export function classify(question: string): string {
   return "search";
 }
 
-export async function answerWithRules(ceo: CeoContext, question: string): Promise<RulesAnswer> {
-  const intent = classify(question);
+/** Planner intents the universal search answers better than the legacy intents. */
+const PLANNER_INTENTS = new Set(["commitments", "waiting", "deadlines", "discussed", "conversations", "status"]);
+
+/** Universal search results as Chief of Staff markdown (answer, then grouped items). */
+export function renderSearch(res: SearchResponse, maxGroups = 6, perGroup = 5): string {
+  const parts = [res.answer.text];
+  if (res.accessNote) parts.push(`_${res.accessNote}_`);
+  for (const g of res.groups.slice(0, maxGroups)) {
+    const items = g.results.slice(0, perGroup).map((r) => {
+      const excerpt = snippetText(r.snippet).slice(0, 160);
+      return `**${r.title}**${r.subtitle ? ` — ${r.subtitle}` : ""}${r.badges?.length ? ` · _${r.badges.join(", ")}_` : ""}${excerpt && g.type !== "commitment" ? `\n  ${excerpt}` : ""}`;
+    });
+    parts.push(`### ${RESULT_LABELS[g.type].plural}\n${list(items)}`);
+  }
+  return parts.join("\n\n");
+}
+
+function searchCitations(res: SearchResponse): Citation[] {
+  const out = [...res.answer.citations];
+  for (const g of res.groups) for (const r of g.results.slice(0, 3)) out.push({ type: r.type, id: r.id, label: r.title, href: r.href });
+  return out;
+}
+
+export async function answerWithRules(ceo: CeoContext, question: string, viewer?: SearchViewer | null): Promise<RulesAnswer> {
+  const v = await tools.toolViewer(viewer);
   const citations: Citation[] = [];
   const collect = <T>(r: tools.ToolResult<T>) => {
     citations.push(...r.citations);
     return r.data;
   };
+
+  // Commitments, deadlines, who is waiting, conversation history and status
+  // questions go through the natural-language planner + universal search.
+  const plan = planQuery(question, await loadLexicon(), { today: ceo.today });
+  if (PLANNER_INTENTS.has(plan.intent) && plan.confidence >= 0.6 && (plan.intent !== "status" || plan.entities.length > 0)) {
+    const res = await tools.searchBrainResponse(question, v);
+    return { markdown: renderSearch(res), citations: searchCitations(res) };
+  }
+
+  const intent = classify(question);
 
   switch (intent) {
     case "focus": {
@@ -165,17 +202,22 @@ export async function answerWithRules(ceo: CeoContext, question: string): Promis
       };
     }
     case "prepare": {
-      const r = collect(await tools.prepareNextMeeting(ceo)) as { meeting?: string; at?: string; brief?: PrepBrief; message?: string };
+      const r = collect(await tools.prepareNextMeeting(ceo, v)) as { meeting?: string; at?: string; brief?: PrepBrief; message?: string };
       if (!r.brief) return { markdown: r.message ?? "No important meetings coming up.", citations };
       const b = r.brief;
       return {
         markdown: [
           `### ${r.meeting} — ${r.at}`,
+          b.objective ? `**Objective:** ${b.objective}` : null,
           b.context,
           `**Desired outcome:** ${b.desiredOutcome}`,
+          b.commitments.some((c) => c.state !== "fulfilled")
+            ? `### Commitments in play\n${list(b.commitments.filter((c) => c.state !== "fulfilled").map((c) => `${c.direction === "OUTBOUND" ? "You owe" : "They owe"}: **${c.title}**${c.due ? ` (${c.due})` : ""}${c.state === "overdue" ? " — _overdue_" : ""}`))}`
+            : null,
           `### Talking points\n${b.talkingPoints.map((t, i) => `${i + 1}. ${t}`).join("\n")}`,
           `### Questions to ask\n${list(b.questions)}`,
           b.risks.length ? `### Risks\n${list(b.risks)}` : null,
+          b.openQuestions.length ? `### Open questions\n${list(b.openQuestions.slice(0, 4).map((q) => q.question))}` : null,
           b.openIssues.length ? `### Open issues\n${list(b.openIssues.map((o) => `${o.kind}: ${o.title}`))}` : null,
           "Open the meeting in Upcoming for the full Prepare Me brief.",
         ]
@@ -233,15 +275,21 @@ export async function answerWithRules(ceo: CeoContext, question: string): Promis
     case "entity": {
       const m = /(?:about|related to|on|show me|know about)\s+(.+?)[?.!]*$/i.exec(question);
       const target = (m?.[1] ?? question).replace(/^(everything|all)\s+/i, "").replace(/\b(related to|about)\b/gi, "").trim();
-      const ctx = collect(await tools.getEntityContext(ceo, target)) as Row;
-      return { markdown: renderEntity(ctx, target), citations };
+      const ctx = collect(await tools.getEntityContext(ceo, target, v)) as Row;
+      // Add the source side: recent conversations the viewer may read.
+      const conv = await tools.searchBrainResponse(`What have we discussed with ${target}?`, v);
+      const threads = conv.plan.intent === "discussed" ? (conv.groups.find((g) => g.type === "thread")?.results ?? []).slice(0, 4) : [];
+      citations.push(...threads.map((t) => ({ type: "thread", id: t.id, label: t.title, href: t.href })));
+      const recent = threads.length ? `\n\n### Recent conversations\n${list(threads.map((t) => `**${t.title}** — ${t.subtitle ?? ""}${t.meta?.summary ? `\n  ${String(t.meta.summary).slice(0, 200)}` : ""}`))}` : "";
+      return { markdown: renderEntity(ctx, target) + recent, citations };
     }
     default: {
-      const hits = collect(await tools.searchBrainTool(question)) as Row[];
+      const res = await tools.searchBrainResponse(question, v);
+      citations.push(...searchCitations(res));
       return {
-        markdown: hits.length
-          ? `Here’s what CytoHub Brain found for “${question}”:\n\n${list(hits.map((h) => `**${h.title}** — ${h.type}${h.detail ? ` · ${h.detail}` : ""}`))}`
-          : `I couldn’t find anything for “${question}”. Try asking:\n\n- What should I focus on today?\n- What am I forgetting?\n- What is most likely to become a problem?\n- Show me everything related to Brightwater`,
+        markdown: res.total
+          ? renderSearch(res)
+          : `I couldn’t find anything for “${question}”. Try asking:\n\n- What should I focus on today?\n- What commitments have I made to investors?\n- Which customers are waiting on CytoHub?\n- Show me everything related to Brightwater`,
         citations,
       };
     }

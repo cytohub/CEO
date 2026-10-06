@@ -150,12 +150,13 @@ export function SeverityMeter({ severity, className }: { severity: number; class
 }
 
 /** Quiet note shown when provenance rows were filtered out for this viewer. */
-export function HiddenSourcesNote({ count, className }: { count: number; className?: string }) {
+export function HiddenSourcesNote({ count, className, noun = "source" }: { count: number; className?: string; noun?: string }) {
   if (!count) return null;
   return (
     <p className={cn("flex items-center gap-1.5 text-2xs text-muted-foreground", className)}>
       <Lock className="size-3 shrink-0" aria-hidden />
-      {count} source{count === 1 ? "" : "s"} hidden by your access level
+      {count} {noun}
+      {count === 1 ? "" : "s"} hidden by your access level
     </p>
   );
 }

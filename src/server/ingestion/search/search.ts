@@ -225,14 +225,24 @@ export interface SearchDeps {
 }
 
 export async function searchBrain(viewer: SearchViewer, query: string, opts: SearchOptions = {}, deps: SearchDeps = {}): Promise<SearchResponse> {
+  const now = opts.now ?? new Date();
+  const ceo = await loadCeoContext(db, now);
+  const lexicon = deps.lexicon ?? (await loadLexicon());
+  let plan = planQuery(query, lexicon, { today: ceo.today });
+  if (plan.confidence < 0.6 && opts.claudePlanner && claudeEnabled()) plan = (await planWithClaude(query, lexicon, ceo.today, plan)) ?? plan;
+  return searchWithPlan(viewer, plan, opts, deps);
+}
+
+/**
+ * Execute an explicit plan (the Chief of Staff tools build plans directly:
+ * "open outbound commitments to investors", "everything about Lumen").
+ */
+export async function searchWithPlan(viewer: SearchViewer, inputPlan: QueryPlan, opts: SearchOptions = {}, deps: SearchDeps = {}): Promise<SearchResponse> {
   const started = Date.now();
   const now = opts.now ?? new Date();
   const ceo = await loadCeoContext(db, now);
-  const [scope, lexicon] = await Promise.all([deps.scope ?? getAccessScope(viewer), deps.lexicon ?? loadLexicon()]);
-
-  let plan = planQuery(query, lexicon, { today: ceo.today });
-  if (plan.confidence < 0.6 && opts.claudePlanner && claudeEnabled()) plan = (await planWithClaude(query, lexicon, ceo.today, plan)) ?? plan;
-  plan = applyOverrides(plan, opts, ceo.today);
+  const scope = deps.scope ?? (await getAccessScope(viewer));
+  let plan = applyOverrides(inputPlan, opts, ceo.today);
 
   const limit = Math.min(Math.max(opts.limitPerType ?? 8, 1), 25);
   const structuredExcluded = !viewer.capabilities.includes("workspace.view");

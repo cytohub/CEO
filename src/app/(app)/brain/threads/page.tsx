@@ -43,7 +43,7 @@ export default async function ThreadsPage(props: { searchParams: Promise<{ statu
             Conversations CytoHub Brain follows, each with an evolving summary, open questions and the commitments in it. Newsletters and notifications are hidden unless you ask for them.
             {awaitingYou > 0 && (
               <span className="mt-1 block font-medium text-serious-ink">
-                {awaitingYou} thread{awaitingYou === 1 ? "" : "s"} awaiting your reply
+                {awaitingYou} thread{awaitingYou === 1 ? "" : "s"} awaiting {viewer.role === "CEO" ? "your" : "the CEO’s"} reply
               </span>
             )}
           </>

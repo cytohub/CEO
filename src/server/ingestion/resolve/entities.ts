@@ -25,6 +25,7 @@ import { recordActivity } from "../write/history";
 import { addAlias, personTypeForCompany } from "../write/records";
 import { queueReview } from "../write/review";
 import type { Classification, LoadedSourceItem, MentionDraft, PipelineContext, ResolutionContext, StageData } from "../types";
+import { registrableDomain } from "../extract/text";
 import { familyMembers, knownForms, knownOrganizationByName, knownParent } from "./known-organizations";
 import {
   companyCoreName,
@@ -233,7 +234,8 @@ class Resolver {
     return out;
   }
 
-  private async resolveDomain(domain: string, opts: { participant: boolean; nameHint?: string | null }): Promise<DomainOutcome> {
+  private async resolveDomain(fullDomain: string, opts: { participant: boolean; nameHint?: string | null }): Promise<DomainOutcome> {
+    let domain = fullDomain;
     for (const key of domainLookupKeys(domain)) {
       const hit = this.dir.companiesByDomain.get(key);
       if (hit) return { company: hit, resolution: "RESOLVED", confidence: 1 };
@@ -241,8 +243,10 @@ class Resolver {
     if (domain === this.ownDomain || domainLookupKeys(domain).includes(this.ownDomain)) return { company: null, resolution: "IGNORED", confidence: 1, reason: "own domain" };
     if (isFreeMailDomain(domain)) return { company: null, resolution: "IGNORED", confidence: 1, reason: "free-mail domain" };
     if (!opts.participant || this.isNoise) return { company: null, resolution: "UNRESOLVED", confidence: 0, reason: "unknown domain" };
+    // New organizations are keyed by their registrable domain ("mail.acme.com" → "acme.com").
+    domain = registrableDomain(domain);
 
-    const candidates = [this.domainHints.get(domain), opts.nameHint].map((h) => h?.trim()).filter((h): h is string => !!h && h.length >= 2 && !h.includes("@"));
+    const candidates = [this.domainHints.get(domain) ?? this.domainHints.get(fullDomain), opts.nameHint].map((h) => h?.trim()).filter((h): h is string => !!h && h.length >= 2 && !h.includes("@"));
     const hint = candidates.find((h) => !isDomainDerived(h, domain)) ?? null;
     const name = hint ?? prettifyDomain(domain);
     const normalized = normalizeCompanyName(name);
@@ -341,7 +345,7 @@ class Resolver {
       const same = (this.dir.peopleByName.get(n) ?? []).filter((p) => {
         if (!p.email && !p.companyId) return false;
         const pd = domainOf(p.email);
-        return (pd && pd === domain) || (company?.company && p.companyId === company.company.id);
+        return (pd && domain && registrableDomain(pd) === registrableDomain(domain)) || (company?.company && p.companyId === company.company.id);
       });
       if (same.length === 1) {
         await addAlias(this.tx, "PERSON", same[0].id, addr, "EMAIL", "LEARNED", 0.9, this.ctx.now);
@@ -383,7 +387,7 @@ class Resolver {
       });
     }
     // Attach to a pending investor review so approval can link them.
-    if (company?.reason === "new investor pending review" && domain) await this.attachToInvestorReview(domain, row.id);
+    if (company?.reason === "new investor pending review" && domain) await this.attachToInvestorReview(registrableDomain(domain), row.id);
     return { entityId: row.id, resolution: "CREATED", confidence: 1 };
   }
 

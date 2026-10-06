@@ -203,6 +203,7 @@ export const PROPOSAL_FIELDS: Record<ReviewKind, FieldSpec[]> = {
     f("estimatedValue", "Value (USD)", "money", { always: true }),
     f("nextStep", "Next step", "text", { always: true }),
     companyF,
+    f("personId", "Contact", "person"),
     goalF,
     f("description", "Description", "textarea"),
   ],

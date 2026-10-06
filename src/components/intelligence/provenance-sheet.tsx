@@ -75,7 +75,9 @@ export function ProvenanceSheet() {
             {!current
               ? "Loading sources…"
               : data
-                ? `${data.refs.length} source${data.refs.length === 1 ? "" : "s"} · every record CytoHub Brain writes points back to what produced it.`
+                ? data.refs.length === 0 && data.hidden > 0
+                  ? "Every source of this record is above your access level."
+                  : `${data.refs.length} source${data.refs.length === 1 ? "" : "s"} · every record CytoHub Brain writes points back to what produced it.`
                 : "Sources unavailable."}
           </SheetDescription>
         </SheetHeader>

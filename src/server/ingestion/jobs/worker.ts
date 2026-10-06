@@ -31,6 +31,8 @@ export async function drainQueue(
     workerId?: string;
     /** Simulated clock for every job's PipelineContext (seeding / time-travel tests). */
     now?: Date;
+    /** Also wait for jobs scheduled within this many ms (debounced summaries, priority recalcs). */
+    settleMs?: number;
   } = {},
 ): Promise<DrainResult> {
   const started = Date.now();
@@ -41,7 +43,20 @@ export async function drainQueue(
 
   while (Date.now() - started < budget && (!opts.maxJobs || result.processed < opts.maxJobs)) {
     const job = await claim(workerId, opts.types);
-    if (!job) break;
+    if (!job) {
+      // Debounced follow-up work (thread summaries, priority recalcs) is scheduled a few
+      // seconds out; when asked to settle, wait for it instead of leaving it queued.
+      if (!opts.settleMs) break;
+      const next = await db.ingestionJob.findFirst({
+        where: { status: { in: ["QUEUED", "FAILED"] }, runAt: { lte: new Date(Date.now() + opts.settleMs) }, ...(opts.types ? { type: { in: opts.types } } : {}) },
+        orderBy: { runAt: "asc" },
+        select: { runAt: true },
+      });
+      const waitMs = next ? next.runAt.getTime() - Date.now() : -1;
+      if (!next || waitMs > budget - (Date.now() - started)) break;
+      await new Promise((r) => setTimeout(r, Math.max(50, waitMs + 50)));
+      continue;
+    }
     result.processed++;
     const ctx = await createPipelineContext({ runId: job.runId, trigger: "MANUAL", now: opts.now });
     try {

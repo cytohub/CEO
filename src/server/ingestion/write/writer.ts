@@ -13,13 +13,15 @@ import type { Prisma } from "@/generated/prisma/client";
 import type { ResourceType } from "@/generated/prisma/enums";
 import { dayFromKey, dayKey, daysBetween, formatDay, toDay } from "@/lib/dates";
 import { SOURCE_ITEM_KINDS } from "@/lib/intelligence";
-import type {
-  ExtractedCommitmentT,
-  ExtractedDecisionT,
-  ExtractedOpportunityT,
-  ExtractedRiskT,
-  ExtractedTaskT,
-  IntelligenceExtraction,
+import { titleKey } from "../extract/text";
+import {
+  normalizeForEvidence,
+  type ExtractedCommitmentT,
+  type ExtractedDecisionT,
+  type ExtractedOpportunityT,
+  type ExtractedRiskT,
+  type ExtractedTaskT,
+  type IntelligenceExtraction,
 } from "../extraction-schema";
 import { companyShortName, normalizePersonName } from "../resolve/names";
 import { upsertRelationship } from "../resolve/relationships";
@@ -345,15 +347,20 @@ async function writeTask(w: ItemCtx, t: ExtractedTaskT) {
   let ownerPersonId: string | null = owner.kind === "UNKNOWN" ? null : owner.personId;
   let forceReview: string | null = null;
   if (owner.kind === "UNKNOWN") {
+    // Unowned action items are never silently assigned: a reviewer picks the owner (the CEO by default when addressed).
     if (owner.name) forceReview = `The owner “${owner.name}” is not a known CytoHub person.`;
-    else if (ceoIsDirect(w)) ownerPersonId = w.ceo.personId;
-    else forceReview = "No owner was named and the CEO was not addressed directly.";
+    else forceReview = "No owner was named for this action item.";
+    if (!owner.name && ceoIsDirect(w)) ownerPersonId = w.ceo.personId;
   }
   const p = await buildTaskProposal(w, t, ownerPersonId, { ownerIsCeo: ownerPersonId === w.ceo.personId });
   await placeTask(w, p, { forceReview });
 }
 
 async function writeFollowUp(w: ItemCtx, f: IntelligenceExtraction["followUps"][number]) {
+  if (/^expect\b/i.test(f.title)) {
+    // "Expect follow-up from Henrik": they owe us the next step.
+    return writeCommitment(w, { direction: "INBOUND", title: f.title, text: f.evidence, owedByName: f.withName, owedToName: null, companyName: null, dueDate: f.dueDate, dueText: null, confidence: f.confidence, evidence: f.evidence });
+  }
   const ceoPromised = senderIsCeo(w) && /\b(i('ll| will| shall)|we('ll| will)|let me)\b/i.test(f.evidence);
   if (ceoPromised) {
     return writeCommitment(w, { direction: "OUTBOUND", title: f.title, text: f.evidence, owedByName: null, owedToName: f.withName, companyName: null, dueDate: f.dueDate, dueText: null, confidence: f.confidence, evidence: f.evidence });
@@ -372,9 +379,10 @@ async function writeMeetingRequest(w: ItemCtx, m: IntelligenceExtraction["meetin
   const primary = w.resolution.primaryCompanyId ? w.refs.companies.get(w.resolution.primaryCompanyId) : null;
   const who = m.withName ?? personName(w, w.resolution.counterpartPersonIds[0]) ?? (primary ? companyShortName(primary.name) : null) ?? "them";
   const times = m.proposedTimes.length ? `Proposed: ${m.proposedTimes.join("; ")}.` : null;
+  const subject = /\bre:\s*(.+)$/i.exec(m.title)?.[1]?.trim() ?? null;
   const p = await buildTaskProposal(
     w,
-    { title: `Schedule time with ${who}`, description: [m.title, times].filter(Boolean).join(" — "), ownerName: null, dueDate: null, dueText: null, priorityHint: null, companyName: null, focusArea: null, confidence: m.confidence, evidence: m.evidence },
+    { title: `Schedule time with ${who}${subject ? ` re: ${subject}` : ""}`.slice(0, 300), description: [m.title, times].filter(Boolean).join(" — "), ownerName: null, dueDate: null, dueText: null, priorityHint: null, companyName: null, focusArea: null, confidence: m.confidence, evidence: m.evidence },
     w.ceo.personId,
     { ownerIsCeo: true },
   );
@@ -388,6 +396,8 @@ async function writeCommitment(w: ItemCtx, c: ExtractedCommitmentT) {
   let ownerPersonId: string | null = null;
   let counterpartyPersonId: string | null = null;
   let forceReview: string | null = null;
+  /** "CytoHub shall…" (contracts): an obligation of the company, owned by no one person. */
+  let companyObligation = false;
   const counterpart = w.resolution.counterpartPersonIds[0] ?? null;
 
   if (direction === "INBOUND") {
@@ -405,6 +415,7 @@ async function writeCommitment(w: ItemCtx, c: ExtractedCommitmentT) {
       counterpartyPersonId = w.ceo.personId;
     } else {
       if (o.kind === "CEO" || o.kind === "TEAM") ownerPersonId = o.personId;
+      else if (companyLevel(c.owedByName)) companyObligation = true;
       else if (senderIsCeo(w) || (!c.owedByName && w.item.kind === "MEETING_NOTES")) ownerPersonId = w.ceo.personId;
       else {
         const sender = w.resolution.people.find((p) => p.role === "SENDER" || p.role === "ORGANIZER");
@@ -412,7 +423,7 @@ async function writeCommitment(w: ItemCtx, c: ExtractedCommitmentT) {
       }
       const to = resolveOwner(w, c.owedToName, false);
       counterpartyPersonId = to.kind === "UNKNOWN" ? (direction === "INTERNAL" ? w.ceo.personId : counterpart) : to.personId;
-      if (!ownerPersonId) forceReview = `Could not tell who at CytoHub owns this${c.owedByName ? ` (“${c.owedByName}”)` : ""}.`;
+      if (!ownerPersonId && !companyObligation) forceReview = `Could not tell who at CytoHub owns this${c.owedByName ? ` (“${c.owedByName}”)` : ""}.`;
     }
   }
 
@@ -497,6 +508,10 @@ async function writeCommitment(w: ItemCtx, c: ExtractedCommitmentT) {
       sensitivity: w.item.sensitivity,
     });
   }
+}
+
+function companyLevel(name: string | null | undefined): boolean {
+  return !!name && /^(cytohub(\s+(inc|ltd|llc|gmbh))?\.?|we|us|the company|the team|our team)$/i.test(name.trim());
 }
 
 // ─── Decisions ───────────────────────────────────────────────────────────────
@@ -590,6 +605,14 @@ async function writeDecision(w: ItemCtx, d: ExtractedDecisionT) {
 // ─── Deadlines ───────────────────────────────────────────────────────────────
 
 async function writeDeadline(w: ItemCtx, d: IntelligenceExtraction["deadlines"][number]) {
+  // The extractor repeats the date of a dated task/commitment as a deadline from the same sentence:
+  // that record (written, deduplicated or queued) already carries the date and its firmness.
+  const ev = normalizeForEvidence(d.evidence);
+  const twins = [...w.extraction.tasks, ...w.extraction.commitments, ...w.extraction.followUps];
+  if (twins.some((x) => {
+    const e = normalizeForEvidence(x.evidence);
+    return e.includes(ev) || ev.includes(e) || (titleKey(x.title) === titleKey(d.what) && "dueDate" in x && x.dueDate === d.date);
+  })) return;
   // 1. Work written from this item.
   const local = [
     ...w.written.tasks.map((t) => ({ type: "TASK" as const, id: t.id, title: t.title, score: actionSimilarity(d.what, t.title) })),

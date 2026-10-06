@@ -41,7 +41,7 @@ export function DerivedList({ records, hidden, emptyTitle = "Nothing derived yet
       )}
       {hidden > 0 && (
         <div className="border-t border-hairline px-3.5 py-2">
-          <HiddenSourcesNote count={hidden} />
+          <HiddenSourcesNote count={hidden} noun="record" />
         </div>
       )}
     </div>

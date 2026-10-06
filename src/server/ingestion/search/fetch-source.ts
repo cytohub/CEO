@@ -24,11 +24,15 @@ function variants(t: string): StrFilter[] {
   return [{ startsWith: t, mode }, ...[" ", "-", "(", "/", "“", "\""].map((p) => ({ contains: `${p}${t}`, mode }))];
 }
 
-/** Every term must appear in at least one of the fields (≤3 terms), or any term (longer queries). */
+/**
+ * One clause (in a 0/1-element array, to spread into an OR list): every term
+ * must appear in at least one of the fields (≤3 terms), or any term (longer queries).
+ */
 export function termsWhere<W>(terms: string[], fields: ((f: StrFilter, term: string) => W)[]): W[] {
   if (!terms.length) return [];
   const per = terms.map((t) => ({ OR: fields.flatMap((field) => variants(t).map((v) => field(v, t))) }) as W);
-  return terms.length <= 3 ? per : [{ OR: per } as W];
+  if (per.length === 1) return per;
+  return [(terms.length <= 3 ? { AND: per } : { OR: per }) as W];
 }
 
 const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
