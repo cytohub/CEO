@@ -5,6 +5,7 @@ import { PipelineComposition } from "@/components/scoreboard/pipeline-table";
 import { HeadlineStrip, MetricBoard, SourcesNote } from "@/components/scoreboard/scoreboard-sections";
 import { formatDayFull } from "@/lib/dates";
 import { getScoreboardData } from "@/server/queries/scoreboard";
+import { requirePage } from "@/server/security/session";
 
 export const metadata: Metadata = { title: "Scoreboard" };
 
@@ -12,6 +13,7 @@ export const metadata: Metadata = { title: "Scoreboard" };
 const HEADLINE_KEYS = ["arr", "pipeline_weighted", "round_committed", "runway", "donor_hearts"];
 
 export default async function ScoreboardPage() {
+  await requirePage("workspace.view", "/scoreboard");
   const data = await getScoreboardData();
   const { metrics, today } = data;
   const headline = HEADLINE_KEYS.map((k) => metrics.find((m) => m.key === k)).filter((m): m is NonNullable<typeof m> => Boolean(m));

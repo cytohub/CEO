@@ -21,6 +21,7 @@ import { db } from "@/lib/db";
 import { formatDateTime, timeAgo } from "@/lib/dates";
 import { COMPANY_TYPES } from "@/lib/domain";
 import { getCompanyDetail } from "@/server/queries/resources";
+import { requirePage } from "@/server/security/session";
 
 export async function generateMetadata(props: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await props.params;
@@ -29,6 +30,7 @@ export async function generateMetadata(props: { params: Promise<{ id: string }> 
 }
 
 export default async function CompanyPage(props: { params: Promise<{ id: string }> }) {
+  await requirePage("workspace.view", "/resources");
   const { id } = await props.params;
   const d = await getCompanyDetail(id);
   if (!d) notFound();

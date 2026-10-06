@@ -1,7 +1,10 @@
 /**
  * Daily Brain Refresh — the morning pipeline.
  *
- *   1. Sync      every connector writes new BrainSignals
+ *   0. Ingest    incremental sync of every connected email, calendar and
+ *                document source; the ingestion pipeline extracts, resolves,
+ *                writes intelligence (with provenance) and files review items
+ *   1. Sync      legacy connectors write new BrainSignals
  *   2. Understand signals → insights (+ commitments → tasks)
  *   3. Analyze   the workspace graph → insights
  *   4. Persist   insights deduplicated by fingerprint; inbox items filed
@@ -30,7 +33,8 @@ import {
   analyzeMilestones,
 } from "./analyzers/workspace";
 import { composeBrief, enhanceBriefWithClaude } from "./brief";
-import { CONNECTORS } from "./connectors";
+import { runIngestStage, type IngestStageResult } from "@/server/ingestion/refresh-stage";
+import { CONNECTORS, PIPELINE_SOURCE_KEYS } from "./connectors";
 import { snapshotDerivedMetrics } from "./metrics";
 import { recommendTopFive, rescoreTasks } from "./priorities";
 import type { BrainContext, InsightDraft, SyncResult } from "./types";
@@ -45,7 +49,7 @@ export interface RefreshOutcome {
   error?: string;
 }
 
-export async function runBrainRefresh(opts: { trigger?: RefreshTrigger; now?: Date } = {}): Promise<RefreshOutcome> {
+export async function runBrainRefresh(opts: { trigger?: RefreshTrigger; now?: Date; ingestBudgetMs?: number } = {}): Promise<RefreshOutcome> {
   const now = opts.now ?? new Date();
   const started = Date.now();
   const ceo = await loadCeoContext(db, now);
@@ -61,6 +65,20 @@ export async function runBrainRefresh(opts: { trigger?: RefreshTrigger; now?: Da
   const log: { at: string; stage: string; message: string }[] = [];
 
   try {
+    // 0. Ingest — outside the analysis transaction: provider calls and AI
+    // extraction must never hold database locks.
+    let ingest: IngestStageResult | null = null;
+    try {
+      ingest = await runIngestStage({ trigger: opts.trigger === "SEED" ? "SEED" : "REFRESH", now, budgetMs: opts.ingestBudgetMs ?? 240_000 });
+      log.push({
+        at: new Date().toISOString(),
+        stage: "ingest",
+        message: `${ingest.connections} sources synced; ${ingest.jobsProcessed} pipeline jobs run (${ingest.jobsFailed} failed, ${ingest.jobsRemaining} still queued); ${ingest.meetingsCompleted} meetings completed; ${ingest.overdueCommitments} overdue commitments`,
+      });
+    } catch (error) {
+      log.push({ at: new Date().toISOString(), stage: "ingest", message: `Ingestion failed: ${error instanceof Error ? error.message : String(error)}` });
+    }
+
     const result = await db.$transaction(
       async (tx) => {
         const ctx: BrainContext = {
@@ -82,6 +100,8 @@ export async function runBrainRefresh(opts: { trigger?: RefreshTrigger; now?: Da
         for (const connector of CONNECTORS) {
           const source = sources.find((s) => s.key === connector.key);
           if (!source || source.status === "DISABLED") continue;
+          // Email, calendar and document sources sync through the ingestion stage above.
+          if (PIPELINE_SOURCE_KEYS.has(connector.key)) continue;
           const sample = (source.config as { mode?: string } | null)?.mode === "sample";
           const res = sample
             ? { key: connector.key, status: "ok" as const, items: 0, message: "Sample data source" }
@@ -94,6 +114,15 @@ export async function runBrainRefresh(opts: { trigger?: RefreshTrigger; now?: Da
               data: { lastSyncAt: now, itemsIndexed: connector.key === "workspace" ? undefined : indexed, error: null },
             });
           }
+        }
+        for (const run of ingest?.runs ?? []) {
+          const conn = run.connectionId ? await tx.sourceConnection.findUnique({ where: { id: run.connectionId }, select: { label: true } }) : null;
+          sourceResults.push({
+            key: conn?.label ?? "connection",
+            status: run.status === "FAILED" ? "error" : "ok",
+            items: run.created + run.updated,
+            message: run.error ?? undefined,
+          });
         }
         ctx.log("sync", `${sourceResults.filter((r) => r.status === "ok").length}/${sourceResults.length} sources synced`);
 
@@ -122,6 +151,15 @@ export async function runBrainRefresh(opts: { trigger?: RefreshTrigger; now?: Da
 
         // 4. Persist
         const { created, inboxCreated } = await persistInsights(ctx, drafts);
+        // Insights written by the ingestion pipeline since the last refresh
+        // (changes, commitments, risks…) belong to this brief too.
+        const ingested = await tx.brainInsight.findMany({
+          where: { refreshId: null, sourceItemId: { not: null }, createdAt: { gt: since, lte: new Date(now.getTime() + 60_000) }, status: { not: "DISMISSED" } },
+        });
+        if (ingested.length) {
+          await tx.brainInsight.updateMany({ where: { id: { in: ingested.map((i) => i.id) } }, data: { refreshId: refresh.id } });
+          created.push(...ingested);
+        }
         ctx.log("persist", `${drafts.length} insights evaluated, ${created.length} new, ${inboxCreated} inbox items filed`);
 
         // 5. Reconcile

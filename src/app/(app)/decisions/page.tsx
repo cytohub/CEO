@@ -9,10 +9,12 @@ import { cn } from "@/lib/utils";
 import { addDays, daysBetween, formatDay } from "@/lib/dates";
 import { DECISION_STATUS } from "@/lib/domain";
 import { getDecisionCenter, type DecisionListItem } from "@/server/queries/decisions";
+import { requirePage } from "@/server/security/session";
 
 export const metadata: Metadata = { title: "Decisions" };
 
 export default async function DecisionsPage() {
+  await requirePage("workspace.view", "/decisions");
   const { decisions, today, now } = await getDecisionCenter();
   const needed = decisions.filter((d) => d.status === "NEEDED");
   const waiting = decisions.filter((d) => d.status === "WAITING_INFO");

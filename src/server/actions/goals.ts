@@ -1,5 +1,6 @@
 "use server";
 
+import { requireCapability } from "@/server/security/session";
 import { z } from "zod";
 import { GoalStatus, GoalType, MilestoneStatus, MilestoneType } from "@/generated/prisma/enums";
 import { db } from "@/lib/db";
@@ -163,5 +164,6 @@ export async function updateMilestone(milestoneId: string, input: Partial<Milest
 }
 
 export async function fetchMilestoneDetail(milestoneId: string): Promise<MilestoneDetail | null> {
+  await requireCapability("workspace.view");
   return getMilestoneDetail(milestoneId);
 }

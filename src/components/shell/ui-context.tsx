@@ -2,7 +2,8 @@
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { createContext, useCallback, useContext, useMemo, useState } from "react";
-import type { Lookups } from "@/server/queries/shell";
+import type { Lookups, ShellViewer } from "@/server/queries/shell";
+import type { Capability } from "@/server/security/rbac";
 
 export type CreateKind = "task" | "goal" | "milestone" | "decision" | "resource";
 
@@ -18,6 +19,7 @@ export interface CreateDefaults {
 
 interface UIState {
   lookups: Lookups;
+  viewer: ShellViewer;
   commandOpen: boolean;
   setCommandOpen: (open: boolean) => void;
   chief: { open: boolean; prompt?: string; nonce: number };
@@ -40,7 +42,7 @@ interface UIState {
 
 const UIContext = createContext<UIState | null>(null);
 
-export function UIProvider({ lookups, children }: { lookups: Lookups; children: React.ReactNode }) {
+export function UIProvider({ lookups, viewer, children }: { lookups: Lookups; viewer: ShellViewer; children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -72,6 +74,7 @@ export function UIProvider({ lookups, children }: { lookups: Lookups; children: 
   const value = useMemo<UIState>(
     () => ({
       lookups,
+      viewer,
       commandOpen,
       setCommandOpen,
       chief,
@@ -90,7 +93,7 @@ export function UIProvider({ lookups, children }: { lookups: Lookups; children: 
       openEntity,
       closeEntity,
     }),
-    [lookups, commandOpen, chief, create, delegateTaskId, shortcutsOpen, mobileNavOpen, openEntity, closeEntity],
+    [lookups, viewer, commandOpen, chief, create, delegateTaskId, shortcutsOpen, mobileNavOpen, openEntity, closeEntity],
   );
 
   return <UIContext.Provider value={value}>{children}</UIContext.Provider>;
@@ -104,4 +107,13 @@ export function useUI() {
 
 export function useLookups() {
   return useUI().lookups;
+}
+
+/** The signed-in viewer (role and capabilities). UI hints only — the server enforces. */
+export function useViewer() {
+  return useUI().viewer;
+}
+
+export function useCan(capability: Capability) {
+  return useUI().viewer.capabilities.includes(capability);
 }

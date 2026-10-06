@@ -1,11 +1,23 @@
 "use client";
 
+import { Keyboard, LogOut } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { USER_ROLES } from "@/lib/intelligence";
 import { Kbd } from "@/components/common/status";
 import { Avatar } from "@/components/common/bits";
-import { NAV_GROUPS, SETTINGS_ITEM, isActive, type BadgeKey, type NavItem } from "./nav";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { logout } from "@/server/actions/auth";
+import type { ShellViewer } from "@/server/queries/shell";
+import { isActive, navFor, type BadgeKey, type NavItem } from "./nav";
 import { useUI } from "./ui-context";
 
 export function CytoHubMark({ className }: { className?: string }) {
@@ -20,15 +32,16 @@ export function CytoHubMark({ className }: { className?: string }) {
 
 export function SidebarNav({
   counts,
-  ceoName,
+  viewer,
   onNavigate,
 }: {
   counts: Record<BadgeKey, number>;
-  ceoName: string;
+  viewer: ShellViewer;
   onNavigate?: () => void;
 }) {
   const pathname = usePathname();
   const { setShortcutsOpen } = useUI();
+  const nav = navFor(viewer.capabilities);
 
   return (
     <div className="flex h-full flex-col">
@@ -41,7 +54,7 @@ export function SidebarNav({
       </div>
 
       <nav aria-label="Primary" className="scrollbar-thin flex-1 overflow-y-auto px-2 pt-2 pb-4">
-        {NAV_GROUPS.map((group, gi) => (
+        {nav.groups.map((group, gi) => (
           <div key={gi} className={cn(gi > 0 && "mt-4")}>
             {group.label && <div className="mb-1 px-2.5 text-2xs font-medium tracking-wide text-ink-3">{group.label}</div>}
             <ul className="space-y-px">
@@ -54,18 +67,37 @@ export function SidebarNav({
       </nav>
 
       <div className="border-t border-sidebar-border px-2 py-2">
-        <ul className="space-y-px">
-          <NavLink item={SETTINGS_ITEM} active={isActive(SETTINGS_ITEM, pathname)} count={0} onNavigate={onNavigate} />
-        </ul>
-        <button
-          type="button"
-          onClick={() => setShortcutsOpen(true)}
-          className="mt-1 flex w-full items-center gap-2.5 rounded-md px-2.5 py-1.5 text-left text-[12.5px] text-sidebar-foreground/80 hover:bg-sidebar-accent"
-        >
-          <Avatar name={ceoName} ceo className="size-5" />
-          <span className="flex-1 truncate">{ceoName}</span>
-          <Kbd>?</Kbd>
-        </button>
+        {nav.settings && (
+          <ul className="space-y-px">
+            <NavLink item={nav.settings} active={isActive(nav.settings, pathname)} count={0} onNavigate={onNavigate} />
+          </ul>
+        )}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              type="button"
+              className="mt-1 flex w-full items-center gap-2.5 rounded-md px-2.5 py-1.5 text-left text-[12.5px] text-sidebar-foreground/80 hover:bg-sidebar-accent"
+              aria-label={`Account menu for ${viewer.name}`}
+            >
+              <Avatar name={viewer.name} ceo={viewer.isCeo} className="size-5" />
+              <span className="min-w-0 flex-1 truncate">{viewer.name}</span>
+              <span className="text-2xs text-muted-foreground">{USER_ROLES[viewer.role].label}</span>
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent side="top" align="start" className="w-56">
+            <DropdownMenuLabel className="font-normal">
+              <div className="truncate text-[13px] font-medium">{viewer.name}</div>
+              <div className="truncate text-2xs text-muted-foreground">{viewer.email}</div>
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onSelect={() => setShortcutsOpen(true)}>
+              <Keyboard /> Keyboard shortcuts <Kbd className="ml-auto">?</Kbd>
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => void logout()}>
+              <LogOut /> Sign out
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </div>
   );

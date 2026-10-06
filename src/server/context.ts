@@ -16,11 +16,14 @@ export interface CeoContext {
 }
 
 /**
- * Resolve the CEO (single-tenant today; becomes the authenticated user once
- * auth is added). Throws a descriptive error when the database is unseeded.
+ * Resolve the CEO whose command center this is (single-tenant). This is the
+ * subject of the cockpit, not the signed-in viewer — see security/session.ts
+ * for the viewer. Throws a descriptive error when the database is unseeded.
  */
 export async function loadCeoContext(client: Db | Tx = db, now: Date = new Date()): Promise<CeoContext> {
-  const user = await client.user.findFirst({ orderBy: { createdAt: "asc" }, include: { person: true } });
+  const user =
+    (await client.user.findFirst({ where: { role: "CEO", active: true }, orderBy: { createdAt: "asc" }, include: { person: true } })) ??
+    (await client.user.findFirst({ orderBy: { createdAt: "asc" }, include: { person: true } }));
   if (!user || !user.personId) {
     throw new Error("No CEO user found. Run `npm run db:seed` to load the CytoHub workspace.");
   }

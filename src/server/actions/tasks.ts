@@ -1,5 +1,6 @@
 "use server";
 
+import { requireCapability } from "@/server/security/session";
 import { z } from "zod";
 import type { Prisma } from "@/generated/prisma/client";
 import { FocusArea, Priority, TaskStatus } from "@/generated/prisma/enums";
@@ -268,12 +269,14 @@ export async function addTaskNote(taskId: string, body: string): Promise<ActionR
 
 /** Read-only: task detail for the task sheet (Dates survive the action boundary). */
 export async function fetchTaskDetail(taskId: string): Promise<TaskDetail | null> {
+  await requireCapability("workspace.view");
   id.parse(taskId);
   return loadTaskDetail(taskId);
 }
 
 /** Open CEO tasks for pickers (command bar complete/delegate). */
 export async function listPickerTasks(): Promise<{ id: string; title: string; subtitle: string }[]> {
+  await requireCapability("workspace.view");
   const ceo = await getCeoContext();
   const tasks = await db.task.findMany({
     where: { ownerId: ceo.personId, status: { in: ["TODO", "IN_PROGRESS", "BLOCKED", "WAITING"] } },

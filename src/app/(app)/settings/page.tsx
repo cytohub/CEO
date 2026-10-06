@@ -13,10 +13,12 @@ import { ThresholdsForm } from "@/components/settings/thresholds";
 import { getCeoContext } from "@/server/context";
 import { getSettingsData } from "@/server/queries/settings";
 import { DEFAULT_THRESHOLDS } from "@/server/settings";
+import { requirePage } from "@/server/security/session";
 
 export const metadata: Metadata = { title: "Settings" };
 
 export default async function SettingsPage() {
+  await requirePage("settings.manage", "/settings");
   const [d, ceo] = await Promise.all([getSettingsData(), getCeoContext()]);
 
   return (

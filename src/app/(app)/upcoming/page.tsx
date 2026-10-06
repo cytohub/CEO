@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import { addDays, formatDateTime } from "@/lib/dates";
 import { getCeoContext } from "@/server/context";
 import { getUpcomingEvents } from "@/server/queries/today";
+import { requirePage } from "@/server/security/session";
 
 export const metadata: Metadata = { title: "Upcoming" };
 
@@ -19,6 +20,7 @@ const HORIZONS = [
 ] as const;
 
 export default async function UpcomingPage(props: { searchParams: Promise<{ h?: string }> }) {
+  await requirePage("workspace.view", "/upcoming");
   const sp = await props.searchParams;
   const horizon = HORIZONS.find((h) => h.key === sp.h) ?? HORIZONS[1];
   const ceo = await getCeoContext();

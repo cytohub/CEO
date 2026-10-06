@@ -18,6 +18,7 @@ import { db } from "@/lib/db";
 import { formatDateTime, timeAgo } from "@/lib/dates";
 import { FOCUS_AREAS, PERSON_TYPES } from "@/lib/domain";
 import { getPersonDetail } from "@/server/queries/resources";
+import { requirePage } from "@/server/security/session";
 
 export async function generateMetadata(props: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await props.params;
@@ -26,6 +27,7 @@ export async function generateMetadata(props: { params: Promise<{ id: string }> 
 }
 
 export default async function PersonPage(props: { params: Promise<{ id: string }> }) {
+  await requirePage("workspace.view", "/resources");
   const { id } = await props.params;
   const d = await getPersonDetail(id);
   if (!d) notFound();

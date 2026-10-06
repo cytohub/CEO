@@ -10,10 +10,12 @@ import { UpcomingPanel } from "@/components/today/upcoming-panel";
 import { INBOX_TYPES } from "@/lib/domain";
 import { formatDayFull, formatTime } from "@/lib/dates";
 import { getTodayData } from "@/server/queries/today";
+import { requirePage } from "@/server/security/session";
 
 export const metadata: Metadata = { title: "Today" };
 
 export default async function TodayPage() {
+  await requirePage("cockpit.view", "/");
   const d = await getTodayData();
   const { ceo, plan, brief } = d;
   const priorities = plan?.priorities ?? [];

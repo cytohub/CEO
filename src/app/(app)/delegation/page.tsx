@@ -7,10 +7,12 @@ import { daysBetween, formatDay } from "@/lib/dates";
 import { formatMinutes } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { getDelegationCenter } from "@/server/queries/delegation";
+import { requirePage } from "@/server/security/session";
 
 export const metadata: Metadata = { title: "Delegation" };
 
 export default async function DelegationPage() {
+  await requirePage("workspace.view", "/delegation");
   const { recommendations, delegations, completed, team, today, now } = await getDelegationCenter();
   const followUps = delegations.filter((d) => d.status === "NEEDS_FOLLOW_UP" || (d.dueDate && daysBetween(today, d.dueDate) < 0)).length;
   const freed = recommendations.reduce((s, t) => s + (t.estimatedMinutes ?? 0), 0);

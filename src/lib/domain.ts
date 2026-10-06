@@ -189,6 +189,9 @@ export const INBOX_TYPES: Record<InboxType, { label: string; icon: LucideIcon; t
   DEADLINE_RISK: { label: "Deadline risk", icon: AlarmClock, tone: "critical" },
   HIRING_DECISION: { label: "Hiring decision", icon: UserPlus, tone: "info" },
   OPPORTUNITY: { label: "Strategic opportunity", icon: Lightbulb, tone: "good" },
+  COMMITMENT: { label: "Commitment due", icon: ClipboardCheck, tone: "serious" },
+  CHANGE: { label: "Important change", icon: Sparkles, tone: "brain" },
+  REQUEST: { label: "Request", icon: Mail, tone: "info" },
 };
 
 export const INSIGHT_TYPES: Record<InsightType, { label: string; icon: LucideIcon; tone: Tone }> = {
@@ -206,6 +209,7 @@ export const INSIGHT_TYPES: Record<InsightType, { label: string; icon: LucideIco
   COMMITMENT: { label: "New commitment", icon: ClipboardCheck, tone: "info" },
   DELEGATION: { label: "Delegation", icon: Users, tone: "brain" },
   ATTENTION: { label: "CEO attention", icon: Target, tone: "brain" },
+  CHANGE: { label: "Important change", icon: Sparkles, tone: "brain" },
 };
 
 // ─── Resources, people, companies ────────────────────────────────────────────

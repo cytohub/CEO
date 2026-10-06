@@ -13,12 +13,14 @@ import { GOAL_STATUS, INSIGHT_TYPES } from "@/lib/domain";
 import { cn } from "@/lib/utils";
 import { searchWorkspace } from "@/server/brain/search";
 import { getCeoContext } from "@/server/context";
+import { requirePage } from "@/server/security/session";
 
 export const metadata: Metadata = { title: "Search" };
 
 const LIMIT_PER_TYPE = 15;
 
 export default async function SearchPage(props: { searchParams: Promise<{ q?: string | string[] }> }) {
+  await requirePage("search.use", "/search");
   const sp = await props.searchParams;
   const raw = Array.isArray(sp.q) ? sp.q[0] : sp.q;
   const q = (raw ?? "").trim().slice(0, 200);

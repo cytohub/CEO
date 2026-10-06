@@ -6,12 +6,14 @@ import { CommitmentBar, KpiTile, PrivateBadge, RangeToggle, StrategicSplit, Top5
 import { formatDay } from "@/lib/dates";
 import { pluralize } from "@/lib/format";
 import { getPerformance, resolveRange } from "@/server/queries/performance";
+import { requirePage } from "@/server/security/session";
 
 export const metadata: Metadata = { title: "CEO Performance" };
 
 const unitless = (n: number) => `${Math.round(n * 10) / 10}`;
 
 export default async function PerformancePage(props: { searchParams: Promise<{ range?: string }> }) {
+  await requirePage("performance.view", "/performance");
   const sp = await props.searchParams;
   const range = resolveRange(sp.range);
   const d = await getPerformance(range);

@@ -11,6 +11,7 @@ import { formatDateTime, formatDayFull, timeAgo } from "@/lib/dates";
 import { INSIGHT_TYPES } from "@/lib/domain";
 import { BRIEF_SECTIONS, type SyncResult } from "@/server/brain/types";
 import { getBrainOverview, getInsightFeed, getRecentSignals } from "@/server/queries/brain";
+import { requirePage } from "@/server/security/session";
 
 export const metadata: Metadata = { title: "CytoHub Brain" };
 
@@ -24,6 +25,7 @@ const TABS = [
 type Tab = (typeof TABS)[number]["key"];
 
 export default async function BrainPage(props: { searchParams: Promise<{ tab?: string; insight?: string }> }) {
+  await requirePage("brain.view", "/brain");
   const sp = await props.searchParams;
   const tab: Tab = sp.insight ? "insights" : ((TABS.find((t) => t.key === sp.tab)?.key ?? "brief") as Tab);
   const o = await getBrainOverview();

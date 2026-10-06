@@ -9,7 +9,7 @@ import { getConnector } from "@/server/brain/connectors";
 import { DEFAULT_WEIGHTS, FACTOR_KEYS, FACTOR_META, normalizeWeights, type FactorKey, type PriorityWeights } from "@/server/brain/scoring";
 import { logActivity, rescore, revalidateAll } from "@/server/mutations";
 import { getPriorityWeights, setSetting, type BrainThresholds } from "@/server/settings";
-import { attempt, fail, id, ok, type ActionResult } from "./result";
+import { attemptAs, fail, id, ok, type ActionResult } from "./result";
 
 // ─── Profile ─────────────────────────────────────────────────────────────────
 
@@ -29,7 +29,7 @@ const profileSchema = z.object({
 });
 
 export async function updateProfile(input: z.input<typeof profileSchema>): Promise<ActionResult> {
-  return attempt(async () => {
+  return attemptAs("settings.manage", async () => {
     const data = profileSchema.parse(input);
     const user = await db.user.findFirst({ orderBy: { createdAt: "asc" } });
     if (!user) return fail("No CEO user found");
@@ -62,7 +62,7 @@ async function renumberPillars(orderedIds?: string[]) {
 }
 
 export async function createPillar(input: z.input<typeof pillarSchema>): Promise<ActionResult<{ id: string }>> {
-  return attempt(async () => {
+  return attemptAs("settings.manage", async () => {
     const data = pillarSchema.parse(input);
     if (await nameTaken(data.name)) return fail(`A pillar named “${data.name}” already exists`);
     const last = await db.strategicPillar.findFirst({ orderBy: { order: "desc" }, select: { order: true } });
@@ -78,7 +78,7 @@ export async function createPillar(input: z.input<typeof pillarSchema>): Promise
 const pillarPatch = pillarSchema.partial().extend({ active: z.boolean().optional() });
 
 export async function updatePillar(pillarId: string, input: z.input<typeof pillarPatch>): Promise<ActionResult> {
-  return attempt(async () => {
+  return attemptAs("settings.manage", async () => {
     id.parse(pillarId);
     const data = pillarPatch.parse(input);
     const current = await db.strategicPillar.findUnique({ where: { id: pillarId } });
@@ -104,7 +104,7 @@ export async function updatePillar(pillarId: string, input: z.input<typeof pilla
 }
 
 export async function movePillar(pillarId: string, direction: "up" | "down"): Promise<ActionResult> {
-  return attempt(async () => {
+  return attemptAs("settings.manage", async () => {
     id.parse(pillarId);
     z.enum(["up", "down"]).parse(direction);
     const all = await db.strategicPillar.findMany({ orderBy: [{ order: "asc" }, { name: "asc" }], select: { id: true } });
@@ -121,7 +121,7 @@ export async function movePillar(pillarId: string, direction: "up" | "down"): Pr
 }
 
 export async function deletePillar(pillarId: string): Promise<ActionResult> {
-  return attempt(async () => {
+  return attemptAs("settings.manage", async () => {
     id.parse(pillarId);
     const pillar = await db.strategicPillar.findUnique({
       where: { id: pillarId },
@@ -152,7 +152,7 @@ const targetsSchema = z
   .refine((rows) => new Set(rows.map((r) => r.focusArea)).size === rows.length, "Each focus area may appear once");
 
 export async function saveAttentionTargets(rows: z.input<typeof targetsSchema>): Promise<ActionResult> {
-  return attempt(async () => {
+  return attemptAs("settings.manage", async () => {
     const data = targetsSchema.parse(rows);
     const byArea = new Map(data.map((r) => [r.focusArea, r]));
     // Areas not submitted keep their current value in the total.
@@ -194,7 +194,7 @@ const weightsSchema = z
   .refine((w) => Object.values(w).some((v) => v > 0), "At least one factor needs weight");
 
 export async function savePriorityWeights(weights: Partial<Record<FactorKey, number>>): Promise<ActionResult<{ rescored: number }>> {
-  return attempt(async () => {
+  return attemptAs("settings.manage", async () => {
     const parsed: PriorityWeights = weightsSchema.parse({ ...DEFAULT_WEIGHTS, ...weights });
     const before = await getPriorityWeights(db);
     const normalized = normalizeWeights(parsed);
@@ -232,7 +232,7 @@ const thresholdsSchema = z.object({
 }) satisfies z.ZodType<BrainThresholds>;
 
 export async function saveThresholds(input: z.input<typeof thresholdsSchema>): Promise<ActionResult> {
-  return attempt(async () => {
+  return attemptAs("settings.manage", async () => {
     const data = thresholdsSchema.parse(input);
     await setSetting(db, "brainThresholds", data);
     await logActivity(db, { type: "SETTINGS_UPDATED", summary: "Brain thresholds updated", metadata: { kind: "brainThresholds", to: data } });
@@ -244,7 +244,7 @@ export async function saveThresholds(input: z.input<typeof thresholdsSchema>): P
 // ─── Brain sources ───────────────────────────────────────────────────────────
 
 export async function setSourceEnabled(key: string, enabled: boolean): Promise<ActionResult> {
-  return attempt(async () => {
+  return attemptAs("settings.manage", async () => {
     z.string().min(1).max(64).parse(key);
     z.boolean().parse(enabled);
     if (key === "workspace") return fail("The CytoHub Workspace source is always on");

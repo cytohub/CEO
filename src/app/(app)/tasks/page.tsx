@@ -7,6 +7,7 @@ import { TaskTable } from "@/components/tasks/task-table";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { getTaskView, getTaskViewCounts, TASK_VIEWS, type TaskView } from "@/server/queries/tasks";
+import { requirePage } from "@/server/security/session";
 
 export const metadata: Metadata = { title: "Tasks" };
 
@@ -22,6 +23,7 @@ const LABELS: Record<TaskView, string> = {
 };
 
 export default async function TasksPage(props: { searchParams: Promise<{ view?: string; scope?: string }> }) {
+  await requirePage("workspace.view", "/tasks");
   const sp = await props.searchParams;
   const view: TaskView = (TASK_VIEWS as readonly string[]).includes(sp.view ?? "") ? (sp.view as TaskView) : "today";
   const scope = sp.scope === "everyone" ? "everyone" : "mine";

@@ -15,10 +15,12 @@ import { addDays, dayKey, formatDay } from "@/lib/dates";
 import { pluralize } from "@/lib/format";
 import { getCeoContext } from "@/server/context";
 import { getWeeklyReview, resolveWeek, weekLabel } from "@/server/queries/reviews";
+import { requirePage } from "@/server/security/session";
 
 export const metadata: Metadata = { title: "Weekly CEO Review" };
 
 export default async function WeeklyReviewPage(props: { searchParams: Promise<{ week?: string }> }) {
+  await requirePage("cockpit.view", "/review/weekly");
   const sp = await props.searchParams;
   const ceo = await getCeoContext();
   const weekStart = resolveWeek(sp.week, ceo.today);

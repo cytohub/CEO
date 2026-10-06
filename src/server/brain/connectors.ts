@@ -10,6 +10,7 @@
  * Connectors are inert until their credentials are present. Sources seeded
  * with sample data carry `config.mode = "sample"` and report as such in the UI.
  */
+import type { SourceProvider } from "@/generated/prisma/enums";
 import type { Connector, ConnectorDefinition, SyncResult } from "./types";
 
 export const CONNECTOR_DEFINITIONS: ConnectorDefinition[] = [
@@ -36,6 +37,54 @@ export const CONNECTOR_DEFINITIONS: ConnectorDefinition[] = [
     category: "CALENDAR",
     description: "Meetings, participants and time allocation by focus area.",
     extracts: ["Upcoming meetings", "Participants", "CEO time allocation"],
+  },
+  {
+    key: "gmail",
+    name: "Gmail",
+    provider: "Google Workspace",
+    category: "COMMUNICATION",
+    description: "CEO mailbox: threads, commitments made and received, requests, escalations and follow-ups.",
+    extracts: ["Commitments", "Requests & deadlines", "Thread summaries", "Investor & customer follow-ups"],
+  },
+  {
+    key: "google-calendar",
+    name: "Google Calendar",
+    provider: "Google Workspace",
+    category: "CALENDAR",
+    description: "Meetings, attendees, reschedules and preparation context.",
+    extracts: ["Meetings", "Reschedules & cancellations", "CEO time allocation"],
+  },
+  {
+    key: "google-drive",
+    name: "Google Drive",
+    provider: "Google Workspace",
+    category: "DOCUMENTS",
+    description: "Decks, models, contracts and reports — versioned, with significant changes detected.",
+    extracts: ["Document summaries", "Key figures & version changes", "Contracts & deadlines"],
+  },
+  {
+    key: "onedrive",
+    name: "OneDrive",
+    provider: "Microsoft 365",
+    category: "DOCUMENTS",
+    description: "The CEO's OneDrive documents, versioned.",
+    extracts: ["Document summaries", "Version changes"],
+  },
+  {
+    key: "dropbox",
+    name: "Dropbox",
+    provider: "Dropbox",
+    category: "DOCUMENTS",
+    description: "Shared folders with partners and investors.",
+    extracts: ["Document summaries", "Version changes"],
+  },
+  {
+    key: "uploads",
+    name: "Uploads & workspace notes",
+    provider: "CytoHub",
+    category: "DOCUMENTS",
+    description: "Files uploaded to the command center and meeting notes written in it.",
+    extracts: ["Document intelligence", "Meeting decisions & action items"],
   },
   {
     key: "teams",
@@ -112,11 +161,19 @@ export const CONNECTOR_DEFINITIONS: ConnectorDefinition[] = [
 ];
 
 /** Environment variables that mark a connector as configured. */
+const MICROSOFT = ["MICROSOFT_CLIENT_ID", "MICROSOFT_CLIENT_SECRET"];
+const GOOGLE = ["GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET"];
+
 const CREDENTIAL_ENV: Record<string, string[]> = {
-  "outlook-mail": ["MS365_TENANT_ID", "MS365_CLIENT_ID", "MS365_CLIENT_SECRET"],
-  "outlook-calendar": ["MS365_TENANT_ID", "MS365_CLIENT_ID", "MS365_CLIENT_SECRET"],
-  teams: ["MS365_TENANT_ID", "MS365_CLIENT_ID", "MS365_CLIENT_SECRET"],
-  sharepoint: ["MS365_TENANT_ID", "MS365_CLIENT_ID", "MS365_CLIENT_SECRET"],
+  gmail: GOOGLE,
+  "google-calendar": GOOGLE,
+  "google-drive": GOOGLE,
+  "outlook-mail": MICROSOFT,
+  "outlook-calendar": MICROSOFT,
+  onedrive: MICROSOFT,
+  sharepoint: MICROSOFT,
+  teams: MICROSOFT,
+  dropbox: ["DROPBOX_APP_KEY", "DROPBOX_APP_SECRET"],
   hubspot: ["HUBSPOT_ACCESS_TOKEN"],
   granola: ["GRANOLA_API_KEY"],
   "read-ai": ["READ_AI_API_KEY"],
@@ -126,6 +183,23 @@ const CREDENTIAL_ENV: Record<string, string[]> = {
   hris: ["HRIS_API_KEY"],
 };
 
+/** BrainSource catalog entry for each ingestion provider (SourceConnection.brainSourceId). */
+export const BRAIN_SOURCE_KEY: Record<SourceProvider, string> = {
+  GMAIL: "gmail",
+  OUTLOOK_MAIL: "outlook-mail",
+  GOOGLE_CALENDAR: "google-calendar",
+  OUTLOOK_CALENDAR: "outlook-calendar",
+  GOOGLE_DRIVE: "google-drive",
+  ONEDRIVE: "onedrive",
+  SHAREPOINT: "sharepoint",
+  DROPBOX: "dropbox",
+  LOCAL_UPLOAD: "uploads",
+  CYTOHUB_INTERNAL: "uploads",
+};
+
+/** Catalog keys whose data now arrives through the ingestion pipeline (SourceConnection), not BrainSignal sync. */
+export const PIPELINE_SOURCE_KEYS = new Set(Object.values(BRAIN_SOURCE_KEY));
+
 export function credentialEnvFor(key: string): string[] {
   return CREDENTIAL_ENV[key] ?? [];
 }
@@ -134,7 +208,7 @@ function makeConnector(def: ConnectorDefinition): Connector {
   const env = CREDENTIAL_ENV[def.key] ?? [];
   return {
     ...def,
-    isConfigured: () => def.key === "workspace" || (env.length > 0 && env.every((v) => Boolean(process.env[v]))),
+    isConfigured: () => def.key === "workspace" || def.key === "uploads" || (env.length > 0 && env.every((v) => Boolean(process.env[v]))),
     // Vendor implementations receive (ctx, sourceId); the default is a no-op.
     async sync(): Promise<SyncResult> {
       if (def.key === "workspace") {

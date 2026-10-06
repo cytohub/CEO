@@ -6,6 +6,10 @@ import { isAnthropicError, streamClaudeAnswer } from "@/server/chief/claude-engi
 import { answerWithRules } from "@/server/chief/rules";
 import type { Citation } from "@/server/chief/tools";
 import { loadCeoContext } from "@/server/context";
+import { audit } from "@/server/security/audit";
+import { LIMITS, rateLimit } from "@/server/security/rate-limit";
+import { forbiddenResponse, isSameOrigin } from "@/server/security/request";
+import { can, getViewer } from "@/server/security/session";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
@@ -21,6 +25,16 @@ const bodySchema = z.object({
  *   {type:"done", citations} · {type:"error", message}
  */
 export async function POST(request: Request) {
+  if (!isSameOrigin(request)) return forbiddenResponse("Cross-site request blocked");
+  const viewer = await getViewer();
+  if (!viewer) return Response.json({ error: "Unauthorized" }, { status: 401 });
+  if (!can(viewer, "chief.use")) {
+    await audit({ action: "auth.denied", viewer, outcome: "DENIED", metadata: { capability: "chief.use", route: "/api/chief-of-staff" } });
+    return forbiddenResponse();
+  }
+  const limit = await rateLimit("chief", viewer.userId, LIMITS.chief);
+  if (!limit.ok) return Response.json({ error: "Too many questions — try again shortly." }, { status: 429, headers: { "Retry-After": String(limit.retryAfterSec) } });
+
   let body: z.infer<typeof bodySchema>;
   try {
     body = bodySchema.parse(await request.json());
@@ -29,10 +43,11 @@ export async function POST(request: Request) {
   }
 
   const ceo = await loadCeoContext();
+  // Threads are private to the signed-in user.
   const thread = body.threadId
-    ? await db.chatThread.findUnique({ where: { id: body.threadId }, include: { messages: { orderBy: { createdAt: "asc" }, take: 40 } } })
+    ? await db.chatThread.findFirst({ where: { id: body.threadId, userId: viewer.userId }, include: { messages: { orderBy: { createdAt: "asc" }, take: 40 } } })
     : null;
-  const activeThread = thread ?? (await db.chatThread.create({ data: { title: body.message.slice(0, 80), userId: ceo.userId }, include: { messages: true } }));
+  const activeThread = thread ?? (await db.chatThread.create({ data: { title: body.message.slice(0, 80), userId: viewer.userId }, include: { messages: true } }));
   await db.chatMessage.create({ data: { threadId: activeThread.id, role: "USER", content: body.message } });
 
   const engine = claudeEnabled() ? "claude" : "brain-rules";

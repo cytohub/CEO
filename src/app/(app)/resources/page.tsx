@@ -8,6 +8,7 @@ import { ResourceList } from "@/components/resources/resource-list";
 import { cn } from "@/lib/utils";
 import { getCeoContext } from "@/server/context";
 import { getCompanyRows, getPersonRows, getResourceCenterCounts, getResourceRows } from "@/server/queries/resources";
+import { requirePage } from "@/server/security/session";
 
 export const metadata: Metadata = { title: "Resources" };
 
@@ -21,6 +22,7 @@ const TAB_META: Record<Tab, { label: string; icon: LucideIcon }> = {
 };
 
 export default async function ResourcesPage(props: { searchParams: Promise<{ tab?: string; resource?: string }> }) {
+  await requirePage("workspace.view", "/resources");
   const sp = await props.searchParams;
   // A deep link to a resource always lands on the documents tab.
   const tab: Tab = sp.resource ? "documents" : (TABS as readonly string[]).includes(sp.tab ?? "") ? (sp.tab as Tab) : "documents";

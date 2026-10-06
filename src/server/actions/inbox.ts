@@ -6,10 +6,10 @@ import { db } from "@/lib/db";
 import { addDays, parseDayInput } from "@/lib/dates";
 import { getCeoContext } from "@/server/context";
 import { logActivity, rescore, revalidateAll } from "@/server/mutations";
-import { attempt, fail, ok, type ActionResult } from "./result";
+import { attemptAs, fail, ok, type ActionResult } from "./result";
 
 export async function resolveInboxItem(itemId: string, resolution?: string | null): Promise<ActionResult> {
-  return attempt(async () => {
+  return attemptAs("cockpit.view", async () => {
     const note = z.string().trim().max(2000).nullish().parse(resolution);
     const item = await db.inboxItem.update({ where: { id: itemId }, data: { status: "DONE", resolvedAt: new Date(), resolution: note || "Handled" } });
     if (item.insightId) await db.brainInsight.update({ where: { id: item.insightId }, data: { status: "ACTIONED" } });
@@ -20,7 +20,7 @@ export async function resolveInboxItem(itemId: string, resolution?: string | nul
 }
 
 export async function snoozeInboxItem(itemId: string, until: string): Promise<ActionResult> {
-  return attempt(async () => {
+  return attemptAs("cockpit.view", async () => {
     const day = parseDayInput(until);
     if (!day) return fail("Pick a date");
     const ceo = await getCeoContext();
@@ -33,7 +33,7 @@ export async function snoozeInboxItem(itemId: string, until: string): Promise<Ac
 }
 
 export async function dismissInboxItem(itemId: string): Promise<ActionResult> {
-  return attempt(async () => {
+  return attemptAs("cockpit.view", async () => {
     const item = await db.inboxItem.update({ where: { id: itemId }, data: { status: "DISMISSED", resolvedAt: new Date(), resolution: "Dismissed — not CEO-relevant" } });
     if (item.insightId) await db.brainInsight.update({ where: { id: item.insightId }, data: { status: "DISMISSED" } });
     await logActivity(db, { type: "INBOX_RESOLVED", summary: `Dismissed: ${item.title}` });
@@ -43,7 +43,7 @@ export async function dismissInboxItem(itemId: string): Promise<ActionResult> {
 }
 
 export async function reopenInboxItem(itemId: string): Promise<ActionResult> {
-  return attempt(async () => {
+  return attemptAs("cockpit.view", async () => {
     await db.inboxItem.update({ where: { id: itemId }, data: { status: "OPEN", resolvedAt: null, resolution: null, snoozedUntil: null } });
     revalidateAll();
     return ok(undefined, "Moved back to inbox");
@@ -64,7 +64,7 @@ const TYPE_FOCUS: Record<string, FocusArea> = {
 
 /** Turn an inbox item into a CEO task that keeps all its links. */
 export async function convertInboxToTask(itemId: string, opts?: { title?: string; dueDate?: string | null }): Promise<ActionResult<{ taskId: string }>> {
-  return attempt(async () => {
+  return attemptAs("cockpit.view", async () => {
     const ceo = await getCeoContext();
     const item = await db.inboxItem.findUnique({ where: { id: itemId }, include: { goal: { select: { pillarId: true } } } });
     if (!item) return fail("Inbox item not found");

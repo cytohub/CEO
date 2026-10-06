@@ -19,6 +19,7 @@ import { dayKey, formatDay, formatMonth } from "@/lib/dates";
 import { formatMetric, pluralize } from "@/lib/format";
 import { getCeoContext } from "@/server/context";
 import { getMonthlyReview, monthKey, resolveMonth } from "@/server/queries/reviews";
+import { requirePage } from "@/server/security/session";
 
 export const metadata: Metadata = { title: "Monthly CEO Review" };
 
@@ -27,6 +28,7 @@ function shiftMonth(start: Date, by: number): Date {
 }
 
 export default async function MonthlyReviewPage(props: { searchParams: Promise<{ month?: string }> }) {
+  await requirePage("cockpit.view", "/review/monthly");
   const sp = await props.searchParams;
   const ceo = await getCeoContext();
   const monthStart = resolveMonth(sp.month, ceo.today);

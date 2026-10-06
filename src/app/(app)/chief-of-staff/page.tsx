@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { CLAUDE_MODEL, claudeEnabled } from "@/server/ai/claude";
 import type { Citation } from "@/server/chief/tools";
 import { getCeoContext } from "@/server/context";
+import { requirePage } from "@/server/security/session";
 
 export const metadata: Metadata = { title: "Chief of Staff" };
 
@@ -18,20 +19,21 @@ function toCitations(value: unknown): Citation[] | undefined {
 }
 
 export default async function ChiefOfStaffPage(props: { searchParams: Promise<{ thread?: string | string[] }> }) {
+  const viewer = await requirePage("chief.use", "/chief-of-staff");
   const sp = await props.searchParams;
   const threadParam = Array.isArray(sp.thread) ? sp.thread[0] : sp.thread;
   const ceo = await getCeoContext();
 
   const [threads, thread] = await Promise.all([
     db.chatThread.findMany({
-      where: { userId: ceo.userId },
+      where: { userId: viewer.userId },
       orderBy: { updatedAt: "desc" },
       take: 60,
       select: { id: true, title: true, updatedAt: true, _count: { select: { messages: true } } },
     }),
     threadParam
       ? db.chatThread.findFirst({
-          where: { id: threadParam, userId: ceo.userId },
+          where: { id: threadParam, userId: viewer.userId },
           select: { id: true, title: true, messages: { orderBy: { createdAt: "asc" }, select: { id: true, role: true, content: true, citations: true, engine: true } } },
         })
       : null,

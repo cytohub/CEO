@@ -8,6 +8,7 @@ import { addDays } from "@/lib/dates";
 import { cn } from "@/lib/utils";
 import { getCeoContext } from "@/server/context";
 import { getMilestones, type MilestoneRow } from "@/server/queries/milestones";
+import { requirePage } from "@/server/security/session";
 
 export const metadata: Metadata = { title: "Milestones" };
 
@@ -29,6 +30,7 @@ const HIGHLIGHTS: { key: Highlight; label: string; className: string; test: (m: 
 ];
 
 export default async function MilestonesPage(props: { searchParams: Promise<{ view?: string; filter?: string }> }) {
+  await requirePage("workspace.view", "/milestones");
   const sp = await props.searchParams;
   const view = (VIEWS.find((v) => v.key === sp.view)?.key ?? "timeline") as MilestoneView;
   const filter = HIGHLIGHTS.find((h) => h.key === sp.filter);

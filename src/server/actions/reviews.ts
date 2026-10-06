@@ -8,7 +8,7 @@ import { addDays, endOfMonth, formatDay, formatMonth, parseDayInput, startOfMont
 import { getCeoContext } from "@/server/context";
 import { logActivity, revalidateAll } from "@/server/mutations";
 import { getMonthlyReview, getWeeklyReview, monthlySnapshot, REFLECTION_FIELDS, weeklySnapshot } from "@/server/queries/reviews";
-import { attempt, fail, ok, type ActionResult } from "./result";
+import { attemptAs, fail, ok, type ActionResult } from "./result";
 
 const reflectionValue = z.string().max(5000, "Keep reflections under 5,000 characters").nullable();
 
@@ -36,7 +36,7 @@ const saveSchema = periodSchema.extend({
 
 /** Autosave one reflection prompt (upserts the Review for the period). */
 export async function saveReflection(input: z.input<typeof saveSchema>): Promise<ActionResult<{ savedAt: Date }>> {
-  return attempt(async () => {
+  return attemptAs("cockpit.view", async () => {
     const data = saveSchema.parse(input);
     const period = resolvePeriod(data.type, data.periodStart);
     if (!period) return fail(data.type === "WEEKLY" ? "Weekly reviews start on a Monday" : "Monthly reviews start on the 1st");
@@ -68,7 +68,7 @@ const completeSchema = periodSchema.extend({
 
 /** Complete a review: freeze a snapshot of the generated sections and log it. */
 export async function completeReview(input: z.input<typeof completeSchema>): Promise<ActionResult<{ completedAt: Date }>> {
-  return attempt(async () => {
+  return attemptAs("cockpit.view", async () => {
     const data = completeSchema.parse(input);
     const period = resolvePeriod(data.type, data.periodStart);
     if (!period) return fail(data.type === "WEEKLY" ? "Weekly reviews start on a Monday" : "Monthly reviews start on the 1st");

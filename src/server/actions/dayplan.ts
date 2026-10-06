@@ -6,7 +6,7 @@ import { addDays, dayKey } from "@/lib/dates";
 import { ensureDayPlan, recommendTopFive } from "@/server/brain/priorities";
 import { getCeoContext } from "@/server/context";
 import { logActivity, revalidateAll } from "@/server/mutations";
-import { attempt, fail, ok, type ActionResult } from "./result";
+import { attemptAs, fail, ok, type ActionResult } from "./result";
 
 async function renumber(dayPlanId: string) {
   const items = await db.dailyPriority.findMany({ where: { dayPlanId }, orderBy: { rank: "asc" } });
@@ -17,7 +17,7 @@ async function renumber(dayPlanId: string) {
 
 /** CEO adds a task to today's Top 5 (replacing the lowest Brain pick if full). */
 export async function pinToTop5(taskId: string): Promise<ActionResult> {
-  return attempt(async () => {
+  return attemptAs("cockpit.view", async () => {
     const ceo = await getCeoContext();
     const plan = await ensureDayPlan(db, ceo.today);
     const task = await db.task.findUnique({ where: { id: taskId } });
@@ -39,7 +39,7 @@ export async function pinToTop5(taskId: string): Promise<ActionResult> {
 }
 
 export async function removeFromTop5(taskId: string): Promise<ActionResult> {
-  return attempt(async () => {
+  return attemptAs("cockpit.view", async () => {
     const ceo = await getCeoContext();
     const plan = await db.dayPlan.findUnique({ where: { date: ceo.today } });
     if (!plan) return fail("No plan for today");
@@ -53,7 +53,7 @@ export async function removeFromTop5(taskId: string): Promise<ActionResult> {
 }
 
 export async function moveInTop5(taskId: string, direction: "up" | "down"): Promise<ActionResult> {
-  return attempt(async () => {
+  return attemptAs("cockpit.view", async () => {
     const ceo = await getCeoContext();
     const plan = await db.dayPlan.findUnique({ where: { date: ceo.today }, include: { priorities: { orderBy: { rank: "asc" } } } });
     if (!plan) return fail("No plan for today");
@@ -73,7 +73,7 @@ export async function moveInTop5(taskId: string, direction: "up" | "down"): Prom
 
 /** Ask the Brain to re-recommend (only while the list is unconfirmed). */
 export async function regenerateTop5(): Promise<ActionResult> {
-  return attempt(async () => {
+  return attemptAs("cockpit.view", async () => {
     const ceo = await getCeoContext();
     const plan = await ensureDayPlan(db, ceo.today);
     if (plan.top5ConfirmedAt) await db.dayPlan.update({ where: { id: plan.id }, data: { top5ConfirmedAt: null } });
@@ -84,7 +84,7 @@ export async function regenerateTop5(): Promise<ActionResult> {
 }
 
 export async function confirmTop5(intention?: string | null): Promise<ActionResult> {
-  return attempt(async () => {
+  return attemptAs("cockpit.view", async () => {
     const ceo = await getCeoContext();
     const plan = await ensureDayPlan(db, ceo.today);
     await db.dayPlan.update({ where: { id: plan.id }, data: { top5ConfirmedAt: new Date(), intention: intention ?? plan.intention } });
@@ -102,7 +102,7 @@ const eodSchema = z.object({
 
 /** End-of-day review: record reflections and roll unfinished priorities forward. */
 export async function completeEndOfDay(input: z.input<typeof eodSchema>): Promise<ActionResult> {
-  return attempt(async () => {
+  return attemptAs("cockpit.view", async () => {
     const data = eodSchema.parse(input);
     const ceo = await getCeoContext();
     const plan = await ensureDayPlan(db, ceo.today);

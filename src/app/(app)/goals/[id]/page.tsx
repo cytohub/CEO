@@ -12,6 +12,7 @@ import { daysBetween, formatDateTime, formatDay } from "@/lib/dates";
 import { DECISION_STATUS, GOAL_STATUS, GOAL_TYPES, INSIGHT_TYPES, MILESTONE_STATUS, MILESTONE_TYPES, RESOURCE_TYPES, TASK_STATUS } from "@/lib/domain";
 import { formatMetric } from "@/lib/format";
 import { getGoalDetail } from "@/server/queries/goals";
+import { requirePage } from "@/server/security/session";
 
 export async function generateMetadata(props: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await props.params;
@@ -20,6 +21,7 @@ export async function generateMetadata(props: { params: Promise<{ id: string }> 
 }
 
 export default async function GoalPage(props: { params: Promise<{ id: string }> }) {
+  await requirePage("workspace.view", "/goals");
   const { id } = await props.params;
   const data = await getGoalDetail(id);
   if (!data) notFound();

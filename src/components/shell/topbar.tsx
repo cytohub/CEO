@@ -13,7 +13,9 @@ import type { ShellData } from "@/server/queries/shell";
 import { useUI } from "./ui-context";
 
 export function Topbar({ brain, timezone }: { brain: ShellData["brain"]; timezone: string }) {
-  const { setCommandOpen, openChief, setMobileNavOpen } = useUI();
+  const { setCommandOpen, openChief, setMobileNavOpen, viewer } = useUI();
+  const canChief = viewer.capabilities.includes("chief.use");
+  const canBrain = viewer.capabilities.includes("brain.view");
   return (
     <header className="sticky top-0 z-30 flex h-12 shrink-0 items-center gap-2 border-b border-border bg-background/85 px-3 backdrop-blur supports-[backdrop-filter]:bg-background/70 sm:px-4">
       <Button variant="ghost" size="icon-sm" className="lg:hidden" onClick={() => setMobileNavOpen(true)} aria-label="Open navigation">
@@ -35,18 +37,20 @@ export function Topbar({ brain, timezone }: { brain: ShellData["brain"]; timezon
       </button>
 
       <div className="ml-auto flex items-center gap-1.5">
-        <BrainStatusPill brain={brain} timezone={timezone} />
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button variant="outline" size="sm" onClick={() => openChief()} className="gap-1.5">
-              <Sparkles className="size-3.5 text-brain" aria-hidden />
-              <span className="hidden sm:inline">Chief of Staff</span>
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>
-            Ask your AI Chief of Staff <Kbd className="ml-1">⌘J</Kbd>
-          </TooltipContent>
-        </Tooltip>
+        {canBrain && <BrainStatusPill brain={brain} timezone={timezone} />}
+        {canChief && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="outline" size="sm" onClick={() => openChief()} className="gap-1.5">
+                <Sparkles className="size-3.5 text-brain" aria-hidden />
+                <span className="hidden sm:inline">Chief of Staff</span>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              Ask your AI Chief of Staff <Kbd className="ml-1">⌘J</Kbd>
+            </TooltipContent>
+          </Tooltip>
+        )}
         <ThemeToggle />
       </div>
     </header>

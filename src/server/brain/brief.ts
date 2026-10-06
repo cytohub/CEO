@@ -26,15 +26,24 @@ const SECTION_FOR: Record<BrainInsight["type"], BriefSectionKey> = {
   COMMITMENT: "commitments",
   DELEGATION: "followUps",
   ATTENTION: "attention",
+  CHANGE: "changes",
 };
 
-export function insightHref(i: Pick<BrainInsight, "taskId" | "goalId" | "milestoneId" | "decisionId" | "companyId" | "personId" | "dealId">): string | undefined {
+export function insightHref(
+  i: Pick<BrainInsight, "taskId" | "goalId" | "milestoneId" | "decisionId" | "companyId" | "personId" | "dealId"> &
+    Partial<Pick<BrainInsight, "documentId" | "meetingId" | "commitmentId" | "riskId" | "opportunityId" | "sourceItemId">>,
+): string | undefined {
   if (i.decisionId) return `/decisions/${i.decisionId}`;
   if (i.taskId) return `/tasks?task=${i.taskId}`;
   if (i.milestoneId) return `/milestones?milestone=${i.milestoneId}`;
+  if (i.documentId) return `/documents/${i.documentId}`;
+  if (i.meetingId) return `/upcoming?meeting=${i.meetingId}`;
+  if (i.commitmentId) return "/commitments";
+  if (i.riskId || i.opportunityId) return "/risks";
   if (i.goalId) return `/goals/${i.goalId}`;
   if (i.companyId) return `/resources/companies/${i.companyId}`;
   if (i.personId) return `/resources/people/${i.personId}`;
+  if (i.sourceItemId) return `/sources/${i.sourceItemId}`;
   return undefined;
 }
 

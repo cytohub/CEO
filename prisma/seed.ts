@@ -21,6 +21,8 @@ import { runBrainRefresh } from "../src/server/brain/refresh";
 import { DEFAULT_WEIGHTS, scoreTask } from "../src/server/brain/scoring";
 import { DEFAULT_THRESHOLDS } from "../src/server/settings";
 import { CONNECTOR_DEFINITIONS } from "../src/server/brain/connectors";
+import { randomToken } from "../src/server/security/crypto";
+import { hashPassword } from "../src/server/security/passwords";
 import {
   ATTENTION_TARGETS,
   CANCELLED_TASKS,
@@ -117,6 +119,7 @@ async function main() {
         industry: c.industry,
         location: c.location,
         website: c.website,
+        domain: `${c.key}.example`,
         description: c.description,
         relationship: c.relationship,
         lastActivityAt: c.lastActivityDaysAgo != null ? hoursAgo(c.lastActivityDaysAgo * 24 + 2) : null,
@@ -130,7 +133,10 @@ async function main() {
     data: { name: CEO_NAME, title: "Chief Executive Officer", type: "TEAM", isCeo: true, department: "Office of the CEO", email: "ceo@cytohub.example" },
   });
   personId.ceo = ceo.id;
-  await db.user.create({ data: { name: CEO_NAME, email: "ceo@cytohub.example", timezone: TZ, personId: ceo.id } });
+  // Sign-in: one shared seed password (SEED_PASSWORD, or a random one printed below).
+  const seedPassword = process.env.SEED_PASSWORD || randomToken(12);
+  const passwordHash = await hashPassword(seedPassword);
+  await db.user.create({ data: { name: CEO_NAME, email: "ceo@cytohub.example", timezone: TZ, personId: ceo.id, role: "CEO", passwordHash } });
 
   for (const p of [...TEAM, ...EXTERNAL_PEOPLE]) {
     const row = await db.person.create({
@@ -148,6 +154,18 @@ async function main() {
     });
     personId[p.key] = row.id;
   }
+
+  // Other roles, for permission-model demos.
+  const seedUsers = [
+    { email: "elena@cytohub.example", name: "Elena Costa", role: "EXECUTIVE" as const, person: "elena" },
+    { email: "ben@cytohub.example", name: "Ben Carter", role: "TEAM_MEMBER" as const, person: "ben" },
+    { email: "catherine@cytohub.example", name: "Dr. Catherine Duval", role: "ADVISOR" as const, person: "catherine" },
+    { email: "admin@cytohub.example", name: "IT Administrator", role: "ADMIN" as const, person: null },
+  ];
+  for (const u of seedUsers) {
+    await db.user.create({ data: { email: u.email, name: u.name, role: u.role, timezone: TZ, passwordHash, personId: u.person ? personId[u.person] : null } });
+  }
+  console.log(`  Sign in as ceo@cytohub.example (or ${seedUsers.map((u) => u.email.split("@")[0]).join(", ")}) with password: ${process.env.SEED_PASSWORD ? "$SEED_PASSWORD" : seedPassword}`);
 
   // ── Goals ─────────────────────────────────────────────────────────────────
   const yearStart = new Date(Date.UTC(TODAY.getUTCFullYear(), 0, 1));

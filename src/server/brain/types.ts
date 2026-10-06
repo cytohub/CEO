@@ -93,6 +93,7 @@ export interface BriefItem {
 
 export const BRIEF_SECTIONS = [
   { key: "decisionsNeeded", label: "Decisions needed" },
+  { key: "changes", label: "Important changes" },
   { key: "risks", label: "New risks" },
   { key: "milestonesAtRisk", label: "Milestones at risk" },
   { key: "dealsProgressing", label: "Deals progressing" },

@@ -219,6 +219,9 @@ enum InboxType {
   DEADLINE_RISK
   HIRING_DECISION
   OPPORTUNITY
+  COMMITMENT
+  CHANGE
+  REQUEST
 }
 
 enum InboxStatus {
@@ -243,6 +246,7 @@ enum InsightType {
   COMMITMENT
   DELEGATION
   ATTENTION
+  CHANGE
 }
 
 enum InsightStatus {
@@ -322,6 +326,24 @@ enum ActivityType {
   END_OF_DAY
   REVIEW_COMPLETED
   SETTINGS_UPDATED
+  COMMITMENT_CREATED
+  COMMITMENT_UPDATED
+  COMMITMENT_FULFILLED
+  DEADLINE_CHANGED
+  OWNER_CHANGED
+  STATUS_CHANGED
+  MEETING_OCCURRED
+  MEETING_RESCHEDULED
+  MEETING_CANCELLED
+  DOCUMENT_CHANGED
+  RISK_EMERGED
+  RISK_RESOLVED
+  OPPORTUNITY_IDENTIFIED
+  ENTITY_CREATED
+  ENTITY_MERGED
+  SOURCE_CONNECTED
+  SOURCE_DISCONNECTED
+  REVIEW_RESOLVED
 }
 
 enum ReviewType {
@@ -358,10 +380,25 @@ model User {
   /// The Person record representing this user in the execution graph.
   personId  String?  @unique
   person    Person?  @relation(fields: [personId], references: [id], onDelete: SetNull)
+  /// Least privilege by default; the seed and admins assign roles explicitly.
+  role         UserRole  @default(TEAM_MEMBER)
+  /// scrypt hash (see src/server/security/passwords.ts). Null = cannot sign in with a password.
+  passwordHash String?
+  active       Boolean   @default(true)
+  lastLoginAt  DateTime?
+  failedLogins Int       @default(0)
+  lockedUntil  DateTime?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  chatThreads ChatThread[]
+  chatThreads     ChatThread[]
+  sessions        Session[]
+  connections     SourceConnection[]
+  grants          AccessGrant[]     @relation("GrantUser")
+  grantsGiven     AccessGrant[]     @relation("GrantGrantedBy")
+  auditLogs       AuditLog[]
+  reviewsAssigned ReviewQueueItem[] @relation("ReviewAssignee")
+  reviewsResolved ReviewQueueItem[] @relation("ReviewResolver")
 }
 
 /// Key/value configuration (priority weights, thresholds, preferences).
@@ -387,6 +424,7 @@ model StrategicPillar {
   tasks      Task[]
   decisions  Decision[]
   metrics    Metric[]
+  projects   Project[]
 }
 
 /// Recommended share of CEO attention per focus area. Configurable by the CEO.
@@ -412,9 +450,20 @@ model Company {
   /// 1 (cold) – 5 (strong). Updated by the Brain from interaction history.
   relationship   Int         @default(3)
   lastActivityAt DateTime?
+  /// Primary email domain, used by entity resolution (more live in EntityAlias).
+  domain         String?
+  /// Corporate family: e.g. Janssen → Johnson & Johnson.
+  parentId       String?
+  parent         Company?    @relation("CompanyFamily", fields: [parentId], references: [id], onDelete: SetNull)
+  subsidiaries   Company[]   @relation("CompanyFamily")
   createdAt      DateTime    @default(now())
   updatedAt      DateTime    @updatedAt
 
+  threads       EmailThread[]
+  documents     Document[]
+  commitments   Commitment[]
+  risks         Risk[]
+  opportunities Opportunity[]
   people      Person[]
   deals       Deal[]
   tasks       Task[]
@@ -462,6 +511,11 @@ model Person {
   signals            BrainSignal[]
   resources          Resource[]     @relation("ResourcePeople")
 
+  commitmentsOwned Commitment[]  @relation("CommitmentOwner")
+  commitmentsOwed  Commitment[]  @relation("CommitmentCounterparty")
+  risksOwned       Risk[]        @relation("RiskOwner")
+  opportunities    Opportunity[] @relation("OpportunityContact")
+
   @@index([type])
   @@index([companyId])
 }
@@ -508,6 +562,10 @@ model Goal {
   notes      Note[]
   activities Activity[]
   resources  Resource[]  @relation("ResourceGoals")
+  commitments   Commitment[]
+  riskRecords   Risk[]
+  opportunities Opportunity[]
+  projects      Project[]
 
   @@index([type, status])
   @@index([pillarId])
@@ -540,6 +598,7 @@ model Milestone {
   notes      Note[]
   activities Activity[]
   resources  Resource[]  @relation("ResourceMilestones")
+  risks      Risk[]
 
   @@index([dueDate])
   @@index([status])
@@ -582,6 +641,8 @@ model Task {
   scoreBreakdown        Json?
   scoredAt              DateTime?
   aiRecommendation      String?
+  /// Set when the task was extracted by CytoHub Brain from a source.
+  extractionConfidence  Confidence?
   delegationRecommended Boolean   @default(false)
   suggestedDelegateId   String?
   suggestedDelegate     Person?   @relation("TaskSuggestedDelegate", fields: [suggestedDelegateId], references: [id], onDelete: SetNull)
@@ -616,6 +677,7 @@ model Task {
   notes           Note[]
   activities      Activity[]
   timeEntries     TimeEntry[]
+  commitment      Commitment?
 
   @@index([status, dueDate])
   @@index([ownerId])
@@ -695,6 +757,7 @@ model Resource {
   decisions  Decision[]  @relation("ResourceDecisions")
   people     Person[]    @relation("ResourcePeople")
   companies  Company[]   @relation("ResourceCompanies")
+  document   Document?
 
   @@index([type])
 }
@@ -750,6 +813,10 @@ model Deal {
   insights   BrainInsight[]
   inboxItems InboxItem[]
   signals    BrainSignal[]
+  threads       EmailThread[]
+  commitments   Commitment[]
+  risks         Risk[]
+  opportunities Opportunity[]
 
   @@index([type, status])
 }
@@ -775,9 +842,17 @@ model Meeting {
   /// Cached Prepare Me brief (see src/server/brain/prepare.ts for shape).
   prepBrief   Json?
   preparedAt  DateTime?
+  category    MeetingCategory?
+  status      MeetingStatus @default(SCHEDULED)
+  /// When post-meeting notes were last run through the ingestion pipeline.
+  notesProcessedAt DateTime?
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
 
+  calendarEvent CalendarEvent?
+  sourceItems   SourceItem[]
+  commitments   Commitment[]
+  insights      BrainInsight[]
   attendees   Person[]    @relation("MeetingAttendees")
   tasks       Task[]
   notes       Note[]
@@ -861,7 +936,8 @@ model BrainSource {
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
 
-  signals BrainSignal[]
+  signals     BrainSignal[]
+  connections SourceConnection[]
 }
 
 /// A raw, normalized item ingested from a source. Signals are immutable;
@@ -948,6 +1024,20 @@ model BrainInsight {
   decision       Decision?     @relation(fields: [decisionId], references: [id], onDelete: SetNull)
   dealId         String?
   deal           Deal?         @relation(fields: [dealId], references: [id], onDelete: SetNull)
+  sourceItemId   String?
+  sourceItem     SourceItem?   @relation(fields: [sourceItemId], references: [id], onDelete: SetNull)
+  commitmentId   String?
+  commitment     Commitment?   @relation(fields: [commitmentId], references: [id], onDelete: SetNull)
+  riskId         String?
+  risk           Risk?         @relation(fields: [riskId], references: [id], onDelete: SetNull)
+  opportunityId  String?
+  opportunity    Opportunity?  @relation(fields: [opportunityId], references: [id], onDelete: SetNull)
+  documentId     String?
+  document       Document?     @relation(fields: [documentId], references: [id], onDelete: SetNull)
+  meetingId      String?
+  meeting        Meeting?      @relation(fields: [meetingId], references: [id], onDelete: SetNull)
+  /// For CHANGE insights: what changed (e.g. "meeting_rescheduled", "document_figures").
+  changeKind     String?
   occurredAt     DateTime      @default(now())
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
@@ -1003,6 +1093,18 @@ model InboxItem {
   goal              Goal?       @relation(fields: [goalId], references: [id], onDelete: SetNull)
   dealId            String?
   deal              Deal?       @relation(fields: [dealId], references: [id], onDelete: SetNull)
+  /// CEO attention engine output for ingestion-sourced items.
+  attention          AttentionLevel?
+  confidence         Confidence?
+  strategicRelevance String?
+  sourceItemId       String?
+  sourceItem         SourceItem?  @relation(fields: [sourceItemId], references: [id], onDelete: SetNull)
+  commitmentId       String?
+  commitment         Commitment?  @relation(fields: [commitmentId], references: [id], onDelete: SetNull)
+  riskId             String?
+  risk               Risk?        @relation(fields: [riskId], references: [id], onDelete: SetNull)
+  opportunityId      String?
+  opportunity        Opportunity? @relation(fields: [opportunityId], references: [id], onDelete: SetNull)
   createdAt         DateTime    @default(now())
   updatedAt         DateTime    @updatedAt
 
@@ -1068,10 +1170,21 @@ model Activity {
   person       Person?      @relation(fields: [personId], references: [id], onDelete: SetNull)
   delegationId String?
   delegation   Delegation?  @relation(fields: [delegationId], references: [id], onDelete: SetNull)
+  sourceItemId  String?
+  sourceItem    SourceItem?  @relation(fields: [sourceItemId], references: [id], onDelete: SetNull)
+  commitmentId  String?
+  commitment    Commitment?  @relation(fields: [commitmentId], references: [id], onDelete: SetNull)
+  riskId        String?
+  risk          Risk?        @relation(fields: [riskId], references: [id], onDelete: SetNull)
+  opportunityId String?
+  opportunity   Opportunity? @relation(fields: [opportunityId], references: [id], onDelete: SetNull)
+  documentId    String?
+  document      Document?    @relation(fields: [documentId], references: [id], onDelete: SetNull)
   createdAt    DateTime     @default(now())
 
   @@index([createdAt])
   @@index([type])
+  @@index([commitmentId])
 }
 
 model Note {
@@ -1144,4 +1257,1201 @@ model ChatMessage {
   createdAt DateTime   @default(now())
 
   @@index([threadId, createdAt])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Security: roles, sessions, permissions, audit
+// See docs/ingestion/ARCHITECTURE.md §10.
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum UserRole {
+  CEO
+  EXECUTIVE
+  TEAM_MEMBER
+  ADMIN
+  ADVISOR
+}
+
+/// Clearance ladder for source content: INTERNAL < CONFIDENTIAL < RESTRICTED.
+enum Sensitivity {
+  INTERNAL
+  CONFIDENTIAL
+  RESTRICTED
+}
+
+enum AuditOutcome {
+  SUCCESS
+  DENIED
+  FAILURE
+}
+
+enum GrantResource {
+  CONNECTION
+  SOURCE_ITEM
+  DOCUMENT
+  EMAIL_THREAD
+}
+
+model Session {
+  id         String    @id @default(cuid())
+  /// SHA-256 of the session token; the token itself only lives in the cookie.
+  tokenHash  String    @unique
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt  DateTime  @default(now())
+  expiresAt  DateTime
+  lastSeenAt DateTime  @default(now())
+  revokedAt  DateTime?
+  ip         String?
+  userAgent  String?
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+/// Explicit access to a connection, source item, document or thread beyond role clearance.
+model AccessGrant {
+  id           String        @id @default(cuid())
+  resourceType GrantResource
+  resourceId   String
+  /// Grant to one user …
+  userId       String?
+  user         User?         @relation("GrantUser", fields: [userId], references: [id], onDelete: Cascade)
+  /// … or to every user with a role.
+  role         UserRole?
+  grantedById  String?
+  grantedBy    User?         @relation("GrantGrantedBy", fields: [grantedById], references: [id], onDelete: SetNull)
+  createdAt    DateTime      @default(now())
+  expiresAt    DateTime?
+
+  @@index([resourceType, resourceId])
+  @@index([userId])
+}
+
+model AuditLog {
+  id          String       @id @default(cuid())
+  at          DateTime     @default(now())
+  actorUserId String?
+  actor       User?        @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+  /// Email of the actor, or "system" / "CytoHub Brain".
+  actorLabel  String
+  /// Dotted action name, e.g. "auth.login", "source.view", "connection.disconnect".
+  action      String
+  outcome     AuditOutcome @default(SUCCESS)
+  targetType  String?
+  targetId    String?
+  ip          String?
+  userAgent   String?
+  metadata    Json?
+
+  @@index([at])
+  @@index([action])
+  @@index([actorUserId])
+}
+
+/// Fixed-window rate limiter state ("<scope>:<subject>:<window>").
+model RateLimitBucket {
+  key       String   @id
+  count     Int      @default(0)
+  expiresAt DateTime
+
+  @@index([expiresAt])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Ingestion: connections, raw source items, email, calendar, documents
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum SourceKind {
+  EMAIL
+  CALENDAR
+  DOCUMENTS
+}
+
+enum SourceProvider {
+  GMAIL
+  OUTLOOK_MAIL
+  GOOGLE_CALENDAR
+  OUTLOOK_CALENDAR
+  GOOGLE_DRIVE
+  ONEDRIVE
+  SHAREPOINT
+  DROPBOX
+  LOCAL_UPLOAD
+  CYTOHUB_INTERNAL
+}
+
+/// LIVE = OAuth connection to the provider; DEMO = mock adapter over sample fixtures.
+enum ConnectionMode {
+  LIVE
+  DEMO
+}
+
+enum ConnectionStatus {
+  CONNECTED
+  SYNCING
+  ERROR
+  NEEDS_REAUTH
+  PAUSED
+  DISCONNECTED
+}
+
+enum SyncFrequency {
+  MANUAL
+  HOURLY
+  DAILY
+  REALTIME
+}
+
+enum SourceItemKind {
+  EMAIL_MESSAGE
+  CALENDAR_EVENT
+  DOCUMENT
+  MEETING_NOTES
+}
+
+enum ProcessingStatus {
+  PENDING
+  PROCESSING
+  PROCESSED
+  SKIPPED
+  FAILED
+}
+
+/// Last pipeline stage a source item completed (processing resumes from here).
+enum PipelineStage {
+  RAW
+  NORMALIZED
+  PARSED
+  ENTITIES_EXTRACTED
+  ENTITIES_RESOLVED
+  RELATIONSHIPS_MAPPED
+  INTELLIGENCE_EXTRACTED
+  WRITTEN
+}
+
+enum Relevance {
+  CRITICAL
+  HIGH
+  NORMAL
+  LOW
+  NOISE
+}
+
+/// Why an item matters to the CEO (or why it does not).
+enum CeoCategory {
+  INVESTOR
+  CUSTOMER
+  STRATEGIC_PARTNER
+  BOARD
+  LEGAL
+  FINANCE
+  RECRUITING
+  EXECUTIVE_TEAM
+  SCIENTIFIC_LEADERSHIP
+  MAJOR_VENDOR
+  FUNDRAISING
+  COMMERCIAL_OPPORTUNITY
+  INTERNAL_ESCALATION
+  OPERATIONS
+  PERSONAL
+  NEWSLETTER
+  MARKETING
+  NOTIFICATION
+  SPAM
+  OTHER
+}
+
+enum AttentionLevel {
+  IMMEDIATE
+  TODAY
+  THIS_WEEK
+  MONITOR
+  DELEGATE
+  ARCHIVE
+}
+
+enum Confidence {
+  HIGH
+  MEDIUM
+  LOW
+}
+
+enum MessageDirection {
+  INBOUND
+  OUTBOUND
+  INTERNAL
+}
+
+enum ReplyStatus {
+  REPLIED
+  AWAITING_CEO
+  AWAITING_THEM
+  NO_REPLY_NEEDED
+}
+
+enum ThreadStatus {
+  AWAITING_CEO
+  AWAITING_THEM
+  ACTIVE
+  FYI
+  RESOLVED
+}
+
+enum EventStatus {
+  CONFIRMED
+  TENTATIVE
+  CANCELLED
+}
+
+enum ResponseStatus {
+  ACCEPTED
+  DECLINED
+  TENTATIVE
+  NEEDS_ACTION
+  ORGANIZER
+}
+
+enum MeetingCategory {
+  INVESTOR
+  CUSTOMER
+  BOARD
+  INTERNAL_LEADERSHIP
+  SCIENTIFIC
+  PARTNER
+  RECRUITING
+  LEGAL
+  FINANCE
+  PRODUCT
+  SALES
+  FUNDRAISING
+  NETWORKING
+  PERSONAL
+  OTHER
+}
+
+enum MeetingStatus {
+  SCHEDULED
+  CANCELLED
+  COMPLETED
+}
+
+enum DocumentType {
+  INVESTOR_DECK
+  FINANCIAL_MODEL
+  CUSTOMER_PROPOSAL
+  CUSTOMER_CONTRACT
+  NDA
+  STRATEGIC_PLAN
+  SCIENTIFIC_REPORT
+  EXPERIMENT_REPORT
+  PUBLICATION
+  REGULATORY_DOCUMENT
+  PRODUCT_SPECIFICATION
+  MEETING_NOTES
+  BOARD_DOCUMENT
+  FUNDRAISING_MATERIAL
+  SALES_MATERIAL
+  EMPLOYEE_DOCUMENT
+  LEGAL_DOCUMENT
+  PARTNERSHIP_AGREEMENT
+  SCIENTIFIC_DATA_SUMMARY
+  INTERNAL_MEMO
+  OTHER
+}
+
+enum DocumentFormat {
+  PDF
+  DOCX
+  PPTX
+  XLSX
+  CSV
+  TXT
+  MARKDOWN
+  HTML
+  IMAGE
+  OTHER
+}
+
+/// A connected account (mailbox, calendar, drive) belonging to a BrainSource catalog entry.
+model SourceConnection {
+  id                  String           @id @default(cuid())
+  kind                SourceKind
+  provider            SourceProvider
+  mode                ConnectionMode   @default(LIVE)
+  label               String
+  accountEmail        String?
+  externalAccountId   String?
+  status              ConnectionStatus @default(CONNECTED)
+  syncFrequency       SyncFrequency    @default(HOURLY)
+  scopes              String[]
+  /// AES-256-GCM encrypted JSON token set. Never sent to the client.
+  credentials         String?
+  tokenExpiresAt      DateTime?
+  /// Provider cursor: { historyId } · { syncToken } · { deltaLink } · { pageToken } · { modifiedSince } …
+  cursor              Json?
+  lastSyncAt          DateTime?
+  lastSuccessAt       DateTime?
+  lastErrorAt         DateTime?
+  lastError           String?
+  consecutiveFailures Int              @default(0)
+  nextSyncAt          DateTime?
+  webhookChannelId    String?
+  /// SHA-256 of the per-connection webhook secret (provider echoes the secret).
+  webhookSecretHash   String?
+  webhookExpiresAt    DateTime?
+  /// Ingest newsletters / notifications too (off by default).
+  includeNoise        Boolean          @default(false)
+  defaultSensitivity  Sensitivity      @default(CONFIDENTIAL)
+  /// Provider options: folders/labels to include, demo anchor time, drive ids…
+  settings            Json?
+  itemsIngested       Int              @default(0)
+  ownerUserId         String?
+  owner               User?            @relation(fields: [ownerUserId], references: [id], onDelete: SetNull)
+  brainSourceId       String?
+  brainSource         BrainSource?     @relation(fields: [brainSourceId], references: [id], onDelete: SetNull)
+  disconnectedAt      DateTime?
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
+
+  items   SourceItem[]
+  threads EmailThread[]
+  runs    IngestionRun[]
+  jobs    IngestionJob[]
+
+  @@index([kind, status])
+}
+
+/// One ingested message, event, document or notes item: the provenance anchor
+/// for everything the Brain derives from it.
+model SourceItem {
+  id               String           @id @default(cuid())
+  connectionId     String
+  connection       SourceConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  kind             SourceItemKind
+  externalId       String
+  externalUrl      String?
+  title            String
+  /// When it happened: sent, starts, last modified.
+  occurredAt       DateTime
+  ingestedAt       DateTime         @default(now())
+  sourceUpdatedAt  DateTime?
+  /// SHA-256 of normalized content; unchanged content is not reprocessed.
+  contentHash      String
+  version          Int              @default(1)
+  /// Encrypted original provider payload (retention-managed).
+  rawPayload       String?
+  /// Normalized plain text for extraction and search (retention-managed).
+  text             String?
+  snippet          String?
+  status           ProcessingStatus @default(PENDING)
+  stage            PipelineStage    @default(RAW)
+  attempts         Int              @default(0)
+  processingError  String?
+  processedAt      DateTime?
+  relevance        Relevance?
+  relevanceScore   Float?
+  category         CeoCategory?
+  relevanceReasons String[]
+  attention        AttentionLevel?
+  sensitivity      Sensitivity      @default(CONFIDENTIAL)
+  /// Intermediate stage outputs so a retried stage resumes where it stopped.
+  stageData        Json?
+  /// Validated intelligence extraction (retention-managed).
+  extraction       Json?
+  extractionEngine String?
+  extractedAt      DateTime?
+  /// Same message seen through another connection (RFC 5322 Message-ID match).
+  duplicateOfId    String?
+  duplicateOf      SourceItem?      @relation("SourceDuplicates", fields: [duplicateOfId], references: [id], onDelete: SetNull)
+  duplicates       SourceItem[]     @relation("SourceDuplicates")
+  /// Meeting notes belong to a meeting.
+  meetingId        String?
+  meeting          Meeting?         @relation(fields: [meetingId], references: [id], onDelete: SetNull)
+  deletedAtSource  DateTime?
+  contentPurgedAt  DateTime?
+  /// Full-text index, maintained by a trigger (see migration).
+  searchVector     Unsupported("tsvector")?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  emailMessage  EmailMessage?
+  calendarEvent CalendarEvent?
+  document      Document?
+  mentions      EntityMention[]
+  references    SourceReference[]
+  relationships Relationship[]
+  reviewItems   ReviewQueueItem[]
+  jobs          IngestionJob[]
+  insights      BrainInsight[]
+  inboxItems    InboxItem[]
+  activities    Activity[]
+
+  @@unique([connectionId, externalId])
+  @@index([kind, occurredAt])
+  @@index([status])
+  @@index([relevance])
+  @@index([searchVector], type: Gin)
+}
+
+/// A conversation, with an evolving summary maintained as messages arrive.
+model EmailThread {
+  id                 String           @id @default(cuid())
+  connectionId       String
+  connection         SourceConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  externalThreadId   String
+  subject            String
+  firstMessageAt     DateTime
+  lastMessageAt      DateTime
+  lastInboundAt      DateTime?
+  lastOutboundAt     DateTime?
+  messageCount       Int              @default(0)
+  /// [{ name, email, personId?, companyId? }]
+  participants       Json
+  relevance          Relevance?
+  category           CeoCategory?
+  sensitivity        Sensitivity      @default(CONFIDENTIAL)
+  status             ThreadStatus     @default(ACTIVE)
+  awaitingSince      DateTime?
+  summary            String?
+  currentStatus      String?
+  /// [{ name, role, personId? }]
+  keyParticipants    Json?
+  openQuestions      String[]
+  decisionsSummary   String[]
+  nextStep           String?
+  recommendedAction  String?
+  summaryEngine      String?
+  summarizedAt       DateTime?
+  summarizedMessages Int              @default(0)
+  companyId          String?
+  company            Company?         @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  dealId             String?
+  deal               Deal?            @relation(fields: [dealId], references: [id], onDelete: SetNull)
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+
+  messages    EmailMessage[]
+  commitments Commitment[]
+  events      CalendarEvent[]
+
+  @@unique([connectionId, externalThreadId])
+  @@index([lastMessageAt])
+  @@index([status])
+}
+
+model EmailMessage {
+  id                String           @id @default(cuid())
+  sourceItemId      String           @unique
+  sourceItem        SourceItem       @relation(fields: [sourceItemId], references: [id], onDelete: Cascade)
+  threadId          String
+  thread            EmailThread      @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  externalMessageId String
+  /// RFC 5322 Message-ID; detects the same message across providers.
+  internetMessageId String?
+  inReplyTo         String?
+  fromName          String?
+  fromEmail         String
+  /// [{ name, email }]
+  to                Json
+  cc                Json
+  bcc               Json?
+  subject           String
+  sentAt            DateTime
+  direction         MessageDirection
+  labels            String[]
+  folder            String?
+  isRead            Boolean?
+  /// Newsletters, notifications, no-reply senders, List-Unsubscribe.
+  isAutomated       Boolean          @default(false)
+  hasAttachments    Boolean          @default(false)
+  replyStatus       ReplyStatus      @default(NO_REPLY_NEEDED)
+  createdAt         DateTime         @default(now())
+
+  attachments EmailAttachment[]
+
+  @@index([threadId, sentAt])
+  @@index([internetMessageId])
+  @@index([fromEmail])
+}
+
+model EmailAttachment {
+  id                   String       @id @default(cuid())
+  messageId            String
+  message              EmailMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  externalAttachmentId String?
+  filename             String
+  mimeType             String
+  sizeBytes            Int
+  contentHash          String?
+  blobId               String?
+  blob                 StoredBlob?  @relation(fields: [blobId], references: [id], onDelete: SetNull)
+  documentId           String?
+  document             Document?    @relation(fields: [documentId], references: [id], onDelete: SetNull)
+  createdAt            DateTime     @default(now())
+}
+
+model CalendarEvent {
+  id               String           @id @default(cuid())
+  sourceItemId     String           @unique
+  sourceItem       SourceItem       @relation(fields: [sourceItemId], references: [id], onDelete: Cascade)
+  externalEventId  String
+  iCalUid          String?
+  /// Recurring series id (instances share it).
+  seriesId         String?
+  title            String
+  description      String?
+  startsAt         DateTime
+  endsAt           DateTime
+  allDay           Boolean          @default(false)
+  timezone         String?
+  location         String?
+  conferenceUrl    String?
+  organizerName    String?
+  organizerEmail   String?
+  /// [{ name, email, responseStatus, optional, personId? }]
+  attendees        Json
+  isRecurring      Boolean          @default(false)
+  recurrence       String?
+  status           EventStatus      @default(CONFIRMED)
+  ceoResponse      ResponseStatus?
+  category         MeetingCategory?
+  /// 1–5
+  importance       Int              @default(3)
+  /// Start time before the most recent reschedule.
+  previousStartsAt DateTime?
+  meetingId        String?          @unique
+  meeting          Meeting?         @relation(fields: [meetingId], references: [id], onDelete: SetNull)
+  relatedThreadId  String?
+  relatedThread    EmailThread?     @relation(fields: [relatedThreadId], references: [id], onDelete: SetNull)
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  @@index([startsAt])
+}
+
+model Document {
+  id                String         @id @default(cuid())
+  sourceItemId      String         @unique
+  sourceItem        SourceItem     @relation(fields: [sourceItemId], references: [id], onDelete: Cascade)
+  title             String
+  docType           DocumentType   @default(OTHER)
+  docTypeConfidence Float?
+  format            DocumentFormat
+  mimeType          String
+  author            String?
+  createdAtSource   DateTime?
+  modifiedAtSource  DateTime?
+  url               String?
+  path              String?
+  sizeBytes         Int?
+  currentVersion    Int            @default(1)
+  contentHash       String
+  summary           String?
+  /// Latest key facts ([{ label, value, kind }]) used for version diffs.
+  keyFacts          Json?
+  sensitivity       Sensitivity    @default(CONFIDENTIAL)
+  /// Mirrors the document into the Resource Center.
+  resourceId        String?        @unique
+  resource          Resource?      @relation(fields: [resourceId], references: [id], onDelete: SetNull)
+  companyId         String?
+  company           Company?       @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  projectId         String?
+  project           Project?       @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  versions    DocumentVersion[]
+  attachments EmailAttachment[]
+  insights    BrainInsight[]
+  activities  Activity[]
+
+  @@index([docType])
+}
+
+model DocumentVersion {
+  id                 String           @id @default(cuid())
+  documentId         String
+  document           Document         @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  version            Int
+  modifiedAt         DateTime
+  contentHash        String
+  previousVersionId  String?          @unique
+  previousVersion    DocumentVersion? @relation("VersionChain", fields: [previousVersionId], references: [id], onDelete: SetNull)
+  nextVersion        DocumentVersion? @relation("VersionChain")
+  /// Extracted text (retention-managed).
+  text               String?
+  textLength         Int              @default(0)
+  pageCount          Int?
+  parser             String
+  /// Encrypted raw copy (retention-managed).
+  blobId             String?
+  blob               StoredBlob?      @relation(fields: [blobId], references: [id], onDelete: SetNull)
+  changeSummary      String?
+  /// [{ label, from, to, kind, significance }]
+  significantChanges Json?
+  isSignificant      Boolean          @default(false)
+  keyFacts           Json?
+  createdAt          DateTime         @default(now())
+
+  @@unique([documentId, version])
+}
+
+/// Encrypted binary store for attachments and raw document copies (dedupe by hash).
+model StoredBlob {
+  id        String    @id @default(cuid())
+  sha256    String    @unique
+  sizeBytes Int
+  mimeType  String
+  /// AES-256-GCM ciphertext; null once purged by retention.
+  data      Bytes?
+  createdAt DateTime  @default(now())
+  purgedAt  DateTime?
+
+  attachments EmailAttachment[]
+  versions    DocumentVersion[]
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Intelligence: commitments, risks, opportunities, projects, graph, provenance
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// OUTBOUND: CytoHub / the CEO owes it. INBOUND: someone owes CytoHub.
+enum CommitmentDirection {
+  OUTBOUND
+  INBOUND
+  INTERNAL
+}
+
+/// OVERDUE is derived (OPEN and due before today).
+enum CommitmentStatus {
+  OPEN
+  FULFILLED
+  CANCELLED
+  SUPERSEDED
+}
+
+enum RiskStatus {
+  OPEN
+  MONITORING
+  MITIGATED
+  RESOLVED
+  ACCEPTED
+}
+
+enum OpportunityKind {
+  COMMERCIAL
+  FUNDRAISING
+  PARTNERSHIP
+  SCIENTIFIC
+  EXPANSION
+  HIRING
+  OTHER
+}
+
+enum OpportunityStatus {
+  OPEN
+  PURSUING
+  WON
+  LOST
+  DISMISSED
+}
+
+enum ProjectKind {
+  PROJECT
+  SCIENTIFIC_PROGRAM
+  PRODUCT
+}
+
+enum EntityType {
+  PERSON
+  COMPANY
+  PROJECT
+  GOAL
+  MILESTONE
+  TASK
+  DECISION
+  MEETING
+  DEAL
+  DOCUMENT
+  EMAIL_THREAD
+  SOURCE_ITEM
+  COMMITMENT
+  RISK
+  OPPORTUNITY
+  RESOURCE
+  INSIGHT
+  INBOX_ITEM
+}
+
+enum AliasKind {
+  NAME
+  NICKNAME
+  ABBREVIATION
+  EMAIL
+  DOMAIN
+  SUBSIDIARY
+  FORMER_NAME
+}
+
+enum AliasSource {
+  SYSTEM
+  SEED
+  LEARNED
+  USER
+}
+
+enum MentionRole {
+  SENDER
+  RECIPIENT
+  CC
+  ORGANIZER
+  ATTENDEE
+  AUTHOR
+  MENTIONED
+}
+
+enum MentionResolution {
+  RESOLVED
+  CREATED
+  AMBIGUOUS
+  UNRESOLVED
+  IGNORED
+}
+
+enum RelationType {
+  WORKS_AT
+  SUBSIDIARY_OF
+  ASSOCIATED_WITH
+  CAME_FROM
+  RELATED_TO
+  SUPPORTS
+  ORIGINATED_FROM
+  AFFECTS
+  MADE_BY
+  OWED_TO
+  MENTIONS
+  ATTENDED
+  AUTHORED
+  ABOUT
+  INVESTS_IN
+  CUSTOMER_OF
+  PARTNER_OF
+}
+
+enum ReferenceRole {
+  CREATED_FROM
+  UPDATED_FROM
+  CORROBORATED_BY
+}
+
+enum ReviewKind {
+  TASK
+  COMMITMENT
+  DEADLINE
+  DECISION
+  RISK
+  OPPORTUNITY
+  MEETING
+  ENTITY_MERGE
+  NEW_PERSON
+  NEW_COMPANY
+  NEW_INVESTOR
+  FIELD_CHANGE
+  DOCUMENT_CHANGE
+}
+
+enum ReviewStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  MERGED
+  IGNORED
+}
+
+model Commitment {
+  id                   String              @id @default(cuid())
+  direction            CommitmentDirection
+  status               CommitmentStatus    @default(OPEN)
+  /// Short action, e.g. "Send revised data package".
+  title                String
+  /// The commitment as written.
+  text                 String
+  dueDate              DateTime?           @db.Date
+  /// The original phrasing of the deadline ("by Friday").
+  dueText              String?
+  followUpDate         DateTime?           @db.Date
+  committedAt          DateTime
+  fulfilledAt          DateTime?
+  resolutionNote       String?
+  confidence           Confidence
+  confidenceScore      Float
+  fingerprint          String              @unique
+  /// Who must deliver (the CEO for CEO commitments; the other party for inbound ones).
+  ownerPersonId        String?
+  owner                Person?             @relation("CommitmentOwner", fields: [ownerPersonId], references: [id], onDelete: SetNull)
+  /// Who it is owed to.
+  counterpartyPersonId String?
+  counterparty         Person?             @relation("CommitmentCounterparty", fields: [counterpartyPersonId], references: [id], onDelete: SetNull)
+  companyId            String?
+  company              Company?            @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  /// CEO commitments are mirrored as a task so they are scored and can enter the Top 5.
+  taskId               String?             @unique
+  task                 Task?               @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  threadId             String?
+  thread               EmailThread?        @relation(fields: [threadId], references: [id], onDelete: SetNull)
+  meetingId            String?
+  meeting              Meeting?            @relation(fields: [meetingId], references: [id], onDelete: SetNull)
+  dealId               String?
+  deal                 Deal?               @relation(fields: [dealId], references: [id], onDelete: SetNull)
+  goalId               String?
+  goal                 Goal?               @relation(fields: [goalId], references: [id], onDelete: SetNull)
+  opportunityId        String?
+  opportunity          Opportunity?        @relation(fields: [opportunityId], references: [id], onDelete: SetNull)
+  projectId            String?
+  project              Project?            @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
+
+  insights   BrainInsight[]
+  inboxItems InboxItem[]
+  activities Activity[]
+
+  @@index([direction, status, dueDate])
+  @@index([companyId])
+}
+
+model Risk {
+  id              String     @id @default(cuid())
+  title           String
+  description     String?
+  /// COMMERCIAL, FUNDRAISING, SCIENTIFIC, LEGAL, OPERATIONAL, PEOPLE, FINANCIAL, REGULATORY, CUSTOMER
+  category        String?
+  /// 1–5
+  severity        Int        @default(3)
+  /// 1–5
+  likelihood      Int?
+  status          RiskStatus @default(OPEN)
+  mitigation      String?
+  identifiedAt    DateTime
+  resolvedAt      DateTime?
+  resolution      String?
+  confidence      Confidence
+  confidenceScore Float
+  fingerprint     String     @unique
+  ownerPersonId   String?
+  owner           Person?    @relation("RiskOwner", fields: [ownerPersonId], references: [id], onDelete: SetNull)
+  companyId       String?
+  company         Company?   @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  goalId          String?
+  goal            Goal?      @relation(fields: [goalId], references: [id], onDelete: SetNull)
+  milestoneId     String?
+  milestone       Milestone? @relation(fields: [milestoneId], references: [id], onDelete: SetNull)
+  dealId          String?
+  deal            Deal?      @relation(fields: [dealId], references: [id], onDelete: SetNull)
+  projectId       String?
+  project         Project?   @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  insights   BrainInsight[]
+  inboxItems InboxItem[]
+  activities Activity[]
+
+  @@index([status, severity])
+}
+
+model Opportunity {
+  id              String            @id @default(cuid())
+  title           String
+  description     String?
+  kind            OpportunityKind
+  status          OpportunityStatus @default(OPEN)
+  /// USD
+  estimatedValue  Float?
+  nextStep        String?
+  identifiedAt    DateTime
+  closedAt        DateTime?
+  confidence      Confidence
+  confidenceScore Float
+  fingerprint     String            @unique
+  companyId       String?
+  company         Company?          @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  personId        String?
+  person          Person?           @relation("OpportunityContact", fields: [personId], references: [id], onDelete: SetNull)
+  dealId          String?
+  deal            Deal?             @relation(fields: [dealId], references: [id], onDelete: SetNull)
+  goalId          String?
+  goal            Goal?             @relation(fields: [goalId], references: [id], onDelete: SetNull)
+  projectId       String?
+  project         Project?          @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  commitments Commitment[]
+  insights    BrainInsight[]
+  inboxItems  InboxItem[]
+  activities  Activity[]
+
+  @@index([status])
+}
+
+/// Canonical projects, scientific programs and products (aliases in EntityAlias).
+model Project {
+  id          String           @id @default(cuid())
+  name        String           @unique
+  kind        ProjectKind
+  description String?
+  status      String?
+  goalId      String?
+  goal        Goal?            @relation(fields: [goalId], references: [id], onDelete: SetNull)
+  pillarId    String?
+  pillar      StrategicPillar? @relation(fields: [pillarId], references: [id], onDelete: SetNull)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  documents     Document[]
+  commitments   Commitment[]
+  risks         Risk[]
+  opportunities Opportunity[]
+}
+
+/// Alternate names, emails, domains and abbreviations for canonical entities.
+model EntityAlias {
+  id         String      @id @default(cuid())
+  entityType EntityType
+  entityId   String
+  alias      String
+  /// Lower-cased, punctuation- and title-stripped form used for matching.
+  normalized String
+  kind       AliasKind
+  confidence Float       @default(1)
+  source     AliasSource @default(SYSTEM)
+  createdAt  DateTime    @default(now())
+
+  @@unique([entityType, entityId, normalized])
+  @@index([normalized])
+}
+
+/// A reference to a person, company or project inside a source item.
+model EntityMention {
+  id           String            @id @default(cuid())
+  sourceItemId String
+  sourceItem   SourceItem        @relation(fields: [sourceItemId], references: [id], onDelete: Cascade)
+  entityType   EntityType
+  entityId     String?
+  text         String
+  normalized   String
+  email        String?
+  role         MentionRole       @default(MENTIONED)
+  /// 0–1
+  confidence   Float
+  resolution   MentionResolution @default(UNRESOLVED)
+  /// [{ entityId, label, score }] when ambiguous.
+  candidates   Json?
+  createdAt    DateTime          @default(now())
+
+  @@index([sourceItemId])
+  @@index([entityType, entityId])
+}
+
+/// Typed, evidence-backed edge in the company knowledge graph.
+model Relationship {
+  id            String       @id @default(cuid())
+  fromType      EntityType
+  fromId        String
+  relation      RelationType
+  toType        EntityType
+  toId          String
+  /// 0–1
+  confidence    Float        @default(1)
+  evidenceCount Int          @default(1)
+  sourceItemId  String?
+  sourceItem    SourceItem?  @relation(fields: [sourceItemId], references: [id], onDelete: SetNull)
+  firstSeenAt   DateTime     @default(now())
+  lastSeenAt    DateTime     @default(now())
+  validTo       DateTime?
+  metadata      Json?
+
+  @@unique([fromType, fromId, relation, toType, toId])
+  @@index([fromType, fromId])
+  @@index([toType, toId])
+}
+
+/// Provenance: which source produced (or corroborated) an intelligence record.
+/// Snapshot fields keep traceability even after content is purged.
+model SourceReference {
+  id               String         @id @default(cuid())
+  targetType       EntityType
+  targetId         String
+  role             ReferenceRole  @default(CREATED_FROM)
+  sourceItemId     String?
+  sourceItem       SourceItem?    @relation(fields: [sourceItemId], references: [id], onDelete: SetNull)
+  sourceKind       SourceItemKind
+  provider         SourceProvider
+  sourceTitle      String
+  sourceExternalId String?
+  sourceUrl        String?
+  sourceOccurredAt DateTime
+  excerpt          String?
+  confidence       Float?
+  engine           String?
+  ingestedAt       DateTime
+  createdAt        DateTime       @default(now())
+
+  @@unique([targetType, targetId, sourceItemId, role])
+  @@index([targetType, targetId])
+  @@index([sourceItemId])
+}
+
+/// Uncertain or high-impact AI conclusions awaiting a human decision.
+model ReviewQueueItem {
+  id               String       @id @default(cuid())
+  kind             ReviewKind
+  status           ReviewStatus @default(PENDING)
+  title            String
+  /// Why this needs a human (shown to the reviewer).
+  reason           String
+  /// 1–5
+  impact           Int          @default(3)
+  confidence       Confidence
+  confidenceScore  Float
+  /// Validated proposal the writer applies on approval (shape per kind).
+  proposal         Json
+  /// Reviewer's edited proposal when approved with edits.
+  edited           Json?
+  /// Existing record the proposal updates or merges into.
+  targetType       EntityType?
+  targetId         String?
+  /// Merge / match candidates: [{ entityId, label, score }]
+  candidates       Json?
+  excerpt          String?
+  fingerprint      String       @unique
+  sensitivity      Sensitivity  @default(CONFIDENTIAL)
+  sourceItemId     String?
+  sourceItem       SourceItem?  @relation(fields: [sourceItemId], references: [id], onDelete: SetNull)
+  assignedToUserId String?
+  assignedTo       User?        @relation("ReviewAssignee", fields: [assignedToUserId], references: [id], onDelete: SetNull)
+  resolvedByUserId String?
+  resolvedBy       User?        @relation("ReviewResolver", fields: [resolvedByUserId], references: [id], onDelete: SetNull)
+  resolvedAt       DateTime?
+  resolutionNote   String?
+  resultType       EntityType?
+  resultId         String?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  @@index([status, impact])
+  @@index([kind])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Ingestion jobs & runs (observability)
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum JobType {
+  EMAIL_SYNC
+  CALENDAR_SYNC
+  DOCUMENT_SYNC
+  DOCUMENT_PARSE
+  ENTITY_EXTRACTION
+  ENTITY_RESOLUTION
+  RELATIONSHIP_MAPPING
+  INTELLIGENCE_EXTRACTION
+  BRAIN_WRITE
+  THREAD_SUMMARY
+  PRIORITY_RECALC
+  DAILY_BRAIN_REFRESH
+  RETENTION_SWEEP
+}
+
+enum JobStatus {
+  QUEUED
+  RUNNING
+  SUCCEEDED
+  FAILED
+  DEAD
+  CANCELLED
+}
+
+enum RunStatus {
+  RUNNING
+  SUCCEEDED
+  PARTIAL
+  FAILED
+}
+
+enum RunTrigger {
+  MANUAL
+  SCHEDULED
+  WEBHOOK
+  REFRESH
+  SEED
+  UPLOAD
+}
+
+/// Postgres-backed work queue (claimed with FOR UPDATE SKIP LOCKED).
+model IngestionJob {
+  id           String            @id @default(cuid())
+  type         JobType
+  status       JobStatus         @default(QUEUED)
+  /// Higher runs first.
+  priority     Int               @default(0)
+  payload      Json?
+  /// Idempotency key while queued/running; cleared when the job finishes.
+  dedupeKey    String?           @unique
+  runAt        DateTime          @default(now())
+  attempts     Int               @default(0)
+  maxAttempts  Int               @default(5)
+  lockedAt     DateTime?
+  lockedBy     String?
+  startedAt    DateTime?
+  completedAt  DateTime?
+  durationMs   Int?
+  lastError    String?
+  result       Json?
+  connectionId String?
+  connection   SourceConnection? @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  sourceItemId String?
+  sourceItem   SourceItem?       @relation(fields: [sourceItemId], references: [id], onDelete: Cascade)
+  runId        String?
+  run          IngestionRun?     @relation(fields: [runId], references: [id], onDelete: SetNull)
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  @@index([status, runAt, priority])
+  @@index([type, status])
+  @@index([runId])
+}
+
+/// One sync of one connection (or a pipeline drain), with stage counters.
+model IngestionRun {
+  id                  String            @id @default(cuid())
+  connectionId        String?
+  connection          SourceConnection? @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  trigger             RunTrigger
+  status              RunStatus         @default(RUNNING)
+  startedAt           DateTime          @default(now())
+  completedAt         DateTime?
+  durationMs          Int?
+  cursorBefore        Json?
+  cursorAfter         Json?
+  fetched             Int               @default(0)
+  created             Int               @default(0)
+  updated             Int               @default(0)
+  unchanged           Int               @default(0)
+  deleted             Int               @default(0)
+  noise               Int               @default(0)
+  failed              Int               @default(0)
+  duplicatesPrevented Int               @default(0)
+  recordsWritten      Int               @default(0)
+  reviewItems         Int               @default(0)
+  extractionErrors    Int               @default(0)
+  error               String?
+  log                 Json?
+
+  jobs IngestionJob[]
+
+  @@index([startedAt])
+  @@index([connectionId, startedAt])
 }

@@ -1,5 +1,6 @@
 "use server";
 
+import { requireCapability } from "@/server/security/session";
 import type { Prisma } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 import { buildPrepBrief, type PrepBrief } from "@/server/brain/prepare";
@@ -23,6 +24,7 @@ export interface MeetingDetail {
 }
 
 export async function fetchMeetingDetail(meetingId: string): Promise<MeetingDetail | null> {
+  await requireCapability("workspace.view");
   const m = await db.meeting.findUnique({
     where: { id: meetingId },
     include: {

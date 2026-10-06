@@ -40,7 +40,7 @@ import {
 import { runDailyRefresh, searchBrain } from "@/server/actions/brain";
 import { completeTask, listPickerTasks } from "@/server/actions/tasks";
 import type { SearchHit, SearchHitType } from "@/server/brain/search";
-import { ALL_NAV } from "./nav";
+import { navFor } from "./nav";
 import { useUI } from "./ui-context";
 
 const HIT_LABEL: Record<SearchHitType, string> = {
@@ -71,7 +71,7 @@ type Page = "root" | "complete" | "delegate";
 
 export function CommandBar() {
   const router = useRouter();
-  const { commandOpen, setCommandOpen, openCreate, openChief, openDelegate } = useUI();
+  const { commandOpen, setCommandOpen, openCreate, openChief, openDelegate, viewer } = useUI();
   const { resolvedTheme, setTheme } = useTheme();
   const [query, setQuery] = useState("");
   const [page, setPage] = useState<Page>("root");
@@ -124,7 +124,7 @@ export function CommandBar() {
     fn();
   };
 
-  const navItems = useMemo(() => ALL_NAV, []);
+  const navItems = useMemo(() => navFor(viewer.capabilities).all, [viewer.capabilities]);
 
   return (
     <CommandDialog

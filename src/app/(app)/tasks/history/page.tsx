@@ -11,12 +11,14 @@ import { formatDay } from "@/lib/dates";
 import { FOCUS_AREAS, TASK_STATUS } from "@/lib/domain";
 import { formatMinutes } from "@/lib/format";
 import { getHistoryInsights, searchTaskHistory, type HistoryFilters as Filters } from "@/server/queries/history";
+import { requirePage } from "@/server/security/session";
 
 export const metadata: Metadata = { title: "Task history" };
 
 type SP = Record<string, string | undefined>;
 
 export default async function TaskHistoryPage(props: { searchParams: Promise<SP> }) {
+  await requirePage("workspace.view", "/tasks/history");
   const sp = await props.searchParams;
   const filters: Filters = {
     q: sp.q,

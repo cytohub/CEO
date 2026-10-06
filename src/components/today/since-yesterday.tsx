@@ -10,7 +10,7 @@ import { formatDayLong } from "@/lib/dates";
 import { markBriefReviewed } from "@/server/actions/brain";
 import { BRIEF_SECTIONS, type BriefItem, type BriefSections } from "@/server/brain/types";
 
-const PRIMARY: (typeof BRIEF_SECTIONS)[number]["key"][] = ["decisionsNeeded", "risks", "milestonesAtRisk", "dealsProgressing", "dealsSlowing", "opportunities"];
+const PRIMARY: (typeof BRIEF_SECTIONS)[number]["key"][] = ["changes", "decisionsNeeded", "risks", "milestonesAtRisk", "dealsProgressing", "dealsSlowing", "opportunities"];
 
 /** CEO Daily Intelligence Brief, compressed for the cockpit. */
 export function SinceYesterday({

@@ -7,6 +7,7 @@ import { InboxView } from "@/components/inbox/inbox-view";
 import type { InboxStatus } from "@/generated/prisma/enums";
 import { cn } from "@/lib/utils";
 import { getInbox } from "@/server/queries/inbox";
+import { requirePage } from "@/server/security/session";
 
 export const metadata: Metadata = { title: "Inbox" };
 
@@ -18,6 +19,7 @@ const TABS: { key: InboxStatus; label: string }[] = [
 ];
 
 export default async function InboxPage(props: { searchParams: Promise<{ status?: string }> }) {
+  await requirePage("cockpit.view", "/inbox");
   const sp = await props.searchParams;
   const status = (TABS.find((t) => t.key === sp.status)?.key ?? "OPEN") as InboxStatus;
   const { items, counts, today, timezone } = await getInbox(status);

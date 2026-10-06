@@ -9,6 +9,7 @@ import { daysBetween, formatDay } from "@/lib/dates";
 import { GOAL_STATUS, GOAL_TYPES, pillarColorVar } from "@/lib/domain";
 import { cn } from "@/lib/utils";
 import { getGoals, type GoalListItem } from "@/server/queries/goals";
+import { requirePage } from "@/server/security/session";
 
 export const metadata: Metadata = { title: "Goals" };
 
@@ -16,6 +17,7 @@ const TYPES: (GoalType | "ALL")[] = ["ALL", "COMPANY", "ANNUAL", "QUARTERLY", "C
 const STATUSES: GoalStatus[] = ["ON_TRACK", "AT_RISK", "OFF_TRACK", "COMPLETED", "PAUSED"];
 
 export default async function GoalsPage(props: { searchParams: Promise<{ type?: string; status?: string }> }) {
+  await requirePage("workspace.view", "/goals");
   const sp = await props.searchParams;
   const type = (TYPES as string[]).includes(sp.type ?? "") && sp.type !== "ALL" ? (sp.type as GoalType) : undefined;
   const status = (STATUSES as string[]).includes(sp.status ?? "") ? (sp.status as GoalStatus) : undefined;

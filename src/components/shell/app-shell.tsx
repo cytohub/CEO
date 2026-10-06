@@ -15,10 +15,10 @@ import { UIProvider, useUI } from "./ui-context";
 
 export function AppShell({ shell, children }: { shell: ShellData; children: React.ReactNode }) {
   return (
-    <UIProvider lookups={shell.lookups}>
+    <UIProvider lookups={shell.lookups} viewer={shell.viewer}>
       <div className="flex min-h-dvh">
         <aside className="sticky top-0 hidden h-dvh w-[232px] shrink-0 border-r border-sidebar-border bg-sidebar lg:block">
-          <SidebarNav counts={shell.counts} ceoName={shell.ceo.name} />
+          <SidebarNav counts={shell.counts} viewer={shell.viewer} />
         </aside>
         <MobileNav shell={shell} />
         <div className="flex min-w-0 flex-1 flex-col">
@@ -47,7 +47,7 @@ function MobileNav({ shell }: { shell: ShellData }) {
     <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
       <SheetContent side="left" className="w-[260px] bg-sidebar p-0 sm:max-w-[260px]" showCloseButton={false}>
         <SheetTitle className="sr-only">Navigation</SheetTitle>
-        <SidebarNav counts={shell.counts} ceoName={shell.ceo.name} onNavigate={() => setMobileNavOpen(false)} />
+        <SidebarNav counts={shell.counts} viewer={shell.viewer} onNavigate={() => setMobileNavOpen(false)} />
       </SheetContent>
     </Sheet>
   );

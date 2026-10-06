@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Kbd } from "@/components/common/status";
-import { ALL_NAV } from "./nav";
+import { navFor } from "./nav";
 import { useUI } from "./ui-context";
 
 function isTyping(target: EventTarget | null) {
@@ -21,7 +21,10 @@ function isTyping(target: EventTarget | null) {
  */
 export function KeyboardShortcuts() {
   const router = useRouter();
-  const { setCommandOpen, commandOpen, openChief, openCreate, setShortcutsOpen } = useUI();
+  const { setCommandOpen, commandOpen, openChief, openCreate, setShortcutsOpen, viewer } = useUI();
+  const allNav = navFor(viewer.capabilities).all;
+  const canChief = viewer.capabilities.includes("chief.use");
+  const canCreate = viewer.capabilities.includes("workspace.edit");
   const chord = useRef<{ key: string; at: number } | null>(null);
 
   useEffect(() => {
@@ -34,7 +37,7 @@ export function KeyboardShortcuts() {
       }
       if (mod && e.key.toLowerCase() === "j") {
         e.preventDefault();
-        openChief();
+        if (canChief) openChief();
         return;
       }
       if (mod || e.altKey || isTyping(e.target) || document.querySelector("[role=dialog]")) return;
@@ -43,7 +46,7 @@ export function KeyboardShortcuts() {
       const pending = chord.current;
       if (pending && pending.key === "g" && Date.now() - pending.at < 1200) {
         chord.current = null;
-        const target = ALL_NAV.find((n) => n.chord === key);
+        const target = allNav.find((n) => n.chord === key);
         if (target) {
           e.preventDefault();
           router.push(target.href);
@@ -56,7 +59,7 @@ export function KeyboardShortcuts() {
       }
       if (key === "c") {
         e.preventDefault();
-        openCreate("task");
+        if (canCreate) openCreate("task");
       } else if (key === "?") {
         e.preventDefault();
         setShortcutsOpen(true);
@@ -67,13 +70,14 @@ export function KeyboardShortcuts() {
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [router, setCommandOpen, commandOpen, openChief, openCreate, setShortcutsOpen]);
+  }, [router, setCommandOpen, commandOpen, openChief, openCreate, setShortcutsOpen, allNav, canChief, canCreate]);
 
   return null;
 }
 
 export function ShortcutsDialog() {
-  const { shortcutsOpen, setShortcutsOpen } = useUI();
+  const { shortcutsOpen, setShortcutsOpen, viewer } = useUI();
+  const allNav = navFor(viewer.capabilities).all;
   const general: [string[], string][] = [
     [["⌘", "K"], "Command bar & search"],
     [["⌘", "J"], "Ask Chief of Staff"],
@@ -107,7 +111,7 @@ export function ShortcutsDialog() {
           <div>
             <div className="eyebrow mb-2">Go to (press G, then)</div>
             <ul className="space-y-1.5">
-              {ALL_NAV.filter((n) => n.chord).map((n) => (
+              {allNav.filter((n) => n.chord).map((n) => (
                 <li key={n.href} className="flex items-center justify-between gap-3 text-[13px]">
                   <span className="text-ink-2">{n.label}</span>
                   <span className="flex gap-0.5">

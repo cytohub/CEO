@@ -7,10 +7,11 @@ import { runBrainRefresh, type RefreshOutcome } from "@/server/brain/refresh";
 import { searchWorkspace, type SearchHit, type SearchHitType } from "@/server/brain/search";
 import { getCeoContext } from "@/server/context";
 import { logActivity, revalidateAll } from "@/server/mutations";
-import { attempt, fail, ok, type ActionResult } from "./result";
+import { requireCapability } from "@/server/security/session";
+import { attemptAs, fail, ok, type ActionResult } from "./result";
 
 export async function runDailyRefresh(): Promise<ActionResult<RefreshOutcome>> {
-  return attempt(async () => {
+  return attemptAs("cockpit.view", async () => {
     const running = await db.brainRefresh.findFirst({ where: { status: "RUNNING", startedAt: { gt: new Date(Date.now() - 5 * 60_000) } } });
     if (running) return fail("A refresh is already running.");
     const outcome = await runBrainRefresh({ trigger: "MANUAL" });
@@ -21,12 +22,13 @@ export async function runDailyRefresh(): Promise<ActionResult<RefreshOutcome>> {
 }
 
 export async function searchBrain(query: string, types?: SearchHitType[]): Promise<SearchHit[]> {
+  await requireCapability("workspace.view");
   const q = z.string().max(200).parse(query);
   return searchWorkspace(q, { limitPerType: types ? 12 : 5, types });
 }
 
 export async function markBriefReviewed(): Promise<ActionResult> {
-  return attempt(async () => {
+  return attemptAs("cockpit.view", async () => {
     const ceo = await getCeoContext();
     const now = new Date();
     await db.dailyBrief.updateMany({ where: { date: ceo.today }, data: { reviewedAt: now } });
@@ -38,7 +40,7 @@ export async function markBriefReviewed(): Promise<ActionResult> {
 }
 
 export async function setInsightStatus(insightId: string, status: InsightStatus): Promise<ActionResult> {
-  return attempt(async () => {
+  return attemptAs("brain.view", async () => {
     z.enum(InsightStatus).parse(status);
     const insight = await db.brainInsight.update({ where: { id: insightId }, data: { status } });
     if (status === "DISMISSED") {

@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 import { daysBetween, formatDateTime, formatDay } from "@/lib/dates";
 import { DECISION_STATUS, INSIGHT_TYPES, RESOURCE_TYPES, TASK_STATUS } from "@/lib/domain";
 import { getDecisionDetail } from "@/server/queries/decisions";
+import { requirePage } from "@/server/security/session";
 
 export async function generateMetadata(props: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await props.params;
@@ -19,6 +20,7 @@ export async function generateMetadata(props: { params: Promise<{ id: string }> 
 }
 
 export default async function DecisionPage(props: { params: Promise<{ id: string }> }) {
+  await requirePage("workspace.view", "/decisions");
   const { id } = await props.params;
   const data = await getDecisionDetail(id);
   if (!data) notFound();
