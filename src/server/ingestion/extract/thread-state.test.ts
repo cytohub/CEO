@@ -107,12 +107,12 @@ describe("thread narrative", () => {
     assert.ok(s.summary.startsWith("Mon, Oct 5 — Karen Liu (Brightwater Therapeutics) asks you to confirm clause 7.3"), s.summary);
   });
 
-  it("lists decisions made and pending", () => {
+  it("lists pending decisions", () => {
     const s = state([
       msg(SARAH, "Hi Rajib,\n\nThe IC approved moving forward. Should we target a $40M or $45M round?\n\nSarah", "2026-10-05T14:00:00Z", { subject: "Series B" }),
     ]);
-    assert.ok(s.decisionsSummary.includes("Decided: The IC approved moving forward"), s.decisionsSummary.join(" | "));
-    assert.ok(s.decisionsSummary.some((d) => d.startsWith("Needs your decision: Decide whether to target")));
+    assert.ok(!s.decisionsSummary.some((d) => d.startsWith("Decided:")), "a counterparty's approval is not a CytoHub decision");
+    assert.ok(s.decisionsSummary.includes("Needs your decision: Target a $40M or $45M round?"), s.decisionsSummary.join(" | "));
     assert.equal(s.status, "AWAITING_CEO");
   });
 

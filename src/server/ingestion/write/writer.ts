@@ -28,7 +28,7 @@ import type { Classification, LoadedSourceItem, PipelineContext, ResolutionConte
 import { applyAttention } from "./attention";
 import { detectChanges, raiseChange } from "./changes";
 import { detectFulfillment } from "./commitments";
-import { actionKey, actionSimilarity, findDuplicateCommitment, findDuplicateTask, shortHash, tokenCoverage, type DedupeScope, type TaskCandidate } from "./dedupe";
+import { actionKey, actionSimilarity, contextualSimilarity, findDuplicateCommitment, findDuplicateTask, shortHash, tokenCoverage, type DedupeScope, type TaskCandidate } from "./dedupe";
 import { BRAIN_ACTOR, emptyCounters, emptySummary, noteCreated, noteUpdated, snapshotOf } from "./env";
 import { gate, PROTECTED_REASONS } from "./gate";
 import { isCeoTouchedTask, recordActivity } from "./history";
@@ -48,7 +48,7 @@ import {
   type ItemCtx,
 } from "./item";
 import { completeMeetingFromNotes, syncCalendarMeeting } from "./meetings";
-import { cleanDecisionTitle, cleanTitle, sameSentence, sentencesOf, thirdPartyActor } from "./phrasing";
+import { cleanDecisionTitle, cleanTitle, hasActionObject, isGenericDecision, isVagueDate, sameSentence, sentencesOf, thirdPartyActor } from "./phrasing";
 import { hasReferenceFrom, reference } from "./provenance";
 import {
   applyDecision,
@@ -80,6 +80,8 @@ export async function writeIntelligence(
 
   await ctx.db.$transaction(
     async (tx) => {
+      // Brain writes are serialized: dedupe must see what the previous item just wrote, even with several workers.
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(${BRAIN_WRITE_LOCK})`;
       const w: ItemCtx = {
         tx,
         now: ctx.now,
@@ -141,6 +143,9 @@ export async function writeIntelligence(
   ctx.log("BRAIN_WRITE", `${item.title}: ${summary.created.length} created, ${summary.updated.length} updated, ${summary.reviewItemIds.length} review, ${summary.duplicatesPrevented} duplicates prevented`);
   return summary;
 }
+
+/** Advisory lock id for BRAIN_WRITE transactions (arbitrary constant, "brain" in ASCII). */
+const BRAIN_WRITE_LOCK = 0x627261696e;
 
 // ─── Shared helpers ──────────────────────────────────────────────────────────
 
@@ -332,6 +337,8 @@ async function placeTask(w: ItemCtx, p: TaskProposalT, opts: { forceReview?: str
 }
 
 async function writeTask(w: ItemCtx, t: ExtractedTaskT) {
+  // "Follow up", "Bring both": nothing anyone could act on; it stays in the extraction record.
+  if (!hasActionObject(t.title)) return;
   const owner = resolveOwner(w, t.ownerName, t.ownerIsCeo);
   if (owner.kind === "EXTERNAL") {
     // Work "owned" by someone outside CytoHub is a promise to us, not our task.
@@ -370,6 +377,7 @@ async function writeFollowUp(w: ItemCtx, f: IntelligenceExtraction["followUps"][
     return writeCommitment(w, { direction: "OUTBOUND", title: f.title, text: f.evidence, owedByName: null, owedToName: f.withName, companyName: null, dueDate: f.dueDate, dueText: null, confidence: f.confidence, evidence: f.evidence });
   }
   const title = /^follow[ -]?up/i.test(f.title) || !f.withName ? f.title : `Follow up with ${f.withName}: ${f.title}`;
+  if (!hasActionObject(title)) return;
   const p = await buildTaskProposal(
     w,
     { title, description: null, ownerName: null, dueDate: f.dueDate, dueText: null, priorityHint: null, companyName: null, focusArea: null, confidence: f.confidence, evidence: f.evidence },
@@ -514,6 +522,24 @@ async function writeCommitment(w: ItemCtx, c: ExtractedCommitmentT) {
   }
 }
 
+/** A decision CytoHub took: decided by the CEO, the board or the team, or recorded in internal notes / the CEO's own mail. */
+function madeByCytoHub(w: ItemCtx, decidedBy: string | null, evidence: string): boolean {
+  const sender = w.resolution.people.find((p) => p.role === "SENDER" || p.role === "AUTHOR");
+  const internalSource = w.item.kind === "MEETING_NOTES" || senderIsCeo(w) || (sender ? sender.isCeo || w.refs.people.get(sender.id)?.type === "TEAM" : !w.item.emailMessage);
+  // "Calder's finance committee approved…", "our board approved…" written by an outsider: their decision.
+  const possessive = /\b([A-Z][\w&.-]+(?:\s+[A-Z][\w&.-]+)?)['’]s\s+(?:board|finance committee|investment committee|committee|leadership|management|legal team|team)\b/.exec(evidence);
+  if (possessive && companyByName(w, possessive[1])) return false;
+  if (!internalSource && /\bour\s+(?:board|finance committee|investment committee|committee|leadership|management|legal team|partnership)\b/i.test(evidence)) return false;
+  if (decidedBy) {
+    if (/^(the )?board$/i.test(decidedBy.trim())) return internalSource;
+    if (companyLevel(decidedBy)) return true;
+    const o = resolveOwner(w, decidedBy, false);
+    if (o.kind === "CEO" || o.kind === "TEAM") return true;
+    if (o.kind === "EXTERNAL") return false;
+  }
+  return internalSource;
+}
+
 function companyLevel(name: string | null | undefined): boolean {
   return !!name && /^(cytohub(\s+(inc|ltd|llc|gmbh))?\.?|we|us|the company|the team|our team)$/i.test(name.trim());
 }
@@ -556,13 +582,19 @@ async function matchOpenDecision(w: ItemCtx, d: { title: string; decision: strin
     const sharedCompany = o.companies.some((c) => companies.has(c.id) || itemText.includes(companyShortName(c.name).toLowerCase()));
     const titleNames = (o.title.match(/\b[A-Z][a-z]+ [A-Z][a-z]+\b/g) ?? []).map((x) => stripAccents(x).toLowerCase());
     const sharedPerson = names.some((n) => hayNorm.includes(n)) || titleNames.some((n) => itemText.includes(n));
+    // Product / program names ("CardioPredict", "HeartReady", "v2") shared by both.
+    const brands = (o.title.match(/\b(?:[A-Z][a-z]+[A-Z][A-Za-z]*|[A-Z]{2,}\d*|v\d+)\b/g) ?? []).map((x) => x.toLowerCase());
+    const sharedBrand = brands.some((b) => b.length >= 4 && stripAccents(asked).toLowerCase().includes(b));
     const score = Math.max(actionSimilarity(asked, o.title), tokenCoverage(d.title, hay) * 0.9, tokenCoverage(d.evidence, hay) * 0.8);
-    if (score >= (sharedCompany || sharedPerson ? 0.45 : 0.75) && (!best || score > best.score)) best = { o, score };
+    if (score >= (sharedCompany || sharedPerson || sharedBrand ? 0.45 : 0.75) && (!best || score > best.score)) best = { o, score };
   }
   return best?.o ?? null;
 }
 
-async function writeDecision(w: ItemCtx, d: ExtractedDecisionT) {
+async function writeDecision(w: ItemCtx, raw: ExtractedDecisionT) {
+  // "We need your call by Friday" names no decision: use the subject line it was asked under.
+  const subject = cleanTitle(w.item.title.replace(/^(?:(?:re|fwd?|aw|sv)\s*:\s*)+/i, ""), 160);
+  const d = { ...raw, title: isGenericDecision(raw.title) ? subject : cleanDecisionTitle(raw.title) };
   const open = await matchOpenDecision(w, d);
   const match = open?.id ?? null;
   const goalId = await matchGoal(w, w.resolution.primaryCompanyId);
@@ -587,12 +619,14 @@ async function writeDecision(w: ItemCtx, d: ExtractedDecisionT) {
   };
 
   if (d.status === "MADE") {
+    // Another organization's decision ("our finance committee approved the budget") is news, not a CytoHub decision.
+    if (!madeByCytoHub(w, d.decidedByName, d.evidence)) return;
     // Recording a decision as made is protected: always a human.
     const g = gate({ confidence: d.confidence, relevance: w.classification.relevance, protectedClass: "DECISION_MADE" });
     if (g.outcome === "DROP") return;
     const id = await queueReview(w, {
       kind: "DECISION",
-      title: `Decision made? ${cleanDecisionTitle(d.title)}`,
+      title: `Decision made? ${d.title}`,
       reason: `${g.reason}${match ? " It appears to resolve an open decision." : ""}`,
       impact: proposal.strategicImpact,
       confidenceScore: d.confidence,
@@ -641,7 +675,7 @@ async function writeDecision(w: ItemCtx, d: ExtractedDecisionT) {
   } else if (g.outcome === "REVIEW") {
     const id = await queueReview(w, {
       kind: "DECISION",
-      title: `Decision needed? ${cleanDecisionTitle(d.title)}`,
+      title: `Decision needed? ${d.title}`,
       reason: g.reason,
       impact: proposal.strategicImpact,
       confidenceScore: d.confidence,
@@ -749,7 +783,7 @@ async function writeDeadline(w: ItemCtx, d: IntelligenceExtraction["deadlines"][
 function milestoneFor(w: ItemCtx, what: string) {
   return w.refs.milestones
     .map((m) => ({ m, score: Math.max(actionSimilarity(what, m.title), tokenCoverage(m.title, what) * 0.9) }))
-    .filter((x) => x.score >= 0.6)
+    .filter((x) => x.score >= 0.75)
     .sort((a, b) => b.score - a.score)[0]?.m;
 }
 
@@ -757,6 +791,8 @@ function milestoneFor(w: ItemCtx, what: string) {
 async function milestoneDate(w: ItemCtx, ms: ItemCtx["refs"]["milestones"][number], d: IntelligenceExtraction["deadlines"][number]) {
   const next = dayFromKey(d.date);
   if (next.getTime() === ms.dueDate.getTime()) return;
+  // "by year-end" resolves to Dec 31 but says nothing about a slip.
+  if (isVagueDate(d.evidence)) return;
   const slipped = next > ms.dueDate;
   const gateResult = gate({ confidence: d.confidence, relevance: w.classification.relevance, protectedClass: "MILESTONE_DATE_CHANGE" });
   if (gateResult.outcome === "DROP") return;
@@ -791,12 +827,31 @@ async function milestoneDate(w: ItemCtx, ms: ItemCtx["refs"]["milestones"][numbe
 
 // ─── Risks & opportunities ───────────────────────────────────────────────────
 
+/** A company named in the text itself ("Lumen renewal at risk") beats the extractor's attribution. */
+function companyInText(w: ItemCtx, text: string): string | null {
+  const lower = ` ${stripAccents(text).toLowerCase()} `;
+  const hits = [...w.refs.companies.values()].filter((c) => {
+    const short = stripAccents(companyShortName(c.name)).toLowerCase();
+    return short.length >= 4 && new RegExp(`[^a-z0-9]${short.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}[^a-z0-9]`).test(lower);
+  });
+  return hits.length === 1 ? hits[0].id : null;
+}
+
 async function writeRisk(w: ItemCtx, r: ExtractedRiskT) {
-  const companyId = companyByName(w, r.companyName) ?? w.resolution.primaryCompanyId;
-  const open = await w.tx.risk.findMany({ where: { status: { in: ["OPEN", "MONITORING"] }, companyId: companyId ?? null }, select: { id: true, title: true, category: true }, take: 200 });
+  // Trust an attributed company only when the risk's own words name it; documents mention many companies.
+  const named = companyByName(w, r.companyName);
+  const statedId = companyInText(w, `${r.title} ${r.evidence}`);
+  const attributed = named && (statedId === named || !w.item.document) ? named : null;
+  const companyId = statedId ?? attributed ?? (w.item.document ? null : w.resolution.primaryCompanyId);
+  // Same company: a looser match; any company: near-identical wording (extractors mis-attribute companies).
+  const open = await w.tx.risk.findMany({ where: { status: { in: ["OPEN", "MONITORING"] } }, select: { id: true, title: true, category: true, companyId: true }, take: 300 });
   const match = open
-    .map((x) => ({ x, score: actionSimilarity(r.title, x.title) + (x.category === r.category ? 0.1 : 0) }))
-    .filter((m) => m.score >= 0.5)
+    .map((x) => {
+      const same = (x.companyId ?? null) === (companyId ?? null);
+      const score = contextualSimilarity(r.title, x.title) + (x.category === r.category ? 0.1 : 0);
+      return { x, score, need: same ? 0.5 : 0.75 };
+    })
+    .filter((m) => m.score >= m.need)
     .sort((a, b) => b.score - a.score)[0]?.x;
   const deal = dealFor(w, companyId);
   const milestone = w.refs.milestones.map((m) => ({ m, s: tokenCoverage(m.title, `${r.title} ${r.description ?? ""}`) })).filter((x) => x.s >= 0.7).sort((a, b) => b.s - a.s)[0]?.m;

@@ -228,11 +228,12 @@ export function sameSentence(a: string, b: string, sentences: string[]): boolean
   return hostsA.some((s) => s.includes(probe(nb)) || nb.includes(s));
 }
 
-const THIRD_PARTY = /^(?:(?:dr|prof|mr|ms|mrs)\.?\s+)?(?:[A-Z][\w'’.-]+(?:\s+[A-Z][\w'’.-]+){0,3}|legal|they|he|she|the team|our team|their team|procurement|finance)\s+(?:will|is going to|are going to|plans to|is expected to|are expected to|expects to)\b/;
+const THIRD_PARTY =
+  /^(?:(?:dr|prof|mr|ms|mrs)\.?\s+)?(?:[A-Z][\w'’.-]+(?:\s+[A-Z][\w'’.-]+){0,3}|legal|they|he|she|the team|their team|procurement|finance|their\s+(?:[\w-]+\s+){0,3}?[\w-]+|the\s+[\w-]+(?:\s+[\w-]+)?\s+(?:team|committee|board|lawyers?|counsel)|our\s+(?:[\w-]+\s+){0,2}(?:team|committee|board|lawyers?|counsel|legal|cro|lab))\s+(?:will|is going to|are going to|plans to|is expected to|are expected to|expects to)\b/i;
 
 /** "Daniel Kim will ship the dashboard…" — a dated action someone else owns. */
 export function thirdPartyActor(sentence: string, ceoNames: string[] = []): boolean {
-  const s = sentence.trim();
+  const s = sentence.trim().replace(/^(?:good news|update|fyi|note|also|separately)\s*[:,—-]\s*/i, "");
   const m = THIRD_PARTY.exec(s);
   if (!m) return false;
   const lead = s.slice(0, m[0].length).toLowerCase();
@@ -266,7 +267,7 @@ export function cleanTitle(input: string, max = 100): string {
 /** "I need a decision by Thursday to secure the booth" → "Secure the booth"; seeded titles pass through. */
 export function cleanDecisionTitle(input: string): string {
   const s = cleanTitle(input, 120);
-  const m = /^(?:i|we)\s+(?:need|want|would like)\s+(?:a|your)\s+(?:decision|call|go-ahead|answer)(?:\s+by\s+\w+)?(?:\s+(?:on|about|to|for))?\s+(.+)$/i.exec(s);
+  const m = /^(?:i|we)\s+(?:need|want|would like)\s+(?:a|your)\s+(?:decision|call|go-ahead|answer)(?:\s+by\s+\w+)?(?:\s+(?:on|about|to|for))?\s+((?!by\b|before\b|today\b|tomorrow\b).+)$/i.exec(s);
   return m?.[1] ? cleanTitle(m[1], 120) : s;
 }
 
@@ -291,7 +292,24 @@ export function actionClause(title: string): string {
 // ─── Scientific results ──────────────────────────────────────────────────────
 
 const GENERIC_FACT_LABEL = /^(?:percentage|percent|number|value|count|metric|figure|amount|total|result|score|rate|ratio|ownership|hearts|days|months|share)s?(?:\s*\([^)]*\))?$/i;
-const METRIC_WORDS = new Set(["auc", "roc", "accuracy", "sensitivity", "specificity", "precision", "recall", "f1", "r2", "correlation", "ppv", "npv", "ic50", "ec50", "retention", "concordance", "kappa", "mae", "rmse", "yield", "viability", "efficacy", "qc"]);
+const METRIC_WORDS = new Set(["auc", "roc", "accuracy", "sensitivity", "specificity", "precision", "recall", "f1", "r2", "correlation", "ppv", "npv", "ic50", "ec50", "concordance", "kappa", "mae", "rmse", "viability", "efficacy", "qc", "potency", "toxicity"]);
+
+/** A scientific metric (AUC, sensitivity, IC50…) rather than a business one (retention, ARR). */
+export function isScientificMetric(label: string): boolean {
+  return actionTokens(label).some((t) => METRIC_WORDS.has(t));
+}
+
+const TARGET_LANGUAGE = /\b(target|goal|bar|threshold|at least|minimum|aim|need(?:s|ed)? to (?:reach|hit)|required|must reach|≥|>=)\b|≥/i;
+
+/** "the 0.90 bar we set publicly" is a target, not a result. */
+export function isTargetStatement(evidence: string): boolean {
+  return TARGET_LANGUAGE.test(evidence);
+}
+
+/** "by year-end", "end of Q4": too vague to move a milestone date. */
+export function isVagueDate(evidence: string): boolean {
+  return /\b(year[- ]end|end of (?:the )?(?:year|quarter|month)|eoy|eoq|q[1-4]|h[12]|this (?:year|quarter)|next (?:year|quarter))\b/i.test(evidence);
+}
 
 /** Facts worth announcing as a result: a real label, not "Percentage: 94%". */
 export function isMeaningfulMetricLabel(label: string): boolean {
@@ -306,4 +324,24 @@ export function metricKey(label: string, value: string): string {
   const name = (metric.length ? metric : tokens).join("-") || label.toLowerCase();
   const num = /-?\d+(?:\.\d+)?/.exec(value.replace(/,/g, ""))?.[0];
   return `${name}:${num != null ? String(Number(num)) : value.trim().toLowerCase()}`;
+}
+
+
+// ─── Actionability ───────────────────────────────────────────────────────────
+
+const NO_OBJECT = new Set([
+  ...["send", "share", "provid", "deliver", "prepar", "submit", "get", "giv", "forward", "complet", "finaliz", "updat", "resend", "return", "suppli", "upload", "circulat"],
+  ...["follow", "confirm", "draft", "writ", "put", "together", "mak", "make", "tak", "take", "bring", "call", "clos", "check", "look", "review", "handl", "deal", "do", "both", "thing", "stuff", "everything", "someth", "anything", "them", "it", "this", "that", "these", "those", "back", "over", "touch", "base", "asap"],
+]);
+
+/** "Follow up", "Bring both", "Call to close": an action with no object is not something anyone can do. */
+export function hasActionObject(title: string): boolean {
+  return actionTokens(title).some((t) => !NO_OBJECT.has(t));
+}
+
+const GENERIC_DECISION = /^(?:i|we)\s+(?:need|want|would like)\s+(?:a|your)\s+(?:decision|call|go-ahead|answer)\b/i;
+
+/** "We need your call by Friday" names no decision: the caller should fall back to the subject. */
+export function isGenericDecision(title: string): boolean {
+  return GENERIC_DECISION.test(cleanTitle(title, 200)) && cleanDecisionTitle(title) === cleanTitle(title, 120);
 }

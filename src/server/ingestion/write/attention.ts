@@ -16,7 +16,7 @@ import { companyShortName } from "../resolve/names";
 import type { WriteEnv } from "./env";
 import { upsertInsight } from "./insights";
 import { tokenCoverage } from "./dedupe";
-import { ceoSoleRecipient, dealFor, personName, type ItemCtx } from "./item";
+import { ceoSoleRecipient, dealFor, personName, senderIsCeo, type ItemCtx } from "./item";
 import { actionClause, actionWithRecipient, cleanDecisionTitle, cleanTitle } from "./phrasing";
 import { hasReferenceFrom, reference } from "./provenance";
 import { formatMoney, sourceToItemSource } from "./records";
@@ -355,7 +355,8 @@ export async function applyAttention(w: ItemCtx): Promise<AttentionLevel> {
     legal: w.classification.category === "LEGAL" || w.extraction.activityTags.includes("LEGAL"),
     scientific: w.classification.category === "SCIENTIFIC_LEADERSHIP" || w.extraction.activityTags.includes("SCIENTIFIC"),
     opportunityValue: w.written.opportunities.length ? Math.max(0, ...w.written.opportunities.map((o) => o.value ?? 0)) || null : null,
-    ceoAsked: ceoTasks.length > 0 || ceoCommitments.length > 0 || decisions.length > 0,
+    // A document listing CEO actions is a plan, not someone asking.
+    ceoAsked: w.item.kind !== "DOCUMENT" && (ceoTasks.length > 0 || ceoCommitments.length > 0 || decisions.length > 0),
     ceoOwesDueSoon: ceoOwesDue.length > 0,
     decisionNeeded: decisions.length > 0,
     teamOwnedOnly: teamTasks.length > 0 && ceoTasks.length === 0 && ceoCommitments.length === 0 && decisions.length === 0,
@@ -399,10 +400,11 @@ export async function applyAttention(w: ItemCtx): Promise<AttentionLevel> {
   const short = company ? companyShortName(company.name) : null;
   /** "Henrik Sørensen (Calder Biosciences — customer, …)", or whatever part is known; null when nobody is known. */
   const party = requester && descriptor ? `${requester} (${descriptor})` : (requester ?? descriptor ?? null);
-  const rec = usefulRecommendation(w.extraction.recommendedActions, [mainTask?.title, mainCommitment?.title, decisions[0]?.title]);
+  const x = w.extraction;
+  const rec = usefulRecommendation(x.recommendedActions, [mainTask?.title, mainCommitment?.title, decisions[0]?.title, ...x.tasks.map((t) => t.title), ...x.commitments.map((c) => c.title), ...x.decisions.map((d) => d.title), ...x.risks.map((r) => r.title)]);
 
   const inbox = async (type: InboxType, title: string, whyCeo: string, recommendedAction: string, dueDate: Date | null) =>
-    upsertInboxItem(w, { ...base, fingerprint, type, title: cleanTitle(title, 120), whyCeo, recommendedAction, dueDate });
+    upsertInboxItem(w, { ...base, fingerprint, type, title: title.length > 140 ? cleanTitle(title, 140) : title, whyCeo, recommendedAction, dueDate });
 
   const commitmentInbox = async (c: NonNullable<typeof mainCommitment>, thisWeek: boolean) => {
     const cpName = c.counterpartyPersonId && c.counterpartyPersonId !== w.ceo.personId ? personName(w, c.counterpartyPersonId) : null;
@@ -436,6 +438,30 @@ export async function applyAttention(w: ItemCtx): Promise<AttentionLevel> {
       await commitmentInbox(mainCommitment, false);
     } else if (decisions.length) {
       await decisionInbox(decisions[0], false);
+    } else if (mainTask && senderIsCeo(w)) {
+      // The CEO's own "I'll do X" in a message: a promise to the recipient.
+      const toId = w.resolution.people.find((p) => !p.isCeo && p.role === "RECIPIENT")?.id ?? null;
+      const to = personName(w, toId);
+      const toFirst = to?.split(" ")[0] ?? null;
+      await inbox(
+        "COMMITMENT",
+        to ? `You promised ${to}: ${cleanTitle(mainTask.title)}` : `You promised: ${cleanTitle(mainTask.title)}`,
+        `${to ? `You told ${to} you would` : "You said you would"} ${actionClause(mainTask.title)}${dueClause(mainTask.dueText, mainTask.dueDate)}.`,
+        `${actionWithRecipient(mainTask.title, toFirst)}${mainTask.dueDate ? ` ${dueLabel(mainTask.dueText, mainTask.dueDate, w.today)}` : ""}.`,
+        mainTask.dueDate,
+      );
+    } else if (mainTask && w.item.kind === "DOCUMENT" && (level === "IMMEDIATE" || (mainTask.dueDate && daysBetween(w.today, mainTask.dueDate) <= 2))) {
+      // A plan in a document reaches the inbox only when its date is upon us; otherwise the task competes in the Top 5.
+      const doc = cleanTitle(w.item.title.replace(/\.[a-z0-9]{2,5}$/i, ""), 80);
+      await inbox(
+        "REQUEST",
+        `From ${doc}: ${cleanTitle(mainTask.title)}`,
+        `“${doc}” lists this for you: ${actionClause(mainTask.title)}${dueClause(mainTask.dueText, mainTask.dueDate)}.`,
+        `${actionWithRecipient(mainTask.title, null)}${mainTask.dueDate ? ` ${dueLabel(mainTask.dueText, mainTask.dueDate, w.today)}` : ""}.`,
+        mainTask.dueDate,
+      );
+    } else if (mainTask && w.item.kind === "DOCUMENT") {
+      // Not urgent: no inbox item.
     } else if (mainTask) {
       const type: InboxType =
         w.classification.category === "INTERNAL_ESCALATION" || ESCALATION.test(textForCues)
@@ -467,7 +493,7 @@ export async function applyAttention(w: ItemCtx): Promise<AttentionLevel> {
       await inbox("OPPORTUNITY", `Opportunity: ${cleanTitle(o.title)}`, `${party ? `${party} — ` : ""}${cleanTitle(o.title, 200)}${o.value ? ` (${formatMoney(o.value)})` : ""}.`, rec ?? "Decide whether to pursue it and who owns the next step.", null);
     } else {
       const why = w.extraction.ceoRelevance.reasons[0] ?? w.classification.reasons[0] ?? "High-relevance source.";
-      await inbox(fundraising ? "INVESTOR_FOLLOW_UP" : "REQUEST", w.item.title, `${party ? `${party}: ` : ""}${why}`, rec ?? (requesterFirst ? `Read and reply to ${requesterFirst}.` : "Read and reply."), earliest);
+      await inbox(fundraising ? "INVESTOR_FOLLOW_UP" : "REQUEST", cleanTitle(w.item.title, 120), `${party ? `${party}: ` : ""}${why}`, rec ?? (requesterFirst ? `Read and reply to ${requesterFirst}.` : "Read and reply."), earliest);
     }
   } else if (level === "THIS_WEEK") {
     const weekEnd = addDays(w.today, 7);

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { actionKey, actionSimilarity, actionTokens, isDuplicateAction, lightStem, shortHash, tokenCoverage } from "./dedupe";
+import { actionKey, actionSimilarity, actionTokens, contextualSimilarity, isDuplicateAction, lightStem, shortHash, tokenCoverage } from "./dedupe";
 
 describe("action normalization", () => {
   it("stems lightly so inflections match", () => {
@@ -44,5 +44,18 @@ describe("similarity", () => {
   it("measures coverage of a deliverable in a message", () => {
     assert.equal(tokenCoverage("revised data package", "As promised, attached is the revised data package."), 1);
     assert.ok(tokenCoverage("revised data package", "Thanks for the call today") < 0.3);
+  });
+});
+
+describe("contextual similarity", () => {
+  it("matches a more specific phrasing of the same action when context is shared", () => {
+    assert.ok(contextualSimilarity("Sign Vantage NDA", "Sign Vantage mutual NDA via DocuSign") >= 0.6);
+    assert.equal(isDuplicateAction("Sign Vantage NDA", "Sign Vantage mutual NDA via DocuSign", true).match, true);
+    assert.equal(isDuplicateAction("Sign Vantage NDA", "Sign Vantage mutual NDA via DocuSign", false).match, false, "not without shared context");
+    assert.equal(lightStem("hire"), lightStem("hired"));
+  });
+
+  it("needs two shared words before containment counts", () => {
+    assert.ok(contextualSimilarity("Send deck", "Send the cohort analysis") < 0.6);
   });
 });

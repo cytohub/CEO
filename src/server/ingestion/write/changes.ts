@@ -20,7 +20,7 @@ import { PROTECTED_REASONS } from "./gate";
 import { recordActivity } from "./history";
 import { upsertInsight, type InsightLinks } from "./insights";
 import { dealFor, personName, type ItemCtx } from "./item";
-import { deliverablePhrase, describeChange, documentShortTitle, isMeaningfulMetricLabel, longDay, metricKey, requestedObject, significanceRank, signedSentence, type SignificantChange } from "./phrasing";
+import { deliverablePhrase, describeChange, documentShortTitle, isMeaningfulMetricLabel, isScientificMetric, isTargetStatement, longDay, metricKey, requestedObject, significanceRank, signedSentence, thirdPartyActor, type SignificantChange } from "./phrasing";
 import { formatMoney } from "./records";
 import { queueReview } from "./review";
 
@@ -90,7 +90,8 @@ async function customerDeliverable(w: ItemCtx) {
     ...w.written.queuedTasks.filter((t) => t.dueDate).map((t) => ({ title: t.title, due: t.dueDate!, ownerId: t.ownerId, taskId: null, commitmentId: null, evidence: t.evidence })),
     // …or when only a dated "we need X by <date>" was extracted.
     ...w.extraction.deadlines
-      .filter((d) => d.hard && requestedObject(d.evidence))
+      // A request ("we need X by …"), not someone announcing their own delivery ("our legal team will send…").
+      .filter((d) => d.hard && !thirdPartyActor(d.evidence) && !/\b(?:will|shall|going to)\s+(?:send|share|provide|deliver|return)\b/i.test(d.evidence) && requestedObject(d.evidence))
       .map((d) => ({ title: requestedObject(d.evidence)!, due: dayFromKey(d.date), ownerId: null, taskId: null, commitmentId: null, evidence: d.evidence })),
   ];
   asks.sort((a, b) => a.due.getTime() - b.due.getTime() || Number(!!b.taskId) - Number(!!a.taskId));
@@ -181,13 +182,16 @@ const SCIENCE_DOCS: DocumentType[] = ["EXPERIMENT_REPORT", "SCIENTIFIC_DATA_SUMM
 async function scientificResult(w: ItemCtx) {
   const doc = w.item.document;
   // A result is a named metric ("Hold-out AUC: 0.88"), never a bare "Percentage: 94%".
-  const metrics = w.extraction.facts.filter((f) => (f.kind === "METRIC" || f.kind === "PERCENT") && isMeaningfulMetricLabel(f.label));
-  const top = metrics.find((f) => f.kind === "METRIC") ?? metrics[0] ?? null;
   const scienceDoc = !!doc && SCIENCE_DOCS.includes(doc.docType);
+  const metrics = w.extraction.facts.filter(
+    (f) => (f.kind === "METRIC" || f.kind === "PERCENT") && isMeaningfulMetricLabel(f.label) && !isTargetStatement(f.evidence) && (scienceDoc || isScientificMetric(f.label)),
+  );
+  const top = metrics.find((f) => f.kind === "METRIC") ?? metrics[0] ?? null;
   if (scienceDoc) {
     const v = await w.tx.documentVersion.findFirst({ where: { documentId: doc!.id }, orderBy: { version: "desc" }, select: { version: true, isSignificant: true } });
     if (v && v.version > 1 && !v.isSignificant) return;
-  } else if (!top || !(w.classification.category === "SCIENTIFIC_LEADERSHIP" || w.extraction.activityTags.includes("SCIENTIFIC"))) {
+  } else if (doc || !top || !(w.classification.category === "SCIENTIFIC_LEADERSHIP" || w.extraction.activityTags.includes("SCIENTIFIC"))) {
+    // Decks, memos and specs quote known numbers; new results arrive as reports, data summaries or scientists' emails/notes.
     return;
   }
   if (!top && !scienceDoc) return;

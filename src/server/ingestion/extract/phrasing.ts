@@ -5,6 +5,7 @@
  * Evidence stays verbatim; only the CEO-facing wording is shaped here.
  */
 import { dayFromKey, dayKeyInTz } from "@/lib/dates";
+import { ACTION_VERBS } from "./titles";
 
 const SUFFIX = /\s+(?:Inc\.?|Incorporated|Ltd\.?|Limited|LLC|GmbH|AG|SA|S\.A\.|plc|PLC|Corp\.?|Corporation|Co\.?|Pharma|Pharmaceuticals|Therapeutics|Biosciences|Bio|Biologics|Biotech|Ventures|Capital|Partners|Fund|Instruments|Cloud|Oncology|Labs|Laboratories|Genomics|Diagnostics|Holdings|Group)$/;
 
@@ -89,11 +90,20 @@ export function withDue(action: string, due: string): string {
   return due ? `${action} ${due}` : action;
 }
 
-/** First word lower-cased unless it is an acronym, a code or a proper noun with inner capitals ("Q4", "NDA", "CardioPredict"). */
+const COMMON_LEAD = new Set(
+  "the a an our your this that these those potential interest introduction upsell decision meeting choose keep move extend decide approve go retention regulatory financial reputational delay shortage results customer candidate investor contract deliverable".split(" "),
+);
+
+/**
+ * First word lower-cased for running text — only when it is an ordinary word
+ * (a verb or a common noun), so names and codes keep their case ("Aurelius
+ * expansion", "Q4 budget", "CardioPredict v2").
+ */
 export function lowerFirst(s: string): string {
   if (!s) return s;
   const first = s.split(/\s+/)[0];
-  if (/^[A-Z][A-Z0-9]|^[A-Z][a-z]+[A-Z]|\d/.test(first)) return s;
+  const w = first.toLowerCase().replace(/[^a-z/-]/g, "");
+  if (!ACTION_VERBS.has(w) && !COMMON_LEAD.has(w)) return s;
   return s[0].toLowerCase() + s.slice(1);
 }
 

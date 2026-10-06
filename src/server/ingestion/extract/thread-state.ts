@@ -117,9 +117,10 @@ function ceoAsks(m: ThreadMessageFacts) {
   const x = m.extraction;
   return {
     // Dated, confident asks first ("confirm clause 7.3 by Friday" over "send them to me").
-    task: [...(x?.tasks ?? [])].filter((t) => t.ownerIsCeo).sort((a, b) => (b.dueDate ? 1 : 0) + b.confidence - ((a.dueDate ? 1 : 0) + a.confidence))[0] ?? null,
-    decision: x?.decisions.find((d) => d.status === "NEEDED") ?? null,
-    meeting: x?.meetingRequests[0] ?? null,
+    // LOW-confidence asks (courtesy offers) do not make a thread wait on the CEO.
+    task: [...(x?.tasks ?? [])].filter((t) => t.ownerIsCeo && t.confidence >= 0.55).sort((a, b) => (b.dueDate ? 1 : 0) + b.confidence - ((a.dueDate ? 1 : 0) + a.confidence))[0] ?? null,
+    decision: x?.decisions.find((d) => d.status === "NEEDED" && d.confidence >= 0.55) ?? null,
+    meeting: x?.meetingRequests.find((m) => m.confidence >= 0.55) ?? null,
   };
 }
 

@@ -1,6 +1,32 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { deliverablePhrase, describeChange, documentShortTitle, formatSlot, fulfilmentMatch, longDay, meetingPhrase, meetingTypeFor, objectPhrase, requestedObject, signedSentence } from "./phrasing";
+import {
+  actionClause,
+  actionWithRecipient,
+  cleanDecisionTitle,
+  cleanTitle,
+  deliverablePhrase,
+  describeChange,
+  documentShortTitle,
+  formatSlot,
+  fulfilmentMatch,
+  hasActionObject,
+  isGenericDecision,
+  isMeaningfulMetricLabel,
+  isScientificMetric,
+  isTargetStatement,
+  isVagueDate,
+  longDay,
+  meetingPhrase,
+  meetingTypeFor,
+  metricKey,
+  objectPhrase,
+  requestedObject,
+  sameSentence,
+  sentencesOf,
+  signedSentence,
+  thirdPartyActor,
+} from "./phrasing";
 import { defaultPriority, focusAreaFor, isHardDeadline, taskScores } from "./task-scoring";
 
 describe("change wording", () => {
@@ -111,5 +137,77 @@ describe("task scoring", () => {
     const team = taskScores({ ...{ category: "OPERATIONS", strategicScore: 0, goalMatched: false, companyType: null, companyRelationship: null, dealValue: null, dealType: null, moneyMax: null, maxRiskSeverity: null, hard: false, ownerIsCeo: false, askedPersonally: false, dueInDays: null, scientific: false } });
     assert.equal(team.ceoUniqueness, 2);
     assert.equal(team.fundraisingImpact, 0);
+  });
+});
+
+describe("titles and advice", () => {
+  it("cleans extractor titles", () => {
+    assert.equal(cleanTitle("Decide on the offer package (base $240K"), "Decide on the offer package");
+    assert.equal(cleanTitle("Decision needed: Decision needed: secure the booth"), "Secure the booth");
+    assert.equal(cleanTitle("approve q4 marketing budget: $180K in total……"), "Approve q4 marketing budget: $180K in total");
+    assert.equal(cleanTitle("Propose two or three dates for a diligence session with"), "Propose two or three dates for a diligence session");
+    assert.ok(cleanTitle("word ".repeat(60), 40).length <= 41);
+  });
+
+  it("names the decision, not the ask", () => {
+    assert.equal(cleanDecisionTitle("I need a decision by Thursday to secure the booth"), "Secure the booth");
+    assert.equal(cleanDecisionTitle("Hire Laura Mitchell as VP Sales at the requested package?"), "Hire Laura Mitchell as VP Sales at the requested package?");
+    assert.equal(isGenericDecision("Decision needed: We need your call by Friday"), true);
+    assert.equal(isGenericDecision("I need a decision by Thursday to secure the booth"), false);
+  });
+
+  it("writes advice with the recipient", () => {
+    assert.equal(actionWithRecipient("Send revised data package", "Henrik"), "Send Henrik the revised data package");
+    assert.equal(actionWithRecipient("Share our cohort retention analysis", "Sarah"), "Share Sarah our cohort retention analysis");
+    assert.equal(actionWithRecipient("Sign Vantage NDA", "Marcus"), "Sign Vantage NDA");
+    assert.equal(actionClause("Send revised data package"), "send the revised data package");
+  });
+
+  it("drops actions without an object", () => {
+    assert.equal(hasActionObject("Follow up"), false);
+    assert.equal(hasActionObject("Bring both"), false);
+    assert.equal(hasActionObject("Follow up with Anna Berg"), true);
+    assert.equal(hasActionObject("Sign Vantage NDA"), true);
+  });
+});
+
+describe("deadline coverage", () => {
+  const text = "Hi, I need your decision on the offer package (base $240K) by Wednesday. If you approve, could you call her yourself?";
+  const sentences = sentencesOf(text);
+  it("recognizes quotes of the same sentence", () => {
+    assert.equal(sameSentence("I need your decision on the offer package (base $240K) by Wednesday.", "decision on the offer package", sentences), true);
+    assert.equal(sameSentence("I need your decision on the offer package (base $240K) by Wednesday.", "could you call her yourself?", sentences), false);
+  });
+
+  it("spots dated actions that someone else owns", () => {
+    assert.equal(thirdPartyActor("Daniel Kim will ship the assay turnaround dashboard for Lumen by October 12."), true);
+    assert.equal(thirdPartyActor("Legal will return their revised language on clause 7.3 by Friday."), true);
+    assert.equal(thirdPartyActor("Their legal team will send their comments back by Oct 7."), true);
+    assert.equal(thirdPartyActor("Our legal team will send the redlines by Friday."), true);
+    assert.equal(thirdPartyActor("CEO will circulate the final Series B deck to the board.", ["CEO"]), false);
+    assert.equal(thirdPartyActor("We would like your comments on the term sheet by Friday."), false);
+    assert.equal(thirdPartyActor("Can you confirm you can meet that date?"), false);
+  });
+
+  it("does not move milestones on vague dates", () => {
+    assert.equal(isVagueDate("Target: 500 donor hearts by year-end"), true);
+    assert.equal(isVagueDate("Sofia will close the VP Sales hire by October 8."), false);
+  });
+});
+
+describe("scientific results", () => {
+  it("keys a metric by name and value", () => {
+    assert.equal(metricKey("Hold-out AUC", "0.88"), metricKey("AUC", "0.880"));
+    assert.notEqual(metricKey("AUC", "0.88"), metricKey("AUC", "0.90"));
+  });
+
+  it("ignores unlabeled, business or target figures", () => {
+    assert.equal(isMeaningfulMetricLabel("Percentage"), false);
+    assert.equal(isMeaningfulMetricLabel("Hold-out AUC"), true);
+    assert.equal(isScientificMetric("Retention"), false);
+    assert.equal(isScientificMetric("Hold-out AUC"), true);
+    assert.equal(isTargetStatement("CardioPredict v2 validation (AUC ≥ 0.90)"), true);
+    assert.equal(isTargetStatement("the 0.90 bar we set publicly"), true);
+    assert.equal(isTargetStatement("hold-out AUC came in at 0.88"), false);
   });
 });

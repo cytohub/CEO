@@ -120,7 +120,7 @@ export async function summarizeThread(ctx: PipelineContext, threadId: string): P
           direction: true,
           isAutomated: true,
           replyStatus: true,
-          sourceItem: { select: { text: true, extraction: true } },
+          sourceItem: { select: { text: true, extraction: true, relevance: true } },
         },
       },
       commitments: {
@@ -137,7 +137,8 @@ export async function summarizeThread(ctx: PipelineContext, threadId: string): P
     fromName: m.fromName,
     fromCeo: m.direction === "OUTBOUND" || (ceoEmail != null && m.fromEmail.toLowerCase() === ceoEmail),
     direction: m.direction,
-    isAutomated: m.isAutomated,
+    // Mail classified as noise (newsletters, cold pitches) never makes a thread wait on the CEO.
+    isAutomated: m.isAutomated || m.sourceItem.relevance === "NOISE",
     sentAt: m.sentAt,
     to: participants(m.to),
     cc: participants(m.cc),

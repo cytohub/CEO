@@ -49,7 +49,7 @@ export async function detectFulfillment(w: ItemCtx) {
     if (cue && coverage >= 0.6 && sameThread) {
       const excerpt = w.item.text.split(/\n+/).find((l) => hasDeliveryCue(l)) ?? w.item.snippet ?? null;
       await fulfillCommitment(w, c.id, `Fulfilled by “${w.item.title}” (${formatDay(toDay(w.item.occurredAt, w.timezone))}).`, excerpt);
-    } else if ((cue && coverage >= 0.4) || coverage >= 0.75) {
+    } else if ((cue && coverage >= 0.5) || coverage >= 0.75) {
       await queueReview(w, {
         kind: "FIELD_CHANGE",
         title: `Mark fulfilled? ${c.title}`,

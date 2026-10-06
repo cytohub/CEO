@@ -102,6 +102,8 @@ const NOISE = {
   marketing: /(?:\b\d{1,2}% off\b|\bwebinar\b|\bsale\b|\bpromo(?:tion)?\b|\bdiscount code\b|\blimited time\b|\bregister now\b|\blast chance\b|\bfree trial\b|\bexclusive offer\b|\bearly bird\b|\bsponsored\b|\bsave your seat\b)/i,
   newsletter: /\b(?:newsletter|digest|weekly (?:roundup|update|briefing|recap)|this week in|edition|issue #?\d+|daily brief(?:ing)?)\b/i,
   notification: /\b(?:receipt|invoice notification|your (?:order|invoice|receipt|statement|subscription)|password reset|reset your password|security alert|new sign-?in|has shared|shared (?:a|an) (?:file|document|folder)|commented on|mentioned you|automatic reply|out of office|delivery status|undeliverable|has been (?:shipped|delivered))\b|^(?:accepted|declined|tentative|invitation|updated invitation):/i,
+  /** Unsolicited vendor/agency pitches ("I help biotech CEOs book 20+ meetings…"). */
+  pitch: /\b(?:i help|we help) (?:\w+ ){0,3}(?:ceos?|founders?|companies|teams|biotechs?|startups)\b|\bbook (?:\d+\+? )?(?:qualified )?(?:meetings|demos|calls)\b|\bwould it be crazy\b|\b(?:grab|steal|borrow) (?:\d+|fifteen|ten) minutes\b|\bquick question about\b|\b(?:lead generation|outbound (?:sales|campaigns?)|appointment setting)\b|\bschedule a (?:quick )?demo\b/i,
   unsubscribe: /\bunsubscribe\b|\bmanage (?:your )?(?:email )?preferences\b|\bview (?:this email )?in (?:your )?browser\b/i,
 };
 
@@ -454,6 +456,9 @@ function detectNoise(f: ClassifyFacts): { category: CeoCategory; reason: string 
   const sender = f.participants.find((p) => p.role === "SENDER");
   const automatedAddress = /^(?:no-?reply|do-?not-?reply|donotreply|notifications?|notify|alerts?|mailer-daemon|newsletters?|news|digest|marketing|updates|receipts?|invoices?|calendar-notification)\b/i.test(e.fromEmail.split("@")[0] ?? "");
 
+  // No relationship: unknown, or only auto-created by resolution (type OTHER) at an OTHER/unknown company.
+  const stranger = !sender?.person || (sender.person.type === "OTHER" && (!sender.company || sender.company.type === "OTHER"));
+
   let category: CeoCategory | null = null;
   let reason = "";
   if (labels.includes("SPAM") || NOISE.spam.test(head)) [category, reason] = ["SPAM", "Looks like spam"];
@@ -461,6 +466,7 @@ function detectNoise(f: ClassifyFacts): { category: CeoCategory; reason: string 
   else if (NOISE.newsletter.test(f.title) || (NOISE.unsubscribe.test(head) && !KW.request.test(head))) [category, reason] = ["NEWSLETTER", "Newsletter or mailing list"];
   else if (NOISE.notification.test(f.title) || labels.includes("CATEGORY_UPDATES") || labels.includes("CATEGORY_SOCIAL") || labels.includes("CATEGORY_FORUMS")) [category, reason] = ["NOTIFICATION", "Automated notification"];
   else if (NOISE.marketing.test(head) && NOISE.unsubscribe.test(head)) [category, reason] = ["MARKETING", "Marketing email"];
+  else if (stranger && (NOISE.pitch.test(head) ? (head.match(new RegExp(NOISE.pitch.source, "gi")) ?? []).length >= 2 || /\bi help\b/i.test(head) : false)) [category, reason] = ["MARKETING", "Unsolicited sales pitch"];
   else if (e.isAutomated || automatedAddress) [category, reason] = ["NOTIFICATION", "Automated sender"];
   if (!category) return null;
 
@@ -537,17 +543,17 @@ export function classifyFacts(f: ClassifyFacts): Classification {
   const typedDoc = doc != null && doc.type !== "OTHER" && doc.type !== "MEETING_NOTES" && doc.type !== "INTERNAL_MEMO";
   if (allInternal && escalation && category !== "BOARD" && !isDoc) {
     category = "INTERNAL_ESCALATION";
-  } else if (WEAK.has(category) && KW.board.test(fullText) && !typedDoc) {
+  } else if (WEAK.has(category) && !strongPick && KW.board.test(fullText) && !typedDoc) {
     category = "BOARD";
-  } else if (WEAK.has(category) && (KW.fundraising.test(fullText) || KW.ic.test(fullText)) && !typedDoc) {
+  } else if (WEAK.has(category) && !strongPick && (KW.fundraising.test(fullText) || KW.ic.test(fullText)) && !typedDoc) {
     category = "FUNDRAISING";
     reasons.push("Fundraising");
-  } else if (WEAK.has(category) && legalHits(fullText) >= (isDoc ? 2 : 1) && !isEvent && !typedDoc) {
+  } else if (WEAK.has(category) && !strongPick && legalHits(fullText) >= (isDoc ? 2 : 1) && !isEvent && !typedDoc) {
     category = "LEGAL";
   } else if ((category === "OTHER" || (isEvent && meetingCategory === "PERSONAL")) && KW.personal.test(fullText) && !strongPick) {
     category = "PERSONAL";
     reasons.push("Personal");
-  } else if (WEAK.has(category) && !typedDoc && /\b(?:candidate|job offer|offer letter|interview)\b/i.test(fullText)) {
+  } else if (WEAK.has(category) && !strongPick && !typedDoc && /\b(?:candidate|job offer|offer letter|interview)\b/i.test(fullText)) {
     category = "RECRUITING";
   } else if (category === "OTHER" && KW.finance.test(fullText)) {
     category = "FINANCE";

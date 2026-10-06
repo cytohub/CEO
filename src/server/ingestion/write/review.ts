@@ -11,6 +11,7 @@ import { db, type Tx } from "@/lib/db";
 import { audit } from "@/server/security/audit";
 import { loadCeoContext } from "@/server/context";
 import { actionSimilarity, findDuplicateTask } from "./dedupe";
+import { isProtectedDraft, MAX_REVIEWS_PER_SOURCE, selectReviewDrafts, subjectOf } from "./review-select";
 import { BRAIN_ACTOR, emptyCounters, emptySummary, snapshotOf, type ReviewDraft, type WriteEnv } from "./env";
 import { recordActivity, type ActivityLinks } from "./history";
 import { mergeCompanies, mergePeople } from "./merge";
@@ -136,49 +137,6 @@ async function fileReview(env: WriteEnv, input: ReviewDraft): Promise<string | n
   return r.id;
 }
 
-/** At most this many review items per source item: a reviewer sees the few that matter, the rest stay in the extraction record. */
-export const MAX_REVIEWS_PER_SOURCE = 2;
-
-/** Protected proposals change existing company truth; they win ties for the per-source slots. */
-export function isProtectedDraft(d: Pick<ReviewDraft, "kind" | "proposal">): boolean {
-  if (d.kind === "FIELD_CHANGE" || d.kind === "ENTITY_MERGE" || d.kind === "NEW_INVESTOR") return true;
-  return d.kind === "DECISION" && (d.proposal as { status?: string } | null)?.status === "MADE";
-}
-
-const KIND_PREFERENCE: Partial<Record<ReviewKind, number>> = { DECISION: 4, COMMITMENT: 3, TASK: 2, DEADLINE: 1 };
-const ACTION_KINDS = new Set<ReviewKind>(["TASK", "COMMITMENT", "DECISION", "DEADLINE"]);
-
-function subjectOf(d: ReviewDraft): string {
-  const p = (d.proposal ?? {}) as { title?: string; what?: string; targetLabel?: string };
-  return p.title ?? p.what ?? p.targetLabel ?? d.title;
-}
-
-function rank(a: ReviewDraft, b: ReviewDraft): number {
-  return b.impact - a.impact || Number(isProtectedDraft(b)) - Number(isProtectedDraft(a)) || b.confidenceScore - a.confidenceScore || (KIND_PREFERENCE[b.kind] ?? 0) - (KIND_PREFERENCE[a.kind] ?? 0);
-}
-
-/**
- * Pick which buffered drafts to file (pure): drop repeats of the same action
- * (a task, a deadline and a decision quoting the same ask), then keep the
- * highest-impact ones within the per-source budget. Drafts already pending
- * from an earlier run are kept first so the queue does not churn.
- */
-export function selectReviewDrafts(drafts: ReviewDraft[], opts: { alreadyPending: Set<string>; slots: number }): ReviewDraft[] {
-  const byFingerprint = new Map<string, ReviewDraft>();
-  for (const d of drafts) {
-    const prev = byFingerprint.get(d.fingerprint);
-    if (!prev || rank(d, prev) < 0) byFingerprint.set(d.fingerprint, d);
-  }
-  const unique: ReviewDraft[] = [];
-  for (const d of [...byFingerprint.values()].sort(rank)) {
-    const twin = unique.find((u) => (u.kind === d.kind || (ACTION_KINDS.has(u.kind) && ACTION_KINDS.has(d.kind))) && u.kind !== "FIELD_CHANGE" && actionSimilarity(subjectOf(u), subjectOf(d)) >= 0.6);
-    if (!twin) unique.push(d);
-  }
-  const pending = unique.filter((d) => opts.alreadyPending.has(d.fingerprint));
-  const fresh = unique.filter((d) => !opts.alreadyPending.has(d.fingerprint));
-  return [...pending, ...fresh].slice(0, Math.max(opts.slots, pending.length));
-}
-
 /** File the buffered review drafts of one source item (see selectReviewDrafts). */
 export async function flushReviews(env: WriteEnv): Promise<string[]> {
   const drafts = env.reviewBuffer ?? [];
@@ -192,8 +150,30 @@ export async function flushReviews(env: WriteEnv): Promise<string[]> {
   const others = env.source
     ? await env.tx.reviewQueueItem.count({ where: { sourceItemId: env.source.id, status: "PENDING", fingerprint: { notIn: fingerprints } } })
     : 0;
+  const fresh = drafts.filter((d) => !resolved.has(d.fingerprint));
+  // The same uncertain action already waiting for review (from another message or document): don't ask twice.
+  const kinds = [...new Set(fresh.filter((d) => !isProtectedDraft(d) && !alreadyPending.has(d.fingerprint)).map((d) => d.kind))];
+  const waiting = kinds.length
+    ? await env.tx.reviewQueueItem.findMany({
+        where: { status: "PENDING", kind: { in: kinds }, createdAt: { gte: new Date(env.now.getTime() - 30 * 86_400_000) }, ...(env.source ? { NOT: { sourceItemId: env.source.id } } : {}) },
+        select: { kind: true, title: true, proposal: true },
+        take: 500,
+      })
+    : [];
+  const repeats = fresh.filter((d) => {
+    if (isProtectedDraft(d) || alreadyPending.has(d.fingerprint)) return false;
+    const company = (d.proposal as { companyId?: string | null } | null)?.companyId ?? null;
+    return waiting.some((r) => {
+      if (r.kind !== d.kind) return false;
+      const other = r.proposal as { companyId?: string | null; title?: string; what?: string } | null;
+      const shared = !!company && other?.companyId === company;
+      return actionSimilarity(subjectOf(d), other?.title ?? other?.what ?? r.title) >= (shared ? 0.6 : 0.85);
+    });
+  });
+  env.summary.duplicatesPrevented += repeats.length;
+  env.counters.duplicatesPrevented += repeats.length;
   const chosen = selectReviewDrafts(
-    drafts.filter((d) => !resolved.has(d.fingerprint)),
+    fresh.filter((d) => !repeats.includes(d)),
     { alreadyPending, slots: MAX_REVIEWS_PER_SOURCE - others },
   );
   const ids: string[] = [];

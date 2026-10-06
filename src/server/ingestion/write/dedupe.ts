@@ -22,7 +22,7 @@ const STOPWORDS = new Set(
     "a an the to for of and or with on in at by from as is are be been being our your my their his her its we i you they he she it me us them " +
     "this that these those please pls kindly will would could can should shall must need needs want wants asap re fw fwd about into over also just " +
     "all any some so then than do does did have has had get got let know up out back again soon today tomorrow week next by end eod there here " +
-    "what when which who whom whose how why if not no yes ok okay thanks thank hi hello dear regards best cheers"
+    "what when which who whom whose how why if not no yes ok okay thanks thank hi hello dear regards best cheers via using"
   ).split(" "),
 );
 
@@ -34,7 +34,8 @@ export function lightStem(token: string): string {
   else if (t.length > 4 && t.endsWith("ed")) t = t.slice(0, -2);
   else if (t.length > 4 && /(ss|x|ch|sh)es$/.test(t)) t = t.slice(0, -2);
   else if (t.length > 3 && t.endsWith("s") && !/(ss|us|is)$/.test(t)) t = t.slice(0, -1);
-  if (t.length > 4 && t.endsWith("e")) t = t.slice(0, -1);
+  // "hire"/"hired", "close"/"closed": drop a final e so both stem alike.
+  if (t.length > 3 && t.endsWith("e")) t = t.slice(0, -1);
   return t;
 }
 
@@ -82,10 +83,26 @@ export function tokenCoverage(needle: string, haystack: string | Set<string>): n
 export const SHARED_CONTEXT_THRESHOLD = 0.6;
 export const NO_CONTEXT_THRESHOLD = 0.85;
 
+/**
+ * Similarity used when two actions share context (thread, meeting, company):
+ * Jaccard, or — when one is a more specific phrasing of the other ("Sign
+ * Vantage NDA" / "Sign Vantage mutual NDA via DocuSign") — 0.9 × how much of
+ * the shorter is contained in the longer.
+ */
+export function contextualSimilarity(a: string, b: string): number {
+  const A = tokenSet(a);
+  const B = tokenSet(b);
+  const [short, long] = A.size <= B.size ? [A, B] : [B, A];
+  let inter = 0;
+  for (const t of short) if (long.has(t)) inter++;
+  const jaccard = A.size && B.size ? inter / (A.size + B.size - inter) : 0;
+  return short.size >= 2 ? Math.max(jaccard, (0.9 * inter) / short.size) : jaccard;
+}
+
 export function isDuplicateAction(a: string, b: string, sharedContext: boolean): { match: boolean; score: number } {
   // Extractor titles are normalized imperatives: an identical title key is the same action.
   const ka = titleKey(a);
-  const score = ka && ka === titleKey(b) ? 1 : actionSimilarity(a, b);
+  const score = ka && ka === titleKey(b) ? 1 : sharedContext ? contextualSimilarity(a, b) : actionSimilarity(a, b);
   return { match: score >= (sharedContext ? SHARED_CONTEXT_THRESHOLD : NO_CONTEXT_THRESHOLD), score };
 }
 

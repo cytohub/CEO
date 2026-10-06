@@ -20,7 +20,8 @@ export const ACTION_VERBS = new Set(
     "quote price release ship grant extend renew cancel hold reserve double-check verify validate test run analyze compile gather collect pull pass flag " +
     "highlight remind keep start kick launch finish close negotiate draft request order sort chase find dig think figure work have circulate distribute " +
     "post brief nudge shortlist interview hire onboard refresh rerun retrain train benchmark tell text phone meet visit host cover prioritize approve " +
-    "delay postpone move pause stop drop proceed accept reject decline adopt switch use defer continue reduce increase cut raise invest expand go"
+    "delay postpone move pause stop drop proceed accept reject decline adopt switch use defer continue reduce increase cut raise invest expand go " +
+    "include attach cover ship grant"
   ).split(" "),
 );
 
@@ -35,7 +36,7 @@ const TRAILING =
 
 /** Indirect objects to drop ("send us the deck"); "them" only when a direct object follows ("send them the deck", not "send them to me"). */
 const OBJECT_PRONOUN = /^(\S+)\s+(?:(?:it\s+)?(?:over\s+)?(?:to\s+)?(?:us|me|him|her)\s+|them\s+(?=(?:the|a|an|our|your|my)\b))(?=\S)/i;
-const ARTICLE_AFTER_VERB = /^((?:\S+)(?:\s+(?:back|out|up))?)\s+(?:the|a|an|your|our|my|this|that)\s+(?=\S)/i;
+const ARTICLE_AFTER_VERB = /^((?:\S+)(?:\s+(?:back|out|up))?)\s+(?:the|a|an|your|our|my|this|that|their|its|his|her)\s+(?=\S)/i;
 /** Verbs whose pronoun object is a person ("call her", "email him"). */
 const PERSON_VERBS = /^(call|email|ping|text|phone|contact|meet|update|brief|tell|remind|invite|thank|visit|introduce|congratulate|close)\s+(?:her|him|them)\b/i;
 
@@ -63,8 +64,12 @@ export function actionTitle(clause: string, ctx: TitleContext = {}, max = 64): s
   }
   for (let i = 0; i < 3; i++) s = s.replace(LEAD_IN, "").trim();
   // Second sentences after a semicolon and relative clauses are detail, not the action.
-  s = s.split(/\s*;\s*|\s+—\s+/)[0];
-  s = s.replace(/,\s+(?:our|my|your|their|the)\s+[^,]{2,40},\s*/i, " ").replace(/,\s+(?:who|which|where|whose)\b.*$/i, "");
+  s = s.split(/\s*;\s*|\s+—\s+|:\s+/)[0];
+  s = s.replace(/,\s+(?:our|my|your|their|the)\s+[^,]{2,40},\s*/i, ", ").replace(/,\s+(?:who|which|where|whose)\b.*$/i, "");
+  // "the updated SOW, with the 40-compound panel" reads as one phrase.
+  s = s.replace(/,\s+(with|including|plus)\b/gi, " $1");
+  // "dataset for compounds LB-2207 and LB-2219" → "dataset (LB-2207, LB-2219)": codes are the point, keep them short.
+  s = s.replace(/\s+for\s+(?:compounds?|samples?|sites?|programs?)\s+([A-Z0-9][\w-]*\d[\w-]*(?:(?:,\s*|\s+and\s+)[A-Z0-9][\w-]*\d[\w-]*)+)/, (_m, codes: string) => ` (${codes.split(/,\s*|\s+and\s+/).join(", ")})`);
   // Cut purpose clauses and trailing punctuation (repeat: "…, please." → "…").
   for (let i = 0; i < 3; i++) s = s.replace(TRAILING, "").trim();
   if (!s) return null;
@@ -125,7 +130,8 @@ export function weakObject(title: string): boolean {
   const words = title.split(/\s+/);
   if (words.length < 2) return true;
   // Verb followed directly by a preposition or adverb: no object at all ("Sign via DocuSign", "Reply today").
-  return /^(?:via|when|by|at|in|before|after|today|tomorrow|now|soon|asap|on|with|for)$/i.test(words[1]);
+  if (/^(?:via|when|by|before|after|today|tomorrow|now|soon|asap|tonight)$/i.test(words[1])) return true;
+  return /^(?:on|with|for|at|in)$/i.test(words[1]) && words.length <= 3;
 }
 
 /** The first word of a clause, lower-cased ("Send revised…" → "send"). */

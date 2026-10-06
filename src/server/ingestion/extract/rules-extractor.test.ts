@@ -82,7 +82,7 @@ Next steps:
   contract: documentInput({
     title: "Brightwater MSA v3",
     docType: "CUSTOMER_CONTRACT",
-    text: `MASTER SERVICES AGREEMENT\n\n4.1 CytoHub shall deliver the final study report within 30 days of receipt of samples.\n4.2 Brightwater Therapeutics shall pay all undisputed invoices within 45 days.\n4.3 Each party shall keep the other's data confidential.\n5.1 The total contract value is $2.4M over three years.\n7.3 Data rights: Customer receives a non-exclusive license to derived data.`,
+    text: `MASTER SERVICES AGREEMENT\n\n4.1 CytoHub shall deliver the final study report within 30 days of receipt of samples.\n4.2 Brightwater Therapeutics shall pay all undisputed invoices within 45 days.\n4.3 Each party shall keep the other's data confidential.\n4.4 CytoHub shall deliver the interim readout by December 8, 2026.\n4.5 Brightwater Therapeutics shall provide the reference compound panel by October 30, 2026.\n5.1 The total contract value is $2.4M over three years.\n7.3 Data rights: Customer receives a non-exclusive license to derived data.`,
   }),
   board: emailInput({
     from: MICHAEL,
@@ -124,15 +124,13 @@ describe("rules extractor: the spec example", () => {
     assert.equal(x.opportunities[0].evidence, "Once we review it, we can discuss expanding the study.");
   });
 
-  it("records the hard deadline, the sender's company and a factual summary", () => {
-    assert.deepEqual(
-      x.deadlines.map((d) => [d.what, d.date, d.hard]),
-      [["Send revised data package", "2026-10-09", true]],
-    );
+  it("does not repeat the task as a deadline; records the sender's company and a factual summary", () => {
+    assert.deepEqual(x.deadlines, [], "the task already carries the date");
     assert.ok(x.entities.some((e) => e.type === "PERSON" && e.name === "Karen Liu" && e.companyName === "Brightwater Therapeutics"));
     assert.ok(x.relationships.some((r) => r.fromName === "Karen Liu" && r.relation === "WORKS_AT" && r.toName === "Brightwater Therapeutics"));
-    assert.equal(x.summary, "Karen Liu (Brightwater Therapeutics) asks you to send revised data package by Fri, Oct 9. Also: potential study expansion.");
-    assert.equal(x.recommendedActions[0].action, "Send revised data package by Fri, Oct 9 and reply to Karen Liu");
+    assert.equal(x.summary, "Karen Liu (Brightwater Therapeutics) asks you to send the revised data package by Fri, Oct 9. Also signals a potential study expansion.");
+    assert.equal(x.recommendedActions[0].action, "Send revised data package to Karen Liu by Friday");
+    assert.equal(x.recommendedActions[0].why, "Karen Liu (Brightwater Therapeutics) asked you.");
     assert.equal(x.commitments.length, 0, "a request is not a commitment");
   });
 
@@ -157,8 +155,9 @@ describe("rules extractor: commitments", () => {
     const check = x.commitments.find((c) => c.title.startsWith("Check with Maya"))!;
     assert.equal(check.title, "Check with Maya on the assay timing and get back to Karen");
     assert.ok(check.confidence < send.confidence, "no date → lower confidence");
+    assert.ok(check.confidence >= 0.8, "an explicit promise with a concrete object is still HIGH");
     assert.equal(x.tasks.length, 0, "the CEO's own promises are not requests");
-    assert.ok(x.followUps.some((f) => f.title.startsWith("Follow up with Karen Liu") && f.dueDate === "2026-10-12"));
+    assert.ok(x.commitments.some((c) => c.title === "Follow up on the expansion scope" && c.dueDate === "2026-10-12"));
   });
 
   it("an external sender's promise is INBOUND, owed by the sender", () => {
@@ -172,6 +171,8 @@ describe("rules extractor: commitments", () => {
     assert.equal(ts.companyName, "Northbridge Ventures");
     assert.equal(ts.dueDate, "2026-10-12", "next week → Monday");
     assert.equal(ts.dueText, "next week");
+
+    assert.ok(ts.confidence >= 0.82, "an explicit inbound promise is HIGH");
 
     const legal = run("legal");
     const comments = legal.commitments.find((c) => c.direction === "INBOUND")!;
@@ -187,24 +188,23 @@ describe("rules extractor: commitments", () => {
     assert.equal(c.owedByName, "Jonas Weber");
     assert.equal(c.owedToName, "Rajib Sen");
     assert.equal(c.title, "Finish updated runway model");
+    assert.ok(c.confidence >= 0.82);
     assert.equal(c.dueDate, "2026-10-12");
   });
 
-  it("contract language: CytoHub obligations OUTBOUND, counterparty obligations INBOUND", () => {
+  it("contract language: dated CytoHub obligations OUTBOUND, counterparty obligations INBOUND; standing terms are not commitments", () => {
     const x = run("contract");
     const out = x.commitments.find((c) => c.direction === "OUTBOUND")!;
-    assert.equal(out.title, "Deliver final study report");
+    assert.equal(out.title, "Deliver interim readout");
     assert.equal(out.owedByName, "CytoHub");
-    assert.equal(out.dueDate, null, "30 days after receipt of samples is not anchored to the document date");
-    assert.equal(out.dueText, "within 30 days of receipt of samples");
     assert.equal(out.owedToName, "Brightwater Therapeutics", "the counterparty named in the document");
+    assert.equal(out.dueDate, "2026-12-08");
     const inbound = x.commitments.find((c) => c.direction === "INBOUND")!;
-    assert.equal(inbound.title, "Pay all undisputed invoices");
+    assert.equal(inbound.title, "Provide reference compound panel");
     assert.equal(inbound.owedByName, "Brightwater Therapeutics");
     assert.equal(inbound.owedToName, "CytoHub");
-    assert.equal(inbound.dueDate, null, "'within 45 days' runs from the invoice, not the document date");
-    assert.equal(inbound.dueText, "within 45 days");
-    assert.equal(x.commitments.length, 2, "'Each party shall' is mutual, not a commitment");
+    assert.equal(inbound.dueDate, "2026-10-30");
+    assert.equal(x.commitments.length, 2, "'within 30/45 days of …' terms and 'Each party shall' clauses are not one-off commitments");
     assert.ok(x.facts.some((f) => f.label === "Contract value" && f.value === "$2.4M" && f.numericValue === 2_400_000));
   });
 });
@@ -223,18 +223,9 @@ describe("rules extractor: requests and ownership", () => {
     assert.ok(!x.tasks.some((k) => /walk through/i.test(k.title)), "a meeting request is not a task");
   });
 
-  it("when the CEO is only cc'd, requests belong to the To recipient", () => {
-    const x = run("ccOnly");
-    assert.equal(x.tasks.length, 1);
-    assert.equal(x.tasks[0].ownerIsCeo, false);
-    assert.equal(x.tasks[0].ownerName, "Priya");
-    assert.equal(x.tasks[0].title, "Send pilot SOW");
-  });
-
-  it("a greeting to someone else assigns the request to them", () => {
-    const x = run("greetingOther");
-    assert.equal(x.tasks[0].ownerIsCeo, false);
-    assert.equal(x.tasks[0].ownerName, "Maya");
+  it("requests not addressed to the CEO (CEO only cc'd, greeting to someone else) are not tasks", () => {
+    assert.equal(run("ccOnly").tasks.length, 0);
+    assert.equal(run("greetingOther").tasks.length, 0);
   });
 
   it("ignores pleasantries and instructions aimed at the system", () => {
@@ -257,32 +248,35 @@ describe("rules extractor: requests and ownership", () => {
 describe("rules extractor: decisions, follow-ups, risks, opportunities, facts", () => {
   it("decisions made and needed", () => {
     const inv = run("investor");
-    assert.ok(inv.decisions.some((d) => d.status === "MADE" && d.title === "The IC approved moving forward"));
+    assert.ok(!inv.decisions.some((d) => d.status === "MADE"), "a counterparty's approval is news, not a CytoHub decision");
+    assert.ok(inv.facts.some((f) => f.kind === "TEXT" && f.label === "Northbridge decision" && f.value === "Northbridge IC approved moving forward"));
     const legal = run("legal");
     const needed = legal.decisions.filter((d) => d.status === "NEEDED");
     const clause = needed.find((d) => d.title === "Decide on clause 7.3 (data rights)")!;
     assert.equal(clause.deadline, "2026-10-09");
     assert.equal(clause.decidedByName, "Rajib Sen");
-    const term = needed.find((d) => d.title.startsWith("Decide whether to keep"))!;
+    assert.ok(clause.confidence >= 0.85, "an explicit decision ask is HIGH");
+    const term = needed.find((d) => d.title === "Keep the three-year term or move to two years?")!;
     assert.deepEqual(term.options, ["keep the three-year term", "move to two years"]);
+    assert.ok(term.confidence < 0.8, "'should we…?' is a softer ask");
     const internal = run("internal");
     assert.ok(internal.decisions.some((d) => d.status === "MADE" && d.title === "Delay Munich lab expansion to Q2" && d.decidedByName === "Jonas Weber"));
   });
 
-  it("follow-ups", () => {
+  it("a request to follow up is a task, not also a follow-up", () => {
     const legal = run("legal");
-    const f = legal.followUps.find((x) => x.withName === "Marcus")!;
-    assert.equal(f.title, "Follow up with Marcus on the indemnity language");
-    assert.equal(f.dueDate, "2026-10-12");
+    const t = legal.tasks.find((x) => x.title === "Follow up with Marcus on the indemnity language")!;
+    assert.equal(t.dueDate, "2026-10-12");
+    assert.equal(legal.followUps.length, 0);
   });
 
   it("risks with category and severity", () => {
     const x = run("escalation");
-    const titles = x.risks.map((r) => r.title);
-    assert.ok(x.risks.some((r) => r.category === "CUSTOMER" && r.severity === 5 && /^Churn risk/.test(r.title)), titles.join(" | "));
-    assert.ok(x.risks.some((r) => r.category === "CUSTOMER" && /^Escalation/.test(r.title)), titles.join(" | "));
+    assert.deepEqual(x.risks.map((r) => [r.title, r.category, r.severity]), [["Lumen renewal at risk", "CUSTOMER", 5]], "escalation and churn threat merge into one renewal risk");
+    assert.ok(x.risks[0].confidence >= 0.84);
+    assert.ok(x.risks[0].description!.includes("unacceptable"), "the detail stays in the description");
     const notes = run("notes");
-    const shortage = notes.risks.find((r) => /^Shortage/.test(r.title))!;
+    const shortage = notes.risks.find((r) => r.title === "Assay reagent shortage")!;
     assert.equal(shortage.category, "OPERATIONAL");
     assert.equal(run("spec").risks.length, 0);
   });
@@ -291,16 +285,16 @@ describe("rules extractor: decisions, follow-ups, risks, opportunities, facts", 
     const x = run("internal");
     assert.equal(x.risks.length, 0);
     assert.equal(x.opportunities.length, 0);
-    assert.equal(x.summary, "Jonas Weber will finish updated runway model by Mon, Oct 12.");
+    assert.equal(x.summary, "Jonas Weber will finish the updated runway model by Mon, Oct 12.");
   });
 
-  it("pronoun-only objects get the thread subject for context and lower confidence", () => {
+  it("pronoun-only objects without an antecedent are dropped; resolvable ones are filled in", () => {
     const x = extractWithRules(emailInput({ subject: "Re: Assay files", text: "Hi Rajib,\n\nPlease send them to me. Also, can you confirm clause 7.3 by Friday?\n\nKaren" }), NOW);
-    const vague = x.tasks.find((t) => t.title.startsWith("Send them"))!;
-    assert.equal(vague.title, "Send them to Karen (re: Assay files)");
-    const clear = x.tasks.find((t) => t.title === "Confirm clause 7.3")!;
-    assert.ok(vague.confidence < clear.confidence);
+    assert.deepEqual(x.tasks.map((t) => t.title), ["Confirm clause 7.3"]);
     assert.ok(x.summary.includes("asks you to confirm clause 7.3 by Fri, Oct 9"), x.summary);
+    const nda = extractWithRules(emailInput({ from: { name: "Marcus Hale", email: "marcus@cytohub.example" }, subject: "Vantage NDA", text: "Two quick items:\n\n1. The mutual NDA with Vantage Oncology is ready for signature. Please sign via DocuSign when you have a moment.\n\nMarcus" }), NOW);
+    assert.deepEqual(nda.tasks.map((t) => [t.title, t.ownerIsCeo]), [["Sign Vantage mutual NDA via DocuSign", true]]);
+    assert.ok(nda.tasks[0].confidence >= 0.82);
   });
 
   it("negated risks are ignored", () => {
@@ -311,8 +305,9 @@ describe("rules extractor: decisions, follow-ups, risks, opportunities, facts", 
   it("opportunities: credits, partnership, introduction", () => {
     const x = run("partner");
     const kinds = Object.fromEntries(x.opportunities.map((o) => [o.title, o.kind]));
-    assert.equal(kinds["$250K in credits from Aster"], "PARTNERSHIP");
-    assert.equal(x.opportunities.find((o) => o.title === "$250K in credits from Aster")!.estimatedValue, 250_000);
+    assert.equal(kinds["$250K compute credits from Aster"], "PARTNERSHIP");
+    assert.equal(x.opportunities.find((o) => o.title === "$250K compute credits from Aster")!.estimatedValue, 250_000);
+    assert.ok(x.opportunities.find((o) => o.title === "$250K compute credits from Aster")!.confidence >= 0.82);
     assert.equal(kinds["Potential partnership with Aster"], "PARTNERSHIP");
     assert.ok(x.opportunities.some((o) => o.title === "Introduction to Dr. Lee"), JSON.stringify(kinds));
     const inv = run("investor");
@@ -322,7 +317,7 @@ describe("rules extractor: decisions, follow-ups, risks, opportunities, facts", 
   it("facts with labels", () => {
     const inv = run("investor");
     assert.deepEqual(
-      inv.facts.map((f) => [f.label, f.value, f.kind, f.numericValue]),
+      inv.facts.filter((f) => f.kind === "MONEY").map((f) => [f.label, f.value, f.kind, f.numericValue]),
       [
         ["Raise amount", "$40M", "MONEY", 40_000_000],
         ["Investment amount", "$15M", "MONEY", 15_000_000],

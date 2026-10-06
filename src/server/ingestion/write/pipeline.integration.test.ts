@@ -752,6 +752,158 @@ describe("ingestion resolve & write (integration)", { skip: !enabled && "set ING
     assert.equal(insight.milestoneId, ms.id);
   });
 
+  it("a decision ask dedupes into the open seeded decision; twins file no DEADLINE review; ≤ 2 reviews per item", async () => {
+    const seeded = await m.db.decision.findFirstOrThrow({ where: { title: "Hire Laura Mitchell as VP Sales at the requested package?" } });
+    const sofia = { name: "Sofia Andersen", email: "sofia@cytohub.example" };
+    const wed = seeded.deadline ? m.dates.dayKey(seeded.deadline) : nextWeekday(3);
+    const body =
+      "Hi,\n\nLaura Mitchell told me this morning that she has a competing offer with a deadline.\n\n" +
+      "I need your decision on the offer package (base $240K, OTE $310K, 1.1% equity) by Wednesday. If you approve, could you call her yourself to close? " +
+      "I will also prepare the offer letter for her and book the reference calls with her two former managers.";
+    const id = await email({
+      thread: "laura",
+      subject: "Laura Mitchell: competing offer",
+      from: sofia,
+      to: [CEO],
+      body,
+      sentAt: new Date(m.ctx.now.getTime() - 2_000_000),
+      direction: "INTERNAL",
+      cls: { relevance: "HIGH", category: "RECRUITING" },
+      mentions: [person(sofia, "SENDER"), person(CEO, "RECIPIENT"), { entityType: "PERSON", text: "Laura Mitchell", role: "MENTIONED", confidence: 0.8 }],
+    });
+    const decisionsBefore = await m.db.decision.count();
+    const ev = "I need your decision on the offer package (base $240K, OTE $310K, 1.1% equity) by Wednesday.";
+    await processItem(id, {
+      decisions: [{ title: "Decide on the offer package (base $240K", status: "NEEDED", decision: null, decidedByName: null, deadline: wed, options: [], confidence: 0.76, evidence: ev }],
+      deadlines: [
+        { what: "Decide on the offer package (base $240K", date: wed, hard: true, confidence: 0.75, evidence: ev },
+        { what: "I need your decision on the offer package", date: wed, hard: true, confidence: 0.7, evidence: ev },
+      ],
+      risks: [{ title: "Laura Mitchell has a competing offer", description: null, category: "PEOPLE", severity: 4, companyName: null, confidence: 0.7, evidence: "Laura Mitchell told me this morning that she has a competing offer with a deadline." }],
+      tasks: [
+        { title: "Call Laura to close", description: null, ownerName: null, ownerIsCeo: true, dueDate: null, dueText: null, priorityHint: null, companyName: null, focusArea: null, confidence: 0.7, evidence: "could you call her yourself to close?" },
+        { title: "Prepare the offer letter for Laura", description: null, ownerName: "Sofia", ownerIsCeo: false, dueDate: null, dueText: null, priorityHint: null, companyName: null, focusArea: null, confidence: 0.7, evidence: "I will also prepare the offer letter for her" },
+        { title: "Book reference calls with former managers", description: null, ownerName: "Sofia", ownerIsCeo: false, dueDate: null, dueText: null, priorityHint: null, companyName: null, focusArea: null, confidence: 0.7, evidence: "book the reference calls with her two former managers" },
+      ],
+    });
+    assert.equal(await m.db.decision.count(), decisionsBefore, "no near-duplicate decision");
+    assert.ok(await m.db.sourceReference.count({ where: { targetType: "DECISION", targetId: seeded.id, sourceItemId: id, role: "CORROBORATED_BY" } }));
+    const reviews = await m.db.reviewQueueItem.findMany({ where: { sourceItemId: id } });
+    assert.ok(reviews.length <= 2, `reviews ${reviews.map((r) => r.title).join(" | ")}`);
+    assert.equal(reviews.filter((r) => r.kind === "DEADLINE").length, 0, "deadlines quoting the decision are covered");
+    const thread = await m.db.emailThread.findFirstOrThrow({ where: { externalThreadId: `${run}-laura` } });
+    const inbox = await m.db.inboxItem.findUniqueOrThrow({ where: { fingerprint: `inbox:thread:${thread.id}` } });
+    assert.equal(inbox.type, "DECISION");
+    assert.equal(inbox.title, "Decision needed: Hire Laura Mitchell as VP Sales at the requested package?");
+    assert.match(inbox.whyCeo, /^Sofia Andersen needs your decision by .+: Hire Laura Mitchell as VP Sales at the requested package\?$/);
+    assert.equal(inbox.decisionId, seeded.id);
+    assert.doesNotMatch(inbox.recommendedAction, /and reply to/);
+  });
+
+  it("the same scientific result from a second source corroborates instead of duplicating", async () => {
+    const maya = { name: "Dr. Maya Lindqvist", email: "maya@cytohub.example" };
+    const id = await email({
+      thread: "auc-2",
+      subject: "Validation numbers for the board deck",
+      from: maya,
+      to: [CEO],
+      body: "Confirming for the deck: AUC is 0.91 on the hold-out set. QC pass rate across sites is 94%.",
+      sentAt: new Date(m.ctx.now.getTime() - 2_500_000),
+      direction: "INTERNAL",
+      cls: { relevance: "HIGH", category: "SCIENTIFIC_LEADERSHIP" },
+      mentions: [person(maya, "SENDER"), person(CEO, "RECIPIENT")],
+    });
+    await processItem(id, {
+      activityTags: ["SCIENTIFIC"],
+      facts: [
+        { label: "AUC", value: "0.91", kind: "METRIC", numericValue: 0.91, evidence: "AUC is 0.91 on the hold-out set" },
+        { label: "Percentage", value: "94%", kind: "PERCENT", numericValue: 94, evidence: "QC pass rate across sites is 94%" },
+      ],
+    });
+    const results = await m.db.brainInsight.findMany({ where: { changeKind: "new_scientific_result", title: { contains: "0.91" } } });
+    assert.equal(results.length, 1, results.map((r) => r.title).join(" | "));
+    assert.ok(await m.db.sourceReference.count({ where: { targetType: "INSIGHT", targetId: results[0].id, sourceItemId: id, role: "CORROBORATED_BY" } }));
+    assert.equal(await m.db.brainInsight.count({ where: { changeKind: "new_scientific_result", title: { contains: "Percentage" } } }), 0);
+  });
+
+  it("a dated customer request without a written task still raises the change; third-party dates file no review", async () => {
+    const rachel = { name: "Rachel Moore", email: "rachel@lumen.example" };
+    const due = m.dates.addDays(m.ctx.ceo.today, 8);
+    const label = new Intl.DateTimeFormat("en-US", { timeZone: "UTC", month: "long", day: "numeric" }).format(due);
+    const legalDue = m.dates.addDays(m.ctx.ceo.today, 3);
+    const legalLabel = new Intl.DateTimeFormat("en-US", { timeZone: "UTC", month: "long", day: "numeric" }).format(legalDue);
+    const body =
+      `One additional request: we need the revised electrophysiology dataset for compounds LB-2207 and LB-2219 by ${label}. ` +
+      `Our legal team will send the redlines by ${legalLabel}. Please confirm you can meet that date.`;
+    const id = await email({
+      thread: "lumen-ephys",
+      subject: "Re: Escalation: assay turnaround",
+      from: rachel,
+      to: [CEO],
+      body,
+      sentAt: new Date(m.ctx.now.getTime() - 1_500_000),
+      direction: "INBOUND",
+      cls: { relevance: "CRITICAL", category: "CUSTOMER" },
+      mentions: [person(rachel, "SENDER"), person(CEO, "RECIPIENT")],
+    });
+    await processItem(id, {
+      tasks: [{ title: "Confirm you can meet that date", description: null, ownerName: null, ownerIsCeo: true, dueDate: null, dueText: null, priorityHint: null, companyName: null, focusArea: null, confidence: 0.7, evidence: "Please confirm you can meet that date." }],
+      deadlines: [
+        { what: "One additional request: we need the revised electrophysiology dataset for compounds LB-2207 and LB-2219", date: m.dates.dayKey(due), hard: true, confidence: 0.7, evidence: `we need the revised electrophysiology dataset for compounds LB-2207 and LB-2219 by ${label}` },
+        { what: "Our legal team will send the redlines", date: m.dates.dayKey(legalDue), hard: true, confidence: 0.7, evidence: `Our legal team will send the redlines by ${legalLabel}.` },
+      ],
+    });
+    const change = await m.db.brainInsight.findFirstOrThrow({ where: { sourceItemId: id, changeKind: "customer_deliverable_requested" } });
+    assert.equal(change.title, `Important change: Lumen requested the revised electrophysiology dataset for compounds LB-2207 and LB-2219 by ${label}`);
+    const reviews = await m.db.reviewQueueItem.findMany({ where: { sourceItemId: id } });
+    assert.ok(reviews.length <= 2);
+    assert.ok(!reviews.some((r) => r.kind === "DEADLINE" && r.title.includes("redlines")), "a date someone else owns is not the CEO's deadline");
+  });
+
+  it("inbox wording never prints placeholder names; a team member's promise is not 'You owe'", async () => {
+    const tomorrow = day(1);
+    const id = await email({
+      thread: "vendor",
+      subject: "Signed order form",
+      from: CEO,
+      to: [{ name: "Vendor team", email: `team@vendor${run}.example` }],
+      body: "Thanks — I'll send the signed order form by tomorrow.",
+      sentAt: new Date(m.ctx.now.getTime() - 1_000_000),
+      direction: "OUTBOUND",
+      cls: { relevance: "HIGH", category: "OPERATIONS" },
+      mentions: [person(CEO, "SENDER"), { entityType: "PERSON", text: "Vendor team", email: `team@vendor${run}.example`, role: "RECIPIENT", confidence: 0.5 }],
+    });
+    await processItem(id, {
+      commitments: [{ direction: "OUTBOUND", title: "Send the signed order form", text: "I'll send the signed order form by tomorrow.", owedByName: "CEO", owedToName: null, companyName: null, dueDate: tomorrow, dueText: "by tomorrow", confidence: 0.9, evidence: "I'll send the signed order form by tomorrow." }],
+    });
+    const thread = await m.db.emailThread.findFirstOrThrow({ where: { externalThreadId: `${run}-vendor` } });
+    const inbox = await m.db.inboxItem.findUniqueOrThrow({ where: { fingerprint: `inbox:thread:${thread.id}` } });
+    assert.equal(inbox.title, "You promised: Send the signed order form");
+    assert.match(inbox.whyCeo, /^You promised to send the signed order form by tomorrow\.$/);
+    for (const text of [inbox.title, inbox.whyCeo, inbox.recommendedAction]) assert.doesNotMatch(text, /\bSomeone\b|\bthem\b/);
+
+    const jonas = { name: "Jonas Weber", email: "jonas@cytohub.example" };
+    const id2 = await email({
+      thread: "dataroom",
+      subject: "Data room",
+      from: jonas,
+      to: [CEO],
+      body: "I'll complete the data room financial section by tomorrow.",
+      sentAt: new Date(m.ctx.now.getTime() - 900_000),
+      direction: "INTERNAL",
+      cls: { relevance: "HIGH", category: "FUNDRAISING" },
+      mentions: [person(jonas, "SENDER"), person(CEO, "RECIPIENT")],
+    });
+    await processItem(id2, {
+      commitments: [{ direction: "INTERNAL", title: "Complete the data room financial section", text: "I'll complete the data room financial section by tomorrow.", owedByName: "Jonas Weber", owedToName: "CEO", companyName: null, dueDate: tomorrow, dueText: "by tomorrow", confidence: 0.9, evidence: "I'll complete the data room financial section by tomorrow." }],
+    });
+    const c = await m.db.commitment.findFirstOrThrow({ where: { title: "Complete the data room financial section" } });
+    assert.equal(c.taskId, null, "not mirrored as a CEO task");
+    const thread2 = await m.db.emailThread.findFirstOrThrow({ where: { externalThreadId: `${run}-dataroom` } });
+    const item = await m.db.inboxItem.findUnique({ where: { fingerprint: `inbox:thread:${thread2.id}` } });
+    assert.ok(!item || !/^You (owe|promised)/.test(item.title));
+  });
+
   it("an inbound delivery fulfils what a customer promised", async () => {
     const sow = await m.db.commitment.findFirstOrThrow({ where: { direction: "INBOUND", title: "Send the signed SOW" } });
     const id = await email({
