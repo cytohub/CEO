@@ -6,6 +6,7 @@ import type { ShellData } from "@/server/queries/shell";
 import { ChiefOfStaffPanel } from "@/components/chief/chief-panel";
 import { CreateDialogs } from "@/components/dialogs/create-dialogs";
 import { DelegateDialog } from "@/components/dialogs/delegate-dialog";
+import { ProvenanceSheet } from "@/components/intelligence/provenance-sheet";
 import { EntitySheets } from "@/components/tasks/entity-sheets";
 import { CommandBar } from "./command-bar";
 import { KeyboardShortcuts, ShortcutsDialog } from "./shortcuts";
@@ -36,6 +37,7 @@ export function AppShell({ shell, children }: { shell: ShellData; children: Reac
       <DelegateDialog />
       <Suspense>
         <EntitySheets />
+        <ProvenanceSheet />
       </Suspense>
     </UIProvider>
   );

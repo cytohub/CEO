@@ -14,6 +14,7 @@
     "db:seed": "prisma db seed",
     "db:setup": "prisma migrate deploy && prisma db seed",
     "brain:refresh": "tsx scripts/brain-refresh.ts",
+    "ingest:worker": "tsx scripts/ingest-worker.ts",
     "test": "node --import tsx --test \"src/**/*.test.ts\""
   },
   "dependencies": {

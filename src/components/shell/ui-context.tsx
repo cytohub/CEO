@@ -7,6 +7,9 @@ import type { Capability } from "@/server/security/rbac";
 
 export type CreateKind = "task" | "goal" | "milestone" | "decision" | "resource";
 
+/** URL-driven sheets. `provenance` takes "<EntityType>:<id>" (the View Source sheet). */
+export type EntityKind = "task" | "milestone" | "meeting" | "provenance";
+
 export interface CreateDefaults {
   goalId?: string;
   milestoneId?: string;
@@ -35,9 +38,9 @@ interface UIState {
   setShortcutsOpen: (open: boolean) => void;
   mobileNavOpen: boolean;
   setMobileNavOpen: (open: boolean) => void;
-  /** Open an entity sheet via the URL (`?task=` / `?milestone=`), preserving the current page. */
-  openEntity: (kind: "task" | "milestone" | "meeting", id: string) => void;
-  closeEntity: (kind: "task" | "milestone" | "meeting") => void;
+  /** Open an entity sheet via the URL (`?task=` / `?milestone=` / `?provenance=TYPE:id`), preserving the current page. */
+  openEntity: (kind: EntityKind, id: string) => void;
+  closeEntity: (kind: EntityKind) => void;
 }
 
 const UIContext = createContext<UIState | null>(null);
@@ -54,7 +57,7 @@ export function UIProvider({ lookups, viewer, children }: { lookups: Lookups; vi
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   const openEntity = useCallback(
-    (kind: "task" | "milestone" | "meeting", id: string) => {
+    (kind: EntityKind, id: string) => {
       const params = new URLSearchParams(searchParams.toString());
       params.set(kind, id);
       router.push(`${pathname}?${params.toString()}`, { scroll: false });
@@ -62,7 +65,7 @@ export function UIProvider({ lookups, viewer, children }: { lookups: Lookups; vi
     [router, pathname, searchParams],
   );
   const closeEntity = useCallback(
-    (kind: "task" | "milestone" | "meeting") => {
+    (kind: EntityKind) => {
       const params = new URLSearchParams(searchParams.toString());
       params.delete(kind);
       const qs = params.toString();

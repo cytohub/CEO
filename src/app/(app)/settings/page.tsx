@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { adminLinksFor } from "@/components/admin/admin-links";
 import { PageHeader } from "@/components/common/bits";
 import { AiSection } from "@/components/settings/ai-section";
 import { AppearanceForm } from "@/components/settings/appearance";
@@ -18,7 +19,7 @@ import { requirePage } from "@/server/security/session";
 export const metadata: Metadata = { title: "Settings" };
 
 export default async function SettingsPage() {
-  await requirePage("settings.manage", "/settings");
+  const viewer = await requirePage("settings.manage", "/settings");
   const [d, ceo] = await Promise.all([getSettingsData(), getCeoContext()]);
 
   return (
@@ -27,7 +28,7 @@ export default async function SettingsPage() {
 
       <div className="grid gap-6 xl:grid-cols-[188px_minmax(0,1fr)] xl:gap-8">
         <aside className="min-w-0">
-          <SettingsNav />
+          <SettingsNav links={adminLinksFor(viewer.capabilities)} />
         </aside>
 
         <div className="min-w-0 max-w-[1080px] space-y-8 pb-16">

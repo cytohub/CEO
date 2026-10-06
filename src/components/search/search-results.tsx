@@ -3,36 +3,26 @@
 import { ArrowUpRight, SearchX, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/common/bits";
-import { useUI } from "@/components/shell/ui-context";
+import { useCan, useUI } from "@/components/shell/ui-context";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import type { SearchHit, SearchHitType } from "@/server/brain/search";
-import { HIT_TYPES, Highlight } from "./highlight";
+import type { SearchGroup, SearchResultType } from "@/server/ingestion/search/types";
+import { HighlightParts, Highlight, RESULT_ICONS } from "./highlight";
 
-export function SearchResults({ hits, query, limitPerType }: { hits: SearchHit[]; query: string; limitPerType: number }) {
-  const { openChief } = useUI();
-  const [filter, setFilter] = useState<SearchHitType | "all">("all");
-
-  const groups = useMemo(
-    () => HIT_TYPES.map((t) => ({ ...t, hits: hits.filter((h) => h.type === t.type) })).filter((g) => g.hits.length > 0),
-    [hits],
-  );
+export function SearchResults({ groups, query, terms, limitPerType }: { groups: SearchGroup[]; query: string; terms: string[]; limitPerType: number }) {
+  const [filter, setFilter] = useState<SearchResultType | "all">("all");
+  const total = useMemo(() => groups.reduce((n, g) => n + g.results.length, 0), [groups]);
   const visible = filter === "all" ? groups : groups.filter((g) => g.type === filter);
-  const askChief = () => openChief(`Show me everything related to ${query}`);
 
-  if (hits.length === 0) {
+  if (total === 0) {
     return (
       <div className="panel">
         <EmptyState
+          compact
           icon={SearchX}
-          title={`No results for “${query}”`}
-          description="CytoHub Brain searched tasks, goals, milestones, decisions, meetings, companies, people, resources and insights. Try a shorter term, a company or person name, or ask the Chief of Staff to reason across everything."
-          action={
-            <Button size="sm" variant="outline" onClick={askChief}>
-              <Sparkles className="text-brain" /> Ask the Chief of Staff
-            </Button>
-          }
+          title="No matching records"
+          description="CytoHub Brain searched the email threads, documents, meetings and records you can access. Try a company or person name, a shorter phrase, or one of the example questions."
         />
       </div>
     );
@@ -40,59 +30,53 @@ export function SearchResults({ hits, query, limitPerType }: { hits: SearchHit[]
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-2">
+      {groups.length > 1 && (
         <div role="group" aria-label="Filter results by type" className="flex flex-wrap items-center gap-1.5">
-          <FilterChip active={filter === "all"} onClick={() => setFilter("all")} label="All" count={hits.length} />
+          <FilterChip active={filter === "all"} onClick={() => setFilter("all")} label="All" count={total} />
           {groups.map((g) => (
-            <FilterChip key={g.type} active={filter === g.type} onClick={() => setFilter(g.type)} label={g.plural} count={g.hits.length} />
+            <FilterChip key={g.type} active={filter === g.type} onClick={() => setFilter(g.type)} label={g.label} count={g.results.length} />
           ))}
         </div>
-      </div>
+      )}
 
       {visible.map((g) => {
-        const Icon = g.icon;
+        const Icon = RESULT_ICONS[g.type];
         return (
           <section key={g.type} className="panel" aria-labelledby={`group-${g.type}`}>
             <div className="flex h-10 items-center gap-2 border-b border-hairline px-3.5">
               <Icon className="size-3.5 text-ink-3" aria-hidden />
               <h2 id={`group-${g.type}`} className="text-[12.5px] font-semibold tracking-tight">
-                {g.plural}
+                {g.label}
               </h2>
-              <span className="rounded bg-muted px-1.5 text-2xs font-medium text-muted-foreground tabular">{g.hits.length}</span>
-              {g.hits.length >= limitPerType && <span className="ml-auto text-2xs text-muted-foreground">Top {limitPerType} — refine to narrow down</span>}
+              <span className="rounded bg-muted px-1.5 text-2xs font-medium text-muted-foreground tabular">{g.results.length}</span>
+              {g.truncated && <span className="ml-auto truncate text-2xs text-muted-foreground">Top {limitPerType} — refine to narrow down</span>}
             </div>
             <ul className="divide-y divide-hairline">
-              {g.hits.map((h) => {
-                const inTitle = h.title.toLowerCase().includes(query.trim().toLowerCase());
-                return (
-                  <li key={`${h.type}-${h.id}`}>
-                    <Link href={h.href} className="group flex items-center gap-3 px-3.5 py-2 hover:bg-muted/50 focus-visible:bg-muted/50 focus-visible:outline-none">
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-[13px] text-foreground">
-                          <Highlight text={h.title} query={query} />
+              {g.results.map((r) => (
+                <li key={`${r.type}-${r.id}`}>
+                  <Link href={r.href} className="group flex items-start gap-3 px-3.5 py-2.5 hover:bg-muted/50 focus-visible:bg-muted/50 focus-visible:outline-none">
+                    <span className="min-w-0 flex-1">
+                      <span className="flex min-w-0 items-center gap-2">
+                        <span className="truncate text-[13px] font-medium text-foreground">
+                          <Highlight text={r.title} query={terms} />
                         </span>
-                        {(h.subtitle || !inTitle) && (
-                          <span className="flex min-w-0 items-center gap-1.5 text-2xs text-muted-foreground">
-                            {h.subtitle && (
-                              <span className="truncate">
-                                <Highlight text={h.subtitle} query={query} />
-                              </span>
-                            )}
-                            {!inTitle && (
-                              <>
-                                {h.subtitle && <span aria-hidden>·</span>}
-                                <span className="shrink-0 rounded bg-muted px-1 text-ink-3">matched in details</span>
-                              </>
-                            )}
+                        {r.badges?.map((b) => (
+                          <span key={b} className={cn("shrink-0 rounded px-1.5 py-px text-2xs font-medium", badgeTone(b))}>
+                            {b}
                           </span>
-                        )}
+                        ))}
                       </span>
-                      <span className="hidden shrink-0 text-2xs text-muted-foreground sm:inline">{g.label}</span>
-                      <ArrowUpRight className="size-3.5 shrink-0 text-ink-3 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100" aria-hidden />
-                    </Link>
-                  </li>
-                );
-              })}
+                      {r.subtitle && <span className="mt-0.5 block truncate text-2xs text-muted-foreground">{r.subtitle}</span>}
+                      {r.snippet && r.snippet.length > 0 && (
+                        <span className="mt-1 line-clamp-2 block text-xs leading-relaxed text-ink-2">
+                          <HighlightParts parts={r.snippet} />
+                        </span>
+                      )}
+                    </span>
+                    <ArrowUpRight className="mt-0.5 size-3.5 shrink-0 text-ink-3 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100" aria-hidden />
+                  </Link>
+                </li>
+              ))}
             </ul>
           </section>
         );
@@ -101,11 +85,20 @@ export function SearchResults({ hits, query, limitPerType }: { hits: SearchHit[]
   );
 }
 
-/** Hands the query to the Chief of Staff for a synthesized answer. */
-export function AskChiefButton({ query }: { query: string }) {
+function badgeTone(label: string): string {
+  if (/overdue|awaiting your reply/i.test(label)) return "bg-serious-soft text-serious-ink";
+  if (/significant|due today|waiting on them/i.test(label)) return "bg-warning-soft text-warning-ink";
+  if (/fulfilled/i.test(label)) return "bg-good-soft text-good-ink";
+  return "bg-muted text-ink-2";
+}
+
+/** Hands the question to the Chief of Staff (only for viewers who can use it). */
+export function AskChiefButton({ query, variant = "outline" }: { query: string; variant?: "outline" | "default" }) {
   const { openChief } = useUI();
+  const allowed = useCan("chief.use");
+  if (!allowed) return null;
   return (
-    <Button size="sm" variant="outline" onClick={() => openChief(`Show me everything related to ${query}`)}>
+    <Button size="sm" variant={variant} onClick={() => openChief(query)}>
       <Sparkles className="text-brain" /> Ask Chief of Staff
     </Button>
   );

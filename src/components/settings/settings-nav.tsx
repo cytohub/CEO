@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import { SETTINGS_SECTIONS } from "./section";
@@ -8,7 +9,7 @@ import { SETTINGS_SECTIONS } from "./section";
  * Anchor navigation for the settings page. Sticky rail on desktop, wrapped
  * chips on mobile. Tracks the section in view (scroll-spy).
  */
-export function SettingsNav() {
+export function SettingsNav({ links = [] }: { links?: { href: string; label: string }[] }) {
   const [active, setActive] = useState<string>(SETTINGS_SECTIONS[0].id);
 
   useEffect(() => {
@@ -60,6 +61,23 @@ export function SettingsNav() {
           );
         })}
       </ul>
+      {links.length > 0 && (
+        <>
+          <h3 className="mt-3 mb-1 hidden px-2.5 text-2xs font-medium tracking-[0.06em] text-ink-3 uppercase xl:block">Administration</h3>
+          <ul className="mt-1.5 flex flex-wrap gap-1.5 xl:mt-0 xl:flex-col xl:gap-0.5" aria-label="Administration">
+            {links.map((l) => (
+              <li key={l.href}>
+                <Link
+                  href={l.href}
+                  className="block rounded-md border border-border bg-surface px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground xl:border-transparent xl:bg-transparent xl:py-1.5 xl:text-[13px]"
+                >
+                  {l.label}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
     </nav>
   );
 }

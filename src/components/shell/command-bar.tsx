@@ -1,31 +1,11 @@
 "use client";
 
-import {
-  ArrowLeft,
-  Building2,
-  CalendarClock,
-  CheckCircle2,
-  CheckSquare,
-  CircleDot,
-  FilePlus2,
-  FileText,
-  Flag,
-  Gavel,
-  Lightbulb,
-  Loader2,
-  Moon,
-  Plus,
-  RefreshCcw,
-  Sparkles,
-  Target,
-  User,
-  UserPlus,
-  type LucideIcon,
-} from "lucide-react";
+import { ArrowLeft, CheckCircle2, CircleDot, FilePlus2, Flag, Gavel, Loader2, Moon, Plus, RefreshCcw, Search, Sparkles, Target, UserPlus } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
+import { RESULT_ICONS } from "@/components/search/highlight";
 import {
   Command,
   CommandDialog,
@@ -37,48 +17,34 @@ import {
   CommandSeparator,
   CommandShortcut,
 } from "@/components/ui/command";
-import { runDailyRefresh, searchBrain } from "@/server/actions/brain";
+import { type CommandSearchHit, runDailyRefresh, searchBrain } from "@/server/actions/brain";
 import { completeTask, listPickerTasks } from "@/server/actions/tasks";
-import type { SearchHit, SearchHitType } from "@/server/brain/search";
+import { RESULT_LABELS } from "@/server/ingestion/search/types";
 import { navFor } from "./nav";
-import { useUI } from "./ui-context";
-
-const HIT_LABEL: Record<SearchHitType, string> = {
-  task: "Task",
-  goal: "Goal",
-  milestone: "Milestone",
-  decision: "Decision",
-  person: "Person",
-  company: "Company",
-  resource: "Resource",
-  insight: "Insight",
-  meeting: "Meeting",
-};
-
-const HIT_ICON: Record<SearchHitType, LucideIcon> = {
-  task: CheckSquare,
-  goal: Target,
-  milestone: Flag,
-  decision: Gavel,
-  person: User,
-  company: Building2,
-  resource: FileText,
-  insight: Lightbulb,
-  meeting: CalendarClock,
-};
+import { useCan, useUI } from "./ui-context";
 
 type Page = "root" | "complete" | "delegate";
+
+/** Questions get a one-line answer from the planner; keywords just list hits. */
+const QUESTION = /^(what|which|who|whom|how|when|where|show|did|do|does|is|are|any)\b|\?$/i;
 
 export function CommandBar() {
   const router = useRouter();
   const { commandOpen, setCommandOpen, openCreate, openChief, openDelegate, viewer } = useUI();
+  // UI hints only: every action re-checks the capability on the server.
+  const canEdit = useCan("workspace.edit");
+  const canCockpit = useCan("cockpit.view");
+  const canChief = useCan("chief.use");
+  const canSearch = useCan("search.use");
   const { resolvedTheme, setTheme } = useTheme();
   const [query, setQuery] = useState("");
   const [page, setPage] = useState<Page>("root");
-  const [hits, setHits] = useState<SearchHit[]>([]);
+  const [hits, setHits] = useState<CommandSearchHit[]>([]);
+  const [answer, setAnswer] = useState<string | null>(null);
   const [searching, setSearching] = useState(false);
   const [pickerTasks, setPickerTasks] = useState<{ id: string; title: string; subtitle: string }[] | null>(null);
   const [pending, startTransition] = useTransition();
+  const latest = useRef(0);
 
   // Reset when closed.
   useEffect(() => {
@@ -87,30 +53,34 @@ export function CommandBar() {
         setQuery("");
         setPage("root");
         setHits([]);
+        setAnswer(null);
       }, 150);
       return () => clearTimeout(t);
     }
   }, [commandOpen]);
 
-  // Debounced Brain search on the root page.
+  // Debounced universal search on the root page; the latest request wins.
   useEffect(() => {
-    if (page !== "root" || query.trim().length < 2) return;
-    let cancelled = false;
+    if (!canSearch || page !== "root" || query.trim().length < 2) return;
+    const seq = ++latest.current;
     const t = setTimeout(async () => {
       setSearching(true);
       try {
         const res = await searchBrain(query);
-        if (!cancelled) setHits(res);
+        if (seq !== latest.current) return;
+        setHits(res.hits);
+        setAnswer(QUESTION.test(query.trim()) ? res.answer : null);
+      } catch {
+        if (seq === latest.current) setHits([]);
       } finally {
-        if (!cancelled) setSearching(false);
+        if (seq === latest.current) setSearching(false);
       }
-    }, 180);
-    return () => {
-      cancelled = true;
-      clearTimeout(t);
-    };
-  }, [query, page]);
-  const visibleHits = page === "root" && query.trim().length >= 2 ? hits : [];
+    }, 220);
+    return () => clearTimeout(t);
+  }, [query, page, canSearch]);
+  const active = page === "root" && query.trim().length >= 2;
+  const visibleHits = active ? hits : [];
+  const visibleAnswer = active ? answer : null;
 
   useEffect(() => {
     if ((page === "complete" || page === "delegate") && pickerTasks === null) {
@@ -125,6 +95,7 @@ export function CommandBar() {
   };
 
   const navItems = useMemo(() => navFor(viewer.capabilities).all, [viewer.capabilities]);
+  const openSearchPage = () => run(() => router.push(`/search?q=${encodeURIComponent(query.trim())}`));
 
   return (
     <CommandDialog
@@ -136,7 +107,7 @@ export function CommandBar() {
     >
       <Command loop>
         <CommandInput
-          placeholder={page === "root" ? "Search CytoHub Brain or type a command…" : page === "complete" ? "Complete which task?" : "Delegate which task?"}
+          placeholder={page === "root" ? "Search or ask CytoHub Brain, or type a command…" : page === "complete" ? "Complete which task?" : "Delegate which task?"}
           value={query}
           onValueChange={setQuery}
           onKeyDown={(e) => {
@@ -146,7 +117,7 @@ export function CommandBar() {
             }
           }}
         />
-        <CommandList className="max-h-[420px]">
+        <CommandList className="max-h-[440px]">
           <CommandEmpty>{searching ? "Searching…" : "No results."}</CommandEmpty>
 
           {page !== "root" && (
@@ -188,20 +159,31 @@ export function CommandBar() {
 
           {page === "root" && (
             <>
-              {query.trim().length > 2 && (
-                <CommandGroup heading="Chief of Staff">
-                  <CommandItem value={`ask ${query}`} keywords={[query]} onSelect={() => run(() => openChief(query))}>
-                    <Sparkles className="text-brain" />
-                    Ask: “{query}”
-                    <CommandShortcut>↵</CommandShortcut>
-                  </CommandItem>
+              {active && (
+                <CommandGroup heading="Ask">
+                  {canSearch && (
+                    <CommandItem value={`search page ${query}`} keywords={[query]} onSelect={openSearchPage}>
+                      <Search className="text-ink-3" />
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate">Search for “{query.trim()}”</div>
+                        {visibleAnswer && <div className="line-clamp-2 text-2xs whitespace-normal text-muted-foreground">{visibleAnswer}</div>}
+                      </div>
+                      <CommandShortcut>↵</CommandShortcut>
+                    </CommandItem>
+                  )}
+                  {canChief && query.trim().length > 2 && (
+                    <CommandItem value={`ask chief ${query}`} keywords={[query]} onSelect={() => run(() => openChief(query))}>
+                      <Sparkles className="text-brain" />
+                      Ask Chief of Staff: “{query.trim()}”
+                    </CommandItem>
+                  )}
                 </CommandGroup>
               )}
 
               {visibleHits.length > 0 && (
                 <CommandGroup heading="CytoHub Brain">
                   {visibleHits.map((h) => {
-                    const Icon = HIT_ICON[h.type];
+                    const Icon = RESULT_ICONS[h.type];
                     return (
                       <CommandItem key={`${h.type}-${h.id}`} value={`${h.type} ${h.title} ${h.id}`} keywords={[query]} onSelect={() => run(() => router.push(h.href))}>
                         <Icon className="text-ink-3" />
@@ -209,72 +191,84 @@ export function CommandBar() {
                           <div className="truncate">{h.title}</div>
                           {h.subtitle && <div className="truncate text-2xs text-muted-foreground">{h.subtitle}</div>}
                         </div>
-                        <span className="text-2xs text-muted-foreground">{HIT_LABEL[h.type]}</span>
+                        <span className="shrink-0 text-2xs text-muted-foreground">{RESULT_LABELS[h.type].label}</span>
                       </CommandItem>
                     );
                   })}
                 </CommandGroup>
               )}
 
-              <CommandGroup heading="Actions">
-                <CommandItem onSelect={() => run(() => openCreate("task"))} value="Create task new">
-                  <Plus /> Create task <CommandShortcut>C</CommandShortcut>
-                </CommandItem>
-                <CommandItem onSelect={() => run(() => openCreate("goal"))} value="Create goal">
-                  <Target /> Create goal
-                </CommandItem>
-                <CommandItem onSelect={() => run(() => openCreate("milestone"))} value="Create milestone">
-                  <Flag /> Create milestone
-                </CommandItem>
-                <CommandItem onSelect={() => run(() => openCreate("decision"))} value="Record decision">
-                  <Gavel /> Record decision
-                </CommandItem>
-                <CommandItem onSelect={() => run(() => openCreate("resource"))} value="Add resource document link">
-                  <FilePlus2 /> Add resource
-                </CommandItem>
-                <CommandItem
-                  onSelect={() => {
-                    setQuery("");
-                    setPage("delegate");
-                  }}
-                  value="Delegate task"
-                >
-                  <UserPlus /> Delegate task…
-                </CommandItem>
-                <CommandItem
-                  onSelect={() => {
-                    setQuery("");
-                    setPage("complete");
-                  }}
-                  value="Complete task done"
-                >
-                  <CheckCircle2 /> Complete task…
-                </CommandItem>
-                <CommandItem onSelect={() => run(() => openChief())} value="Ask Chief of Staff AI assistant">
-                  <Sparkles className="text-brain" /> Ask Chief of Staff <CommandShortcut>⌘J</CommandShortcut>
-                </CommandItem>
-                <CommandItem
-                  value="Run Daily Brain Refresh"
-                  disabled={pending}
-                  onSelect={() => {
-                    close();
-                    startTransition(async () => {
-                      const id = toast.loading("Running Daily Brain Refresh…");
-                      const res = await runDailyRefresh();
-                      if (res.ok) toast.success(res.message ?? "Brain refreshed", { id });
-                      else toast.error(res.error, { id });
-                    });
-                  }}
-                >
-                  <RefreshCcw /> Run Daily Refresh
-                </CommandItem>
-              </CommandGroup>
+              {(canEdit || canChief || canCockpit) && (
+                <CommandGroup heading="Actions">
+                  {canEdit && (
+                    <>
+                      <CommandItem onSelect={() => run(() => openCreate("task"))} value="Create task new">
+                        <Plus /> Create task <CommandShortcut>C</CommandShortcut>
+                      </CommandItem>
+                      <CommandItem onSelect={() => run(() => openCreate("goal"))} value="Create goal">
+                        <Target /> Create goal
+                      </CommandItem>
+                      <CommandItem onSelect={() => run(() => openCreate("milestone"))} value="Create milestone">
+                        <Flag /> Create milestone
+                      </CommandItem>
+                      <CommandItem onSelect={() => run(() => openCreate("decision"))} value="Record decision">
+                        <Gavel /> Record decision
+                      </CommandItem>
+                      <CommandItem onSelect={() => run(() => openCreate("resource"))} value="Add resource document link">
+                        <FilePlus2 /> Add resource
+                      </CommandItem>
+                      <CommandItem
+                        onSelect={() => {
+                          setQuery("");
+                          setPage("delegate");
+                        }}
+                        value="Delegate task"
+                      >
+                        <UserPlus /> Delegate task…
+                      </CommandItem>
+                      <CommandItem
+                        onSelect={() => {
+                          setQuery("");
+                          setPage("complete");
+                        }}
+                        value="Complete task done"
+                      >
+                        <CheckCircle2 /> Complete task…
+                      </CommandItem>
+                    </>
+                  )}
+                  {canChief && (
+                    <CommandItem onSelect={() => run(() => openChief())} value="Ask Chief of Staff AI assistant">
+                      <Sparkles className="text-brain" /> Ask Chief of Staff <CommandShortcut>⌘J</CommandShortcut>
+                    </CommandItem>
+                  )}
+                  {canCockpit && (
+                    <CommandItem
+                      value="Run Daily Brain Refresh"
+                      disabled={pending}
+                      onSelect={() => {
+                        close();
+                        startTransition(async () => {
+                          const id = toast.loading("Running Daily Brain Refresh…");
+                          const res = await runDailyRefresh();
+                          if (res.ok) toast.success(res.message ?? "Brain refreshed", { id });
+                          else toast.error(res.error, { id });
+                        });
+                      }}
+                    >
+                      <RefreshCcw /> Run Daily Refresh
+                    </CommandItem>
+                  )}
+                </CommandGroup>
+              )}
 
               <CommandSeparator />
               <CommandGroup heading="Navigate">
-                <CommandItem value="Open Today's priorities top 5" onSelect={() => run(() => router.push("/"))}>
-                  <CircleDot /> Open Today’s Priorities <CommandShortcut>G T</CommandShortcut>
-                </CommandItem>
+                {canCockpit && (
+                  <CommandItem value="Open Today's priorities top 5" onSelect={() => run(() => router.push("/"))}>
+                    <CircleDot /> Open Today’s Priorities <CommandShortcut>G T</CommandShortcut>
+                  </CommandItem>
+                )}
                 {navItems
                   .filter((n) => n.href !== "/")
                   .map((n) => (
