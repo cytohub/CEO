@@ -192,3 +192,118 @@ export function meetingPhrase(title: string, companyName: string | null): string
   }
   return `“${title}”`;
 }
+
+// ─── Same-sentence coverage ──────────────────────────────────────────────────
+
+function norm(s: string): string {
+  return s
+    .toLowerCase()
+    .replace(/[‘’]/g, "'")
+    .replace(/[“”]/g, '"')
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/** Sentences of a text, normalized (lower-case, single spaces). */
+export function sentencesOf(text: string): string[] {
+  return text
+    .replace(/([.!?])\s+/g, "$1\n")
+    .split(/\n+/)
+    .map(norm)
+    .filter(Boolean);
+}
+
+/**
+ * True when two quotes come from the same sentence of the source (or one
+ * contains the other): the extractor often reports one ask as a task, a
+ * deadline and a decision, each quoting the same sentence.
+ */
+export function sameSentence(a: string, b: string, sentences: string[]): boolean {
+  const na = norm(a);
+  const nb = norm(b);
+  if (!na || !nb) return false;
+  if (na.includes(nb) || nb.includes(na)) return true;
+  const probe = (s: string) => s.slice(0, Math.min(40, s.length));
+  const hostsA = sentences.filter((s) => s.includes(probe(na)) || na.includes(s));
+  return hostsA.some((s) => s.includes(probe(nb)) || nb.includes(s));
+}
+
+const THIRD_PARTY = /^(?:(?:dr|prof|mr|ms|mrs)\.?\s+)?(?:[A-Z][\w'’.-]+(?:\s+[A-Z][\w'’.-]+){0,3}|legal|they|he|she|the team|our team|their team|procurement|finance)\s+(?:will|is going to|are going to|plans to|is expected to|are expected to|expects to)\b/;
+
+/** "Daniel Kim will ship the dashboard…" — a dated action someone else owns. */
+export function thirdPartyActor(sentence: string, ceoNames: string[] = []): boolean {
+  const s = sentence.trim();
+  const m = THIRD_PARTY.exec(s);
+  if (!m) return false;
+  const lead = s.slice(0, m[0].length).toLowerCase();
+  if (/^(i|we|you)\b/.test(lead)) return false;
+  return !ceoNames.some((n) => n && lead.startsWith(n.toLowerCase()));
+}
+
+// ─── Titles and advice ───────────────────────────────────────────────────────
+
+const TITLE_PREFIX = /^(?:(?:decision needed|decision|possible task|action(?: item)?|todo|to do|re|fwd?|request|ask)\s*[:?—-]\s*)+/i;
+
+/**
+ * Display-safe title from extractor text: known prefixes removed, a dangling
+ * parenthesis cut ("Decide on the offer package (base $240K" → "Decide on the
+ * offer package"), sentence case, trimmed at a word boundary.
+ */
+export function cleanTitle(input: string, max = 100): string {
+  let s = input.replace(/\s+/g, " ").trim().replace(TITLE_PREFIX, "");
+  const open = s.lastIndexOf("(");
+  if (open > 0 && s.indexOf(")", open) < 0) s = s.slice(0, open);
+  s = s.replace(/[\s,;:—–-]+$/g, "").replace(/(?:…|\.{2,})+$/g, "").replace(/\s+(?:with|and|to|for|of|the|a|an|by|on|in|at|or)$/i, "").trim();
+  if (s.length > max) {
+    const cut = s.slice(0, max);
+    const space = cut.lastIndexOf(" ");
+    s = `${(space > max * 0.6 ? cut.slice(0, space) : cut).replace(/[\s,;:—–-]+$/g, "")}…`;
+  }
+  if (/^[a-z]/.test(s)) s = s[0].toUpperCase() + s.slice(1);
+  return s || input.trim();
+}
+
+/** "I need a decision by Thursday to secure the booth" → "Secure the booth"; seeded titles pass through. */
+export function cleanDecisionTitle(input: string): string {
+  const s = cleanTitle(input, 120);
+  const m = /^(?:i|we)\s+(?:need|want|would like)\s+(?:a|your)\s+(?:decision|call|go-ahead|answer)(?:\s+by\s+\w+)?(?:\s+(?:on|about|to|for))?\s+(.+)$/i.exec(s);
+  return m?.[1] ? cleanTitle(m[1], 120) : s;
+}
+
+const GIVE_VERB = /^(send|share|provide|forward|give|deliver|resend|return|show)\s+(.+)$/i;
+
+/** "Send revised data package" + "Henrik" → "Send Henrik the revised data package". */
+export function actionWithRecipient(title: string, recipient: string | null): string {
+  const t = cleanTitle(title, 120);
+  const m = GIVE_VERB.exec(t);
+  if (!m) return t;
+  const object = objectPhrase(`${m[1]} ${m[2]}`);
+  const obj = object.startsWith("“") ? m[2] : object;
+  return recipient ? `${m[1]} ${recipient} ${obj}` : `${m[1]} ${obj}`;
+}
+
+/** Lower-cased clause for "asked you directly to …": "send the revised data package". */
+export function actionClause(title: string): string {
+  const t = actionWithRecipient(title, null);
+  return /^[A-Z][a-z]/.test(t) ? t[0].toLowerCase() + t.slice(1) : t;
+}
+
+// ─── Scientific results ──────────────────────────────────────────────────────
+
+const GENERIC_FACT_LABEL = /^(?:percentage|percent|number|value|count|metric|figure|amount|total|result|score|rate|ratio|ownership|hearts|days|months|share)s?(?:\s*\([^)]*\))?$/i;
+const METRIC_WORDS = new Set(["auc", "roc", "accuracy", "sensitivity", "specificity", "precision", "recall", "f1", "r2", "correlation", "ppv", "npv", "ic50", "ec50", "retention", "concordance", "kappa", "mae", "rmse", "yield", "viability", "efficacy", "qc"]);
+
+/** Facts worth announcing as a result: a real label, not "Percentage: 94%". */
+export function isMeaningfulMetricLabel(label: string): boolean {
+  const l = label.trim();
+  return l.length >= 2 && !GENERIC_FACT_LABEL.test(l);
+}
+
+/** Stable identity of a reported metric: "Hold-out AUC" 0.88 and "AUC" 0.88 are the same result. */
+export function metricKey(label: string, value: string): string {
+  const tokens = actionTokens(label);
+  const metric = tokens.filter((t) => METRIC_WORDS.has(t));
+  const name = (metric.length ? metric : tokens).join("-") || label.toLowerCase();
+  const num = /-?\d+(?:\.\d+)?/.exec(value.replace(/,/g, ""))?.[0];
+  return `${name}:${num != null ? String(Number(num)) : value.trim().toLowerCase()}`;
+}

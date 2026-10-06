@@ -222,7 +222,12 @@ export async function addMeetingNotes(meetingId: string, text: string): Promise<
       console.error("[notes] drain failed", error instanceof Error ? error.message : error);
     }
 
-    const after = await db.sourceItem.findUnique({ where: { id: item.id }, select: { status: true, processingError: true } });
+    const after = await db.sourceItem.findUnique({ where: { id: item.id }, select: { status: true, processingError: true, sensitivity: true } });
+    // Classification may raise the notes to RESTRICTED (e.g. fundraising terms): keep the full
+    // text out of the workspace Note then too.
+    if (!board && after?.sensitivity === "RESTRICTED") {
+      await db.note.update({ where: { id: note.id }, data: { body: "Meeting notes added (restricted — processed by CytoHub Brain)." } });
+    }
     const done = after?.status === "PROCESSED" || after?.status === "SKIPPED";
     await db.ingestionRun.update({
       where: { id: run.id },
