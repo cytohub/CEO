@@ -293,7 +293,12 @@ function ReviewCard({
                       if (name) next = setIn(next, [name.key], name.value);
                       return next;
                     });
-                    if (errors[path[0]]) setErrors(({ [path[0]]: _, ...rest }) => rest);
+                    if (errors[path[0]])
+                      setErrors((cur) => {
+                        const next = { ...cur };
+                        delete next[path[0]];
+                        return next;
+                      });
                   }}
                 />
               ) : (

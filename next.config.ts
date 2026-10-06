@@ -18,6 +18,10 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  experimental: {
+    // The proxy buffers request bodies; uploads are capped at 25 MB by the route itself.
+    proxyClientMaxBodySize: "26mb",
+  },
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },

@@ -3,12 +3,14 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { BrainStrip, EndOfDayButton, Greeting, RefreshButton } from "@/components/today/today-header";
 import { DailyRhythm, type RhythmStep } from "@/components/today/daily-rhythm";
+import { CommitmentsPanel } from "@/components/today/commitments-panel";
 import { AtRiskPanel, AttentionPanel, DecisionsPanel, GoalsPanel } from "@/components/today/panels";
 import { SinceYesterday } from "@/components/today/since-yesterday";
 import { TopFive } from "@/components/today/top-five";
 import { UpcomingPanel } from "@/components/today/upcoming-panel";
 import { INBOX_TYPES } from "@/lib/domain";
 import { formatDayFull, formatTime } from "@/lib/dates";
+import { getCockpitCommitments } from "@/server/queries/commitments";
 import { getTodayData } from "@/server/queries/today";
 import { requirePage } from "@/server/security/session";
 
@@ -16,7 +18,7 @@ export const metadata: Metadata = { title: "Today" };
 
 export default async function TodayPage() {
   await requirePage("cockpit.view", "/");
-  const d = await getTodayData();
+  const [d, commitments] = await Promise.all([getTodayData(), getCockpitCommitments()]);
   const { ceo, plan, brief } = d;
   const priorities = plan?.priorities ?? [];
   const done = priorities.filter((p) => p.task.status === "DONE").length;
@@ -99,6 +101,7 @@ export default async function TodayPage() {
         <div className="min-w-0 space-y-4 xl:col-span-4">
           <InboxNudge count={d.inbox.count} top={d.inbox.top} delegation={d.delegation} />
           <DecisionsPanel decisions={d.decisions} today={ceo.today} />
+          <CommitmentsPanel data={commitments} />
           <UpcomingPanel events={d.upcoming} today={ceo.today} timezone={ceo.timezone} />
           <AttentionPanel attention={d.attention} />
         </div>

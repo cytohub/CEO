@@ -193,9 +193,13 @@ export async function POST(request: Request) {
     return error(500, "The upload could not be processed. Please try again.");
   }
 
-  // An explicit sensitivity also applies to new versions of an existing document.
+  // An explicit choice applies to new versions too, and is recorded on the item
+  // (stageData.sensitivityOverride, carried across versions) so classification
+  // can respect it instead of replacing it.
   if (fields.data.sensitivity) {
-    await db.sourceItem.update({ where: { id: result.sourceItemId }, data: { sensitivity } });
+    const current = await db.sourceItem.findUnique({ where: { id: result.sourceItemId }, select: { stageData: true } });
+    const stageData = current?.stageData && typeof current.stageData === "object" && !Array.isArray(current.stageData) ? current.stageData : {};
+    await db.sourceItem.update({ where: { id: result.sourceItemId }, data: { sensitivity, stageData: { ...stageData, sensitivityOverride: sensitivity } } });
     await db.document.updateMany({ where: { sourceItemId: result.sourceItemId }, data: { sensitivity } });
   }
 

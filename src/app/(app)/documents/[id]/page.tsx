@@ -95,7 +95,7 @@ export default async function DocumentPage(props: { params: Promise<{ id: string
               <Sparkles className="size-3" aria-hidden /> Summary
             </h2>
             {d.summary ? <p className="text-[13px] leading-relaxed">{d.summary}</p> : <p className="text-xs text-muted-foreground">No summary yet — CytoHub Brain writes one after parsing.</p>}
-            {latest?.changeSummary && latest.version > 1 && (
+            {latest?.changeSummary && latest.version > 1 && latest.changeSummary !== d.summary && (
               <p className="mt-3 rounded-md border border-brain/20 bg-brain-soft/60 px-3 py-2 text-xs text-ink-2">
                 <span className="font-medium text-brain">What changed in v{latest.version} · </span>
                 {latest.changeSummary}
@@ -107,9 +107,9 @@ export default async function DocumentPage(props: { params: Promise<{ id: string
             {facts.length === 0 ? (
               <p className="px-4 py-3 text-xs text-muted-foreground">No key figures extracted.</p>
             ) : (
-              <dl className="grid gap-px bg-hairline sm:grid-cols-2">
+              <dl className="grid sm:grid-cols-2">
                 {facts.map((f) => (
-                  <div key={f.label} className="bg-surface px-4 py-3">
+                  <div key={f.label} className="border-t border-hairline px-4 py-3 first:border-t-0 sm:odd:border-r sm:[&:nth-child(2)]:border-t-0">
                     <dt className="text-2xs text-muted-foreground">{f.label}</dt>
                     <dd className="mt-0.5 text-[15px] font-semibold tabular">{f.value}</dd>
                   </div>

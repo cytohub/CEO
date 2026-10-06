@@ -130,6 +130,8 @@ export async function runStage(type: JobType, sourceItemId: string, ctx: Pipelin
           })),
         }),
       ]);
+      // An uploader's explicit choice wins over the classifier.
+      const sensitivity = data.sensitivityOverride ?? classification.sensitivity;
       const skip = classification.isNoise && !item.connection.includeNoise;
       await db.sourceItem.update({
         where: { id: item.id },
@@ -140,7 +142,7 @@ export async function runStage(type: JobType, sourceItemId: string, ctx: Pipelin
           relevanceScore: classification.relevanceScore,
           category: classification.category,
           relevanceReasons: classification.reasons.slice(0, 8),
-          sensitivity: classification.sensitivity,
+          sensitivity,
           processedAt: skip ? ctx.now : null,
           stageData: { ...data, mentions, classification } as unknown as Prisma.InputJsonValue,
         },
@@ -148,14 +150,14 @@ export async function runStage(type: JobType, sourceItemId: string, ctx: Pipelin
       if (item.emailMessage) {
         await db.emailThread.update({
           where: { id: item.emailMessage.threadId },
-          data: { relevance: classification.relevance, category: classification.category, sensitivity: classification.sensitivity },
+          data: { relevance: classification.relevance, category: classification.category, sensitivity },
         });
       }
       if (item.document) {
         await db.document.update({
           where: { id: item.document.id },
           data: {
-            sensitivity: classification.sensitivity,
+            sensitivity,
             ...(classification.docType ? { docType: classification.docType, docTypeConfidence: classification.docTypeConfidence ?? null } : {}),
           },
         });

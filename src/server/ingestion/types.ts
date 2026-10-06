@@ -299,6 +299,10 @@ export interface StageData {
   write?: WriteSummary;
   /** Document stage: whether this sync produced a new version. */
   document?: { versionId: string | null; changed: boolean };
+  /** Sensitivity chosen explicitly by an uploader; classification never lowers or replaces it. */
+  sensitivityOverride?: Sensitivity;
+  /** Provider (modifiedAt, versionTag) stamp used to skip unchanged documents without downloading. */
+  sourceVersion?: { modifiedAt: string; versionTag: string | null };
 }
 
 // ─── Loaded source items ─────────────────────────────────────────────────────

@@ -472,15 +472,14 @@ export async function planSourceDeletion(client: Client, sourceItemId: string): 
   });
   if (!item) return null;
 
-  const [refs, directInsights, directInbox, reviewItems, mentions, relTotal, relDeletable] = await Promise.all([
-    client.sourceReference.findMany({ where: { sourceItemId }, select: { id: true, targetType: true, targetId: true, role: true } }),
-    client.brainInsight.findMany({ where: { sourceItemId }, select: { id: true } }),
-    client.inboxItem.findMany({ where: { sourceItemId }, select: { id: true } }),
-    client.reviewQueueItem.findMany({ where: { sourceItemId }, select: { id: true, title: true, status: true } }),
-    client.entityMention.count({ where: { sourceItemId } }),
-    client.relationship.count({ where: { sourceItemId } }),
-    client.relationship.count({ where: { sourceItemId, evidenceCount: { lte: 1 } } }),
-  ]);
+  // Sequential on purpose: this also runs inside an interactive transaction (one connection).
+  const refs = await client.sourceReference.findMany({ where: { sourceItemId }, select: { id: true, targetType: true, targetId: true, role: true } });
+  const directInsights = await client.brainInsight.findMany({ where: { sourceItemId }, select: { id: true } });
+  const directInbox = await client.inboxItem.findMany({ where: { sourceItemId }, select: { id: true } });
+  const reviewItems = await client.reviewQueueItem.findMany({ where: { sourceItemId }, select: { id: true, title: true, status: true } });
+  const mentions = await client.entityMention.count({ where: { sourceItemId } });
+  const relTotal = await client.relationship.count({ where: { sourceItemId } });
+  const relDeletable = await client.relationship.count({ where: { sourceItemId, evidenceCount: { lte: 1 } } });
 
   // Group targets: provenance references plus direct sourceItem links on insights and inbox items.
   const targets = new Map<string, { type: EntityType; id: string; via: "reference" | "link"; createdFromItem: boolean; referenceIds: string[] }>();
@@ -506,32 +505,28 @@ export async function planSourceDeletion(client: Client, sourceItemId: string): 
   const otherSourced = new Set<string>();
   const humanTouched = new Set<string>();
   const confirmed = new Set<string>();
-  await Promise.all(
-    [...byType.entries()].map(async ([type, ids]) => {
-      const [loaded, others, reviews] = await Promise.all([
-        loadTargets(client, type, ids),
-        client.sourceReference.findMany({
-          where: { targetType: type, targetId: { in: ids }, OR: [{ sourceItemId: null }, { sourceItemId: { not: sourceItemId } }] },
-          select: { targetId: true },
-        }),
-        client.reviewQueueItem.findMany({ where: { resultType: type, resultId: { in: ids }, status: { in: ["APPROVED", "MERGED"] } }, select: { resultId: true } }),
-      ]);
-      for (const [id, s] of loaded) states.set(`${type}:${id}`, s);
-      for (const o of others) otherSourced.add(`${type}:${o.targetId}`);
-      for (const r of reviews) if (r.resultId) confirmed.add(`${type}:${r.resultId}`);
-      const fk = ACTIVITY_FK[type];
-      if (fk) {
-        const acts = await client.activity.findMany({
-          where: { AND: [{ [fk]: { in: ids } } as Prisma.ActivityWhereInput, { actor: { notIn: SYSTEM_ACTORS } }] },
-          select: { taskId: true, commitmentId: true, riskId: true, opportunityId: true, decisionId: true },
-        });
-        for (const a of acts) {
-          const id = a[fk as "taskId"];
-          if (id) humanTouched.add(`${type}:${id}`);
-        }
+  for (const [type, ids] of byType) {
+    const loaded = await loadTargets(client, type, ids);
+    const others = await client.sourceReference.findMany({
+      where: { targetType: type, targetId: { in: ids }, OR: [{ sourceItemId: null }, { sourceItemId: { not: sourceItemId } }] },
+      select: { targetId: true },
+    });
+    const reviews = await client.reviewQueueItem.findMany({ where: { resultType: type, resultId: { in: ids }, status: { in: ["APPROVED", "MERGED"] } }, select: { resultId: true } });
+    for (const [id, s] of loaded) states.set(`${type}:${id}`, s);
+    for (const o of others) otherSourced.add(`${type}:${o.targetId}`);
+    for (const r of reviews) if (r.resultId) confirmed.add(`${type}:${r.resultId}`);
+    const fk = ACTIVITY_FK[type];
+    if (fk) {
+      const acts = await client.activity.findMany({
+        where: { AND: [{ [fk]: { in: ids } } as Prisma.ActivityWhereInput, { actor: { notIn: SYSTEM_ACTORS } }] },
+        select: { taskId: true, commitmentId: true, riskId: true, opportunityId: true, decisionId: true },
+      });
+      for (const a of acts) {
+        const id = a[fk as "taskId"];
+        if (id) humanTouched.add(`${type}:${id}`);
       }
-    }),
-  );
+    }
+  }
 
   const records: DerivedRecord[] = [...targets.entries()].map(([key, t]) => {
     const s = states.get(key);
@@ -706,18 +701,17 @@ export async function applySourceDeletion(tx: Tx, sourceItemId: string, mode: So
     ]),
   ];
 
-  const deleted = await Promise.all([
-    tx.inboxItem.deleteMany({ where: { id: { in: inboxIds } } }),
-    tx.brainInsight.deleteMany({ where: { id: { in: insightIds } } }),
-  ]);
-  const deleted2 = await Promise.all([
-    tx.commitment.deleteMany({ where: { id: { in: commitmentIds } } }),
-    tx.risk.deleteMany({ where: { id: { in: riskIds } } }),
-    tx.opportunity.deleteMany({ where: { id: { in: opportunityIds } } }),
-    tx.decision.deleteMany({ where: { id: { in: decisionIds } } }),
-  ]);
-  const deletedTasks = await tx.task.deleteMany({ where: { id: { in: taskIds } } });
-  result.derivedDeleted = [...deleted, ...deleted2, deletedTasks].reduce((s, r) => s + r.count, 0);
+  // Dependents first (inbox → insight → record → mirrored task); sequential inside the transaction.
+  const deletions = [
+    await tx.inboxItem.deleteMany({ where: { id: { in: inboxIds } } }),
+    await tx.brainInsight.deleteMany({ where: { id: { in: insightIds } } }),
+    await tx.commitment.deleteMany({ where: { id: { in: commitmentIds } } }),
+    await tx.risk.deleteMany({ where: { id: { in: riskIds } } }),
+    await tx.opportunity.deleteMany({ where: { id: { in: opportunityIds } } }),
+    await tx.decision.deleteMany({ where: { id: { in: decisionIds } } }),
+    await tx.task.deleteMany({ where: { id: { in: taskIds } } }),
+  ];
+  result.derivedDeleted = deletions.reduce((sum, r) => sum + r.count, 0);
 
   // Provenance rows of removed records go with them (any source).
   const removed: [EntityType, string[]][] = [

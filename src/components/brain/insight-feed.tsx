@@ -7,6 +7,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { EmptyState } from "@/components/common/bits";
+import { ViewSourceButton } from "@/components/intelligence/view-source";
 import { SimpleSelect } from "@/components/common/fields";
 import { TONE_TEXT } from "@/components/common/status";
 import { useAction } from "@/components/common/use-action";
@@ -108,7 +109,11 @@ function InsightRow({ insight: i, timezone, focused }: { insight: FeedInsight; t
         <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-2xs text-muted-foreground">
           <span>{meta.label}</span>
           <span>Importance {i.importance}/5</span>
-          <span>{i.signal ? `From ${i.signal.source.name}` : "Workspace analysis"}</span>
+          {i.sourceItemId ? (
+            <ViewSourceButton targetType="INSIGHT" targetId={i.id} label="From source" className="-my-1 h-5 px-1 text-2xs" />
+          ) : (
+            <span>{i.signal ? `From ${i.signal.source.name}` : "Workspace analysis"}</span>
+          )}
           <span>{formatDateTime(i.createdAt, timezone)}</span>
           {related.slice(0, 3).map((r) =>
             r.href ? (

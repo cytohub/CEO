@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { documentShortTitle, formatSlot, fulfilmentMatch, longDay, meetingPhrase, meetingTypeFor, objectPhrase, signedSentence } from "./phrasing";
+import { deliverablePhrase, describeChange, documentShortTitle, formatSlot, fulfilmentMatch, longDay, meetingPhrase, meetingTypeFor, objectPhrase, requestedObject, signedSentence } from "./phrasing";
 import { defaultPriority, focusAreaFor, isHardDeadline, taskScores } from "./task-scoring";
 
 describe("change wording", () => {
@@ -10,6 +10,9 @@ describe("change wording", () => {
     assert.equal(objectPhrase("Share our cohort retention analysis"), "our cohort retention analysis");
     assert.equal(objectPhrase("Review clause 7.3"), "“Review clause 7.3”");
     assert.equal(longDay(new Date("2026-10-14T00:00:00Z")), "October 14");
+    assert.equal(requestedObject("Lumen requested the revised electrophysiology dataset by October 14 — please confirm."), "the revised electrophysiology dataset");
+    assert.equal(deliverablePhrase("Confirm you can deliver", "please confirm you can deliver", "We need the updated SOP before the audit."), "the updated SOP");
+    assert.equal(deliverablePhrase("Send the deck"), "the deck");
   });
 
   it("recognizes signatures but not intentions", () => {
@@ -19,6 +22,12 @@ describe("change wording", () => {
     assert.equal(signedSentence("Once the MSA is signed we can start."), null);
     assert.equal(signedSentence("We are ready to sign the contract next week."), null);
     assert.equal(signedSentence("The contract has not yet been signed."), null);
+  });
+
+  it("describes document changes", () => {
+    assert.equal(describeChange({ label: "Raise amount", from: "$35M", to: "$40M", significance: "HIGH", change: "changed" }), "raise amount changed from $35M to $40M");
+    assert.equal(describeChange({ label: "Runway", from: null, to: "24 months", change: "added" }), "runway added: 24 months");
+    assert.equal(describeChange({ label: "Pricing", from: "$50K", to: null, change: "removed" }), "pricing removed (was $50K)");
   });
 
   it("shortens document titles", () => {

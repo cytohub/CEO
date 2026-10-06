@@ -24,10 +24,11 @@ export interface Revealable<T> {
   item: T | null;
 }
 
-export interface MockCursor {
+/** A type alias (not an interface) so it is assignable to SyncCursor. */
+export type MockCursor = {
   revealedUntil: string;
   lastKey?: string;
-}
+};
 
 const cursorSchema = z.object({ revealedUntil: z.string(), lastKey: z.string().optional() });
 

@@ -6,11 +6,13 @@ import { DueLabel, PageHeader, Panel, PersonName, PillarTag } from "@/components
 import { CreateButton } from "@/components/common/create-button";
 import { StatusPill, TONE_TEXT } from "@/components/common/status";
 import { EditOptions, MakeDecision, OutcomeEditor, RecommendationEditor, StatusControls } from "@/components/decisions/decision-controls";
+import { ViewSourceButton } from "@/components/intelligence/view-source";
 import { TaskLink } from "@/components/tasks/task-link";
 import { cn } from "@/lib/utils";
 import { daysBetween, formatDateTime, formatDay } from "@/lib/dates";
 import { DECISION_STATUS, INSIGHT_TYPES, RESOURCE_TYPES, TASK_STATUS } from "@/lib/domain";
 import { getDecisionDetail } from "@/server/queries/decisions";
+import { getProvenanceCounts } from "@/server/queries/provenance";
 import { requirePage } from "@/server/security/session";
 
 export async function generateMetadata(props: { params: Promise<{ id: string }> }): Promise<Metadata> {
@@ -20,10 +22,11 @@ export async function generateMetadata(props: { params: Promise<{ id: string }> 
 }
 
 export default async function DecisionPage(props: { params: Promise<{ id: string }> }) {
-  await requirePage("workspace.view", "/decisions");
+  const viewer = await requirePage("workspace.view", "/decisions");
   const { id } = await props.params;
   const data = await getDecisionDetail(id);
   if (!data) notFound();
+  const sources = (await getProvenanceCounts(viewer, "DECISION", [id]))[id];
   const { decision: d, today, timezone, now } = data;
   const decided = d.status === "DECIDED";
   const status = DECISION_STATUS[d.status];
@@ -50,7 +53,12 @@ export default async function DecisionPage(props: { params: Promise<{ id: string
             {d.pillar && <PillarTag name={d.pillar.name} color={d.pillar.color} />}
           </span>
         }
-        actions={<StatusControls decision={d} />}
+        actions={
+          <>
+            {sources && <ViewSourceButton targetType="DECISION" targetId={d.id} count={sources.count} hidden={sources.hidden} variant="outline" />}
+            <StatusControls decision={d} />
+          </>
+        }
       />
 
       <div className="grid gap-4 xl:grid-cols-12">

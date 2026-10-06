@@ -13,14 +13,14 @@
 import type { DocumentType } from "@/generated/prisma/enums";
 import { dayKey, formatDay } from "@/lib/dates";
 import { DOCUMENT_TYPES } from "@/lib/intelligence";
-import { companyShortName } from "../resolve/names";
+import { companyShortName, conversationalName } from "../resolve/names";
 import type { StageData } from "../types";
 import { actionKey, shortHash, tokenCoverage } from "./dedupe";
 import { PROTECTED_REASONS } from "./gate";
 import { recordActivity } from "./history";
 import { upsertInsight, type InsightLinks } from "./insights";
 import { dealFor, personName, type ItemCtx } from "./item";
-import { documentShortTitle, longDay, lowerFirst, objectPhrase, significanceRank, signedSentence, type SignificantChange } from "./phrasing";
+import { deliverablePhrase, describeChange, documentShortTitle, longDay, significanceRank, signedSentence, type SignificantChange } from "./phrasing";
 import { formatMoney } from "./records";
 import { queueReview } from "./review";
 
@@ -94,7 +94,7 @@ async function customerDeliverable(w: ItemCtx) {
   await raiseChange(w, {
     changeKind: "customer_deliverable_requested",
     fingerprint: `change:customer_deliverable_requested:${w.threadId ?? w.item.id}:${shortHash(actionKey(ask.title))}`,
-    title: `Important change: ${short} requested ${objectPhrase(ask.title)} by ${longDay(ask.due)}`,
+    title: `Important change: ${short} requested ${deliverablePhrase(ask.title, ask.evidence, ...w.extraction.deadlines.filter((d) => d.date === dayKey(ask.due)).map((d) => d.evidence), w.item.text)} by ${longDay(ask.due)}`,
     summary: `Impact: customer relationship${renewal ? " / renewal" : ""}${deal ? ` (${deal.name}${deal.value ? `, ${formatMoney(deal.value)}` : ""})` : ""}.`,
     recommendation: ownerName ? `Confirm ${ownerName} can deliver by ${formatDay(ask.due)}${who ? ` and reply to ${who}` : ""}.` : "Assign an owner and confirm delivery.",
     importance: renewal || (deal?.value ?? 0) >= 500_000 || company.type === "CUSTOMER" ? 4 : 3,
@@ -135,7 +135,7 @@ async function documentChanged(w: ItemCtx) {
   const ranked = changes.filter((c) => c && typeof c.label === "string").sort((a, b) => significanceRank(b.significance) - significanceRank(a.significance));
   const top = ranked[0];
   const short = documentShortTitle(doc.title);
-  const what = top ? `${lowerFirst(top.label)} changed from ${top.from ?? "—"} to ${top.to ?? "—"}` : "significant changes";
+  const what = top ? describeChange(top) : "significant changes";
   const keyDoc = (["INVESTOR_DECK", "FINANCIAL_MODEL", "CUSTOMER_CONTRACT", "CUSTOMER_PROPOSAL", "BOARD_DOCUMENT", "PARTNERSHIP_AGREEMENT"] as DocumentType[]).includes(doc.docType);
   const importance = Math.min(5, Math.max(top ? significanceRank(top.significance) : 3, 3) + (keyDoc ? 1 : 0));
   const r = await raiseChange(w, {
@@ -225,9 +225,10 @@ async function newInvestor(w: ItemCtx) {
       changeKind: "new_investor",
       fingerprint: `change:new_investor:${p.domain ?? r.fingerprint}`,
       title: `Important change: Possible new investor — ${p.name ?? p.domain ?? "unknown"}${contact ? ` (${contact.name})` : ""}`,
-      summary: `${p.domain ?? "This organization"} reached out in “${w.item.title}”. It is not in the investor pipeline yet.`,
+      summary: `${contact ? `${conversationalName(contact.name)} at ` : ""}${p.name ?? "An unknown firm"}${p.domain ? ` (${p.domain})` : ""} reached out in “${w.item.title}”. It is not in the investor pipeline yet.`,
       recommendation: "Confirm it in the Brain Review Queue, then decide whether it belongs in this round.",
-      importance: 4,
+      // An investor reaching out about the live round, on a loud source, is for today.
+      importance: w.classification.relevance === "HIGH" || w.classification.relevance === "CRITICAL" ? 5 : 4,
       requiresCeo: true,
       links: { personId: contact?.id ?? null },
     });

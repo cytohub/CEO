@@ -1,6 +1,6 @@
 "use client";
 
-import { AlarmClock, ArrowRight, Check, CornerUpLeft, ExternalLink, Inbox as InboxIcon, ListPlus, MoreHorizontal, Sparkles, UserPlus, X } from "lucide-react";
+import { AlarmClock, ArrowRight, Check, CornerUpLeft, ExternalLink, EyeOff, FileSearch, Inbox as InboxIcon, ListPlus, Lock, MoreHorizontal, Sparkles, Target, UserPlus, X, Zap } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -8,7 +8,8 @@ import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { EmptyState } from "@/components/common/bits";
+import { DueLabel, EmptyState } from "@/components/common/bits";
+import { AttentionBadge, ConfidenceBadge, SourceKindIcon, providerLabel } from "@/components/intelligence/badges";
 import { TONE_SOFT, TONE_TEXT } from "@/components/common/status";
 import { useAction } from "@/components/common/use-action";
 import { useUI } from "@/components/shell/ui-context";
@@ -73,6 +74,7 @@ export function InboxView({ items, today, timezone, status }: { items: InboxEntr
                   <span className="flex items-center gap-2">
                     <span className="truncate text-2xs font-medium text-muted-foreground">{meta.label}</span>
                     <Urgency value={i.urgency} />
+                    {i.attention && <AttentionBadge level={i.attention} className="h-4 px-1.5" />}
                     <span className="ml-auto shrink-0 text-2xs text-muted-foreground tabular">{timeAgo(i.createdAt)}</span>
                   </span>
                   <span className="mt-0.5 line-clamp-2 text-[13px] leading-snug font-medium text-foreground">{i.title}</span>
@@ -101,14 +103,36 @@ function Urgency({ value }: { value: number }) {
 function InboxDetail({ item: i, today, timezone }: { item: InboxEntry; today: Date; timezone: string }) {
   const meta = INBOX_TYPES[i.type];
   const { openEntity, openDelegate } = useUI();
+  const router = useRouter();
   const { pending, run } = useAction();
   const [note, setNote] = useState("");
   const open = i.status === "OPEN";
   const nextMonday = addDays(startOfWeek(today), 7);
+  // Items written by the ingestion pipeline carry attention, confidence and a source.
+  const ingested = Boolean(i.attention || i.confidence || i.sourceItemId);
+  const takeAction: { label: string; run: () => void } = i.decision
+    ? { label: "Make the decision", run: () => router.push(`/decisions/${i.decision!.id}`) }
+    : i.commitment
+      ? { label: "Open commitment", run: () => router.push(`/commitments?highlight=${i.commitment!.id}`) }
+      : i.task
+        ? { label: "Open task", run: () => openEntity("task", i.task!.id) }
+        : i.risk
+          ? { label: "Open risk", run: () => router.push(`/risks?highlight=${i.risk!.id}`) }
+          : i.opportunity
+            ? { label: "Open opportunity", run: () => router.push(`/risks?tab=opportunities&highlight=${i.opportunity!.id}`) }
+            : { label: "Convert to task", run: () => run(() => convertInboxToTask(i.id), { onSuccess: (d) => openEntity("task", d.taskId) }) };
+  const delegate = () =>
+    run(() => convertInboxToTask(i.id), {
+      success: "Converted — choose who should own it",
+      onSuccess: (d) => openDelegate(d.taskId),
+    });
 
   const related: { label: string; kind: string; href?: string; onClick?: () => void }[] = [
     i.decision && { kind: "Decision", label: i.decision.title, href: `/decisions/${i.decision.id}` },
     i.task && { kind: "Task", label: i.task.title, onClick: () => openEntity("task", i.task!.id) },
+    i.commitment && { kind: "Commitment", label: i.commitment.title, href: `/commitments?highlight=${i.commitment.id}` },
+    i.risk && { kind: "Risk", label: i.risk.title, href: `/risks?highlight=${i.risk.id}` },
+    i.opportunity && { kind: "Opportunity", label: i.opportunity.title, href: `/risks?tab=opportunities&highlight=${i.opportunity.id}` },
     i.goal && { kind: "Goal", label: i.goal.title, href: `/goals/${i.goal.id}` },
     i.company && { kind: "Company", label: i.company.name, href: `/resources/companies/${i.company.id}` },
     i.person && { kind: "Person", label: `${i.person.name}${i.person.title ? ` · ${i.person.title}` : ""}`, href: `/resources/people/${i.person.id}` },
@@ -129,6 +153,36 @@ function InboxDetail({ item: i, today, timezone }: { item: InboxEntry; today: Da
           {i.title}
         </h2>
         {i.summary && <p className="mt-1.5 text-[13px] leading-relaxed text-ink-2">{i.summary}</p>}
+        {ingested && (
+          <div className="mt-2.5 flex flex-wrap items-center gap-x-2.5 gap-y-1.5 text-2xs text-muted-foreground">
+            {i.attention && <AttentionBadge level={i.attention} />}
+            {i.confidence && <ConfidenceBadge level={i.confidence} />}
+            {i.strategicRelevance && (
+              <span className="inline-flex items-center gap-1 text-ink-2" title="Strategic relevance">
+                <Target className="size-3 text-ink-3" aria-hidden /> {i.strategicRelevance}
+              </span>
+            )}
+            {i.dueDate && (
+              <span className="inline-flex items-center gap-1">
+                Deadline <DueLabel date={i.dueDate} today={today} />
+              </span>
+            )}
+          </div>
+        )}
+        {i.source ? (
+          <p className="mt-2 flex items-center gap-1.5 text-2xs text-muted-foreground">
+            <SourceKindIcon kind={i.source.kind} className="size-3" />
+            <span className="font-medium text-ink-2">{providerLabel(i.source.provider)}</span>
+            {i.source.author && <span>· {i.source.author}</span>}
+            <span>· {timeAgo(i.source.occurredAt)}</span>
+          </p>
+        ) : (
+          i.sourceHidden && (
+            <p className="mt-2 flex items-center gap-1.5 text-2xs text-muted-foreground">
+              <Lock className="size-3" aria-hidden /> Source hidden by your access level
+            </p>
+          )
+        )}
       </header>
 
       <div className="space-y-4 px-5 py-4">
@@ -180,78 +234,138 @@ function InboxDetail({ item: i, today, timezone }: { item: InboxEntry; today: Da
         )}
       </div>
 
-      <footer className="mt-auto flex flex-wrap items-center gap-2 border-t border-hairline px-5 py-3">
-        {open ? (
-          <>
-            <div className="flex min-w-[220px] flex-1 gap-2">
-              <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Resolution note (optional)" aria-label="Resolution note" className="h-8" />
-              <Button size="sm" disabled={pending} onClick={() => run(() => resolveInboxItem(i.id, note || null))}>
-                <Check /> Done
-              </Button>
-            </div>
-            {i.decision ? (
-              <Button size="sm" variant="outline" asChild>
-                <Link href={`/decisions/${i.decision.id}`}>Make the decision</Link>
-              </Button>
-            ) : (
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={pending}
-                onClick={() => run(() => convertInboxToTask(i.id), { onSuccess: (d) => openEntity("task", d.taskId) })}
-              >
-                <ListPlus /> Convert to task
-              </Button>
-            )}
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button size="sm" variant="outline" disabled={pending}>
-                  <AlarmClock /> Snooze
+      {ingested && open ? (
+        <footer className="mt-auto space-y-2.5 border-t border-hairline px-5 py-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <Button size="sm" disabled={pending} onClick={takeAction.run} title={takeAction.label}>
+              <Zap /> Take action
+              <span className="hidden font-normal opacity-70 sm:inline">· {takeAction.label}</span>
+            </Button>
+            <Button size="sm" variant="outline" disabled={pending} onClick={delegate}>
+              <UserPlus /> Delegate
+            </Button>
+            <SnoozeButton disabled={pending} today={today} nextMonday={nextMonday} onSnooze={(d) => run(() => snoozeInboxItem(i.id, dayKey(d)))} />
+            <Button size="sm" variant="outline" disabled={pending} onClick={() => run(() => dismissInboxItem(i.id))}>
+              <EyeOff /> Ignore
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => openEntity("provenance", `INBOX_ITEM:${i.id}`)}>
+              <FileSearch /> Open source
+            </Button>
+          </div>
+          <div className="flex min-w-[220px] gap-2">
+            <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Resolution note (optional)" aria-label="Resolution note" className="h-8" />
+            <Button size="sm" variant="outline" disabled={pending} onClick={() => run(() => resolveInboxItem(i.id, note || null))}>
+              <Check /> Done
+            </Button>
+          </div>
+        </footer>
+      ) : (
+        <footer className="mt-auto flex flex-wrap items-center gap-2 border-t border-hairline px-5 py-3">
+          {open ? (
+            <>
+              <div className="flex min-w-[220px] flex-1 gap-2">
+                <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Resolution note (optional)" aria-label="Resolution note" className="h-8" />
+                <Button size="sm" disabled={pending} onClick={() => run(() => resolveInboxItem(i.id, note || null))}>
+                  <Check /> Done
                 </Button>
-              </PopoverTrigger>
-              <PopoverContent align="end" className="w-48 p-1">
-                {[
-                  ["Tomorrow", addDays(today, 1)],
-                  ["In 3 days", addDays(today, 3)],
-                  ["Next week", nextMonday],
-                ].map(([label, d]) => (
-                  <button key={label as string} type="button" onClick={() => run(() => snoozeInboxItem(i.id, dayKey(d as Date)))} className="flex w-full justify-between rounded px-2 py-1.5 text-left text-[13px] hover:bg-muted">
-                    {label as string}
-                    <span className="text-2xs text-muted-foreground">{formatDay(d as Date)}</span>
-                  </button>
-                ))}
-              </PopoverContent>
-            </Popover>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button size="icon-sm" variant="ghost" aria-label="More actions">
-                  <MoreHorizontal />
+              </div>
+              {i.decision ? (
+                <Button size="sm" variant="outline" asChild>
+                  <Link href={`/decisions/${i.decision.id}`}>Make the decision</Link>
                 </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem
-                  onSelect={() =>
-                    run(() => convertInboxToTask(i.id), {
-                      success: "Converted — choose who should own it",
-                      onSuccess: (d) => openDelegate(d.taskId),
-                    })
-                  }
+              ) : (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={pending}
+                  onClick={() => run(() => convertInboxToTask(i.id), { onSuccess: (d) => openEntity("task", d.taskId) })}
                 >
-                  <UserPlus /> Delegate…
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem variant="destructive" onSelect={() => run(() => dismissInboxItem(i.id))}>
-                  <X /> Dismiss — not for me
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </>
-        ) : (
-          <Button size="sm" variant="outline" disabled={pending} onClick={() => run(() => reopenInboxItem(i.id))}>
-            <CornerUpLeft /> Move back to inbox
-          </Button>
-        )}
-      </footer>
+                  <ListPlus /> Convert to task
+                </Button>
+              )}
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button size="sm" variant="outline" disabled={pending}>
+                    <AlarmClock /> Snooze
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent align="end" className="w-48 p-1">
+                  {[
+                    ["Tomorrow", addDays(today, 1)],
+                    ["In 3 days", addDays(today, 3)],
+                    ["Next week", nextMonday],
+                  ].map(([label, d]) => (
+                    <button key={label as string} type="button" onClick={() => run(() => snoozeInboxItem(i.id, dayKey(d as Date)))} className="flex w-full justify-between rounded px-2 py-1.5 text-left text-[13px] hover:bg-muted">
+                      {label as string}
+                      <span className="text-2xs text-muted-foreground">{formatDay(d as Date)}</span>
+                    </button>
+                  ))}
+                </PopoverContent>
+              </Popover>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button size="icon-sm" variant="ghost" aria-label="More actions">
+                    <MoreHorizontal />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem
+                    onSelect={() =>
+                      run(() => convertInboxToTask(i.id), {
+                        success: "Converted — choose who should own it",
+                        onSuccess: (d) => openDelegate(d.taskId),
+                      })
+                    }
+                  >
+                    <UserPlus /> Delegate…
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem variant="destructive" onSelect={() => run(() => dismissInboxItem(i.id))}>
+                    <X /> Dismiss — not for me
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </>
+          ) : (
+            <>
+              <Button size="sm" variant="outline" disabled={pending} onClick={() => run(() => reopenInboxItem(i.id))}>
+                <CornerUpLeft /> Move back to inbox
+              </Button>
+              {ingested && (
+                <Button size="sm" variant="ghost" onClick={() => openEntity("provenance", `INBOX_ITEM:${i.id}`)}>
+                  <FileSearch /> Open source
+                </Button>
+              )}
+            </>
+          )}
+        </footer>
+      )}
     </article>
+  );
+}
+
+function SnoozeButton({ disabled, today, nextMonday, onSnooze }: { disabled: boolean; today: Date; nextMonday: Date; onSnooze: (d: Date) => void }) {
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button size="sm" variant="outline" disabled={disabled}>
+          <AlarmClock /> Snooze
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-48 p-1">
+        {(
+          [
+            ["Tomorrow", addDays(today, 1)],
+            ["In 3 days", addDays(today, 3)],
+            ["Next week", nextMonday],
+          ] as const
+        ).map(([label, d]) => (
+          <button key={label} type="button" onClick={() => onSnooze(d)} className="flex w-full justify-between rounded px-2 py-1.5 text-left text-[13px] hover:bg-muted">
+            {label}
+            <span className="text-2xs text-muted-foreground">{formatDay(d)}</span>
+          </button>
+        ))}
+      </PopoverContent>
+    </Popover>
   );
 }

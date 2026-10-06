@@ -6,12 +6,14 @@ import { DueLabel, KeyValue, PageHeader, Panel, PersonName, PillarTag, Sparkline
 import { CreateButton } from "@/components/common/create-button";
 import { Meter, StatusPill, TONE_TEXT } from "@/components/common/status";
 import { EditGoalButton, GoalNoteForm, GoalQuickControls, GoalRisksEditor } from "@/components/goals/goal-controls";
+import { ViewSourceButton } from "@/components/intelligence/view-source";
 import { MeetingLink, MilestoneLink, TaskLink } from "@/components/tasks/task-link";
 import { cn } from "@/lib/utils";
 import { daysBetween, formatDateTime, formatDay } from "@/lib/dates";
 import { DECISION_STATUS, GOAL_STATUS, GOAL_TYPES, INSIGHT_TYPES, MILESTONE_STATUS, MILESTONE_TYPES, RESOURCE_TYPES, TASK_STATUS } from "@/lib/domain";
 import { formatMetric } from "@/lib/format";
 import { getGoalDetail } from "@/server/queries/goals";
+import { getProvenanceCounts } from "@/server/queries/provenance";
 import { requirePage } from "@/server/security/session";
 
 export async function generateMetadata(props: { params: Promise<{ id: string }> }): Promise<Metadata> {
@@ -21,10 +23,11 @@ export async function generateMetadata(props: { params: Promise<{ id: string }> 
 }
 
 export default async function GoalPage(props: { params: Promise<{ id: string }> }) {
-  await requirePage("workspace.view", "/goals");
+  const viewer = await requirePage("workspace.view", "/goals");
   const { id } = await props.params;
   const data = await getGoalDetail(id);
   if (!data) notFound();
+  const sources = (await getProvenanceCounts(viewer, "GOAL", [id]))[id];
   const { goal, metrics, progressHistory, today, timezone } = data;
   const status = GOAL_STATUS[goal.status];
   const openTasks = goal.tasks.filter((t) => !["DONE", "CANCELLED"].includes(t.status));
@@ -59,7 +62,12 @@ export default async function GoalPage(props: { params: Promise<{ id: string }> 
             )}
           </span>
         }
-        actions={<EditGoalButton goal={goal} />}
+        actions={
+          <>
+            {sources && <ViewSourceButton targetType="GOAL" targetId={goal.id} count={sources.count} hidden={sources.hidden} variant="outline" />}
+            <EditGoalButton goal={goal} />
+          </>
+        }
       />
 
       <div className="grid gap-4 xl:grid-cols-12">

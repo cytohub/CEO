@@ -8,7 +8,8 @@
 import type { CompanyType, PersonType } from "@/generated/prisma/enums";
 import type { Classification, LoadedSourceItem, MentionDraft, Participant, PipelineContext } from "../types";
 import { type ClassifyFacts, type CompanyFacts, type ParticipantFacts, type PersonFacts, classifyFacts } from "./classify-rules";
-import { domainOf, isFreeMailDomain, normalizeName, registrableDomain } from "./text";
+import { domainOf, isFreeMailDomain, registrableDomain } from "./text";
+import { normalizeCompanyName } from "../resolve/names";
 
 const PERSON_SELECT = {
   id: true,
@@ -63,7 +64,7 @@ export async function gatherClassifyFacts(ctx: PipelineContext, item: LoadedSour
             OR: [
               { kind: "EMAIL", entityType: "PERSON", normalized: { in: emails } },
               { kind: "DOMAIN", entityType: "COMPANY", normalized: { in: domains } },
-              { kind: { in: ["NAME", "ABBREVIATION", "SUBSIDIARY", "FORMER_NAME"] }, entityType: "COMPANY", normalized: { in: orgNames.map(normalizeName) } },
+              { kind: { in: ["NAME", "ABBREVIATION", "SUBSIDIARY", "FORMER_NAME"] }, entityType: "COMPANY", normalized: { in: orgNames.map(normalizeCompanyName) } },
             ],
           },
           select: { entityType: true, entityId: true, normalized: true, kind: true },

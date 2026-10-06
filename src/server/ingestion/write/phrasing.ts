@@ -23,6 +23,28 @@ export function objectPhrase(title: string): string {
   return DETERMINER.test(rest) ? rest : `the ${rest}`;
 }
 
+const REQUESTED = /\b(?:requested|requests|asked for|asking for|ask for|need|needs|needed|send(?: us| me)?|share(?: with us)?|provide|deliver)\s+((?:the|an?|our|your|their|updated|revised|new)\s+[^.?!,;\n]+?)(?=\s+(?:by|before|no later than|until|ahead of)\b|[.?!,;\n]|$)/i;
+
+/** The thing asked for in a sentence: "Lumen requested the revised electrophysiology dataset by October 14" → "the revised electrophysiology dataset". */
+export function requestedObject(text: string | null | undefined): string | null {
+  if (!text) return null;
+  const m = REQUESTED.exec(text);
+  if (!m) return null;
+  const obj = m[1].trim();
+  return obj.split(/\s+/).length <= 10 ? obj : null;
+}
+
+/** Best phrase for what a customer asked for: the action's object, else what the evidence says was requested. */
+export function deliverablePhrase(title: string, ...evidence: (string | null | undefined)[]): string {
+  const fromTitle = objectPhrase(title);
+  if (!fromTitle.startsWith("“")) return fromTitle;
+  for (const e of evidence) {
+    const o = requestedObject(e);
+    if (o) return o;
+  }
+  return fromTitle;
+}
+
 export function longDay(d: Date): string {
   return new Intl.DateTimeFormat("en-US", { timeZone: "UTC", month: "long", day: "numeric" }).format(d);
 }
@@ -45,12 +67,23 @@ export function signedSentence(text: string): { sentence: string; contract: stri
   return null;
 }
 
+/** DocumentVersion.significantChanges entry (written by the documents workstream). */
 export interface SignificantChange {
   label: string;
   from: string | null;
   to: string | null;
   kind?: string | null;
+  /** "HIGH" | "MEDIUM" | "LOW" (or a 1–5 number). */
   significance?: number | string | null;
+  change?: "changed" | "added" | "removed" | null;
+}
+
+/** "raise amount changed from $35M to $40M" / "runway added: 24 months" / "pricing removed (was $50K)". */
+export function describeChange(c: SignificantChange): string {
+  const label = lowerFirst(c.label);
+  if (c.change === "added" || (c.from == null && c.to != null)) return `${label} added: ${c.to}`;
+  if (c.change === "removed" || (c.to == null && c.from != null)) return `${label} removed (was ${c.from})`;
+  return `${label} changed from ${c.from ?? "—"} to ${c.to ?? "—"}`;
 }
 
 export function significanceRank(s: SignificantChange["significance"]): number {

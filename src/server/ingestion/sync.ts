@@ -25,7 +25,7 @@ import { connectionSettings, getProviderContext } from "./connections";
 import { ingestDocumentRef } from "./documents/ingest";
 import { enqueue } from "./jobs/queue";
 import { calendarHashMaterial, calendarItemText, normalizeCalendarEvent } from "./normalize/calendar";
-import { baseSubject, dedupeParticipants, emailDirection, extractNewContent, isAutomatedEmail } from "./normalize/email";
+import { baseSubject, dedupeParticipants, domainOf, emailDirection, extractNewContent, isAutomatedEmail } from "./normalize/email";
 import { enqueueProcessing } from "./pipeline";
 import { DROPBOX_DELETED_PREFIX } from "./providers/dropbox";
 import { isSupportedDocument, MAX_ATTACHMENT_BYTES } from "./providers/doc-types";
@@ -387,22 +387,42 @@ async function syncAttachments(state: SyncState, email: NormalizedEmail, message
   }
 }
 
+/**
+ * First-pass thread status from the latest conversational message (the thread
+ * summarizer refines it later): our side spoke last → AWAITING_THEM; addressed
+ * to the account → AWAITING_CEO; the CEO only copied → FYI.
+ */
+export function firstPassThreadStatus(
+  last: { direction: string; fromEmail: string; to: Prisma.JsonValue; cc: Prisma.JsonValue } | null,
+  accountEmail: string | null,
+): "AWAITING_CEO" | "AWAITING_THEM" | "FYI" {
+  if (!last) return "FYI";
+  if (last.direction === "OUTBOUND") return "AWAITING_THEM";
+  const emails = (v: Prisma.JsonValue) => (Array.isArray(v) ? v.map((p) => String((p as { email?: unknown } | null)?.email ?? "").toLowerCase()) : []);
+  const ownDomain = domainOf(accountEmail);
+  const to = emails(last.to);
+  const recipients = [...to, ...emails(last.cc)];
+  // A teammate answered the counterpart: the ball is in their court.
+  if (ownDomain && domainOf(last.fromEmail) === ownDomain && recipients.some((e) => domainOf(e) !== ownDomain)) return "AWAITING_THEM";
+  const me = accountEmail?.toLowerCase();
+  if (!me || to.includes(me)) return "AWAITING_CEO";
+  return "FYI";
+}
+
 /** Recompute thread aggregates (and a first-pass status) for threads that changed in this job. */
 async function refreshThreads(state: SyncState) {
   for (const threadId of state.touchedThreads) {
     const messages = await db.emailMessage.findMany({
       where: { threadId },
       orderBy: { sentAt: "asc" },
-      select: { sentAt: true, direction: true, isAutomated: true, sourceItem: { select: { deletedAtSource: true } } },
+      select: { sentAt: true, direction: true, isAutomated: true, fromEmail: true, to: true, cc: true, sourceItem: { select: { deletedAtSource: true } } },
     });
     if (!messages.length) continue;
-    const live = messages.filter((m) => !m.sourceItem.deletedAtSource);
     const inbound = messages.filter((m) => m.direction !== "OUTBOUND");
     const outbound = messages.filter((m) => m.direction === "OUTBOUND");
-    const conversational = live.filter((m) => !m.isAutomated);
-    const last = conversational[conversational.length - 1];
-    // First-pass status from who spoke last; the thread summarizer refines it (FYI, resolved…).
-    const status = !last ? "FYI" : last.direction === "OUTBOUND" ? "AWAITING_THEM" : "AWAITING_CEO";
+    const conversational = messages.filter((m) => !m.isAutomated && !m.sourceItem.deletedAtSource);
+    const last = conversational[conversational.length - 1] ?? null;
+    const status = firstPassThreadStatus(last, state.conn.accountEmail ?? state.ctx.ceo.email);
     await db.emailThread.update({
       where: { id: threadId },
       data: {
@@ -412,7 +432,7 @@ async function refreshThreads(state: SyncState) {
         lastOutboundAt: outbound.length ? outbound[outbound.length - 1].sentAt : null,
         messageCount: messages.length,
         status,
-        awaitingSince: last ? last.sentAt : null,
+        awaitingSince: status === "FYI" || !last ? null : last.sentAt,
       },
     });
   }

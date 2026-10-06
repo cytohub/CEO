@@ -116,7 +116,7 @@ async function email(opts: {
 /** Run resolution → relationships → (validated) extraction → write, like the pipeline stages do. */
 async function processItem(itemId: string, raw: Record<string, unknown>) {
   const item = (await m.loadSourceItem(m.db, itemId))!;
-  const stage = (item.stageData ?? {}) as { classification: Classification };
+  const stage = (item.stageData ?? {}) as unknown as { classification: Classification };
   const resolution = await m.resolveMentions(m.ctx, item);
   await m.db.sourceItem.update({ where: { id: itemId }, data: { stageData: { ...(item.stageData as object), resolution } as object } });
   const edges = await m.mapSourceRelationships(m.ctx, (await m.loadSourceItem(m.db, itemId))!, resolution);
@@ -130,7 +130,7 @@ async function processItem(itemId: string, raw: Record<string, unknown>) {
 
 async function rewrite(itemId: string) {
   const item = (await m.loadSourceItem(m.db, itemId))!;
-  const stage = item.stageData as { classification: Classification; resolution: Parameters<Mods["writeIntelligence"]>[3] };
+  const stage = item.stageData as unknown as { classification: Classification; resolution: Parameters<Mods["writeIntelligence"]>[3] };
   return m.writeIntelligence(m.ctx, item, item.extraction as never, stage.resolution, stage.classification);
 }
 

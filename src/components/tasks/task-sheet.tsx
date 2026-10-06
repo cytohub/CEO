@@ -26,6 +26,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Avatar, PillarTag } from "@/components/common/bits";
 import { CompanySelect, FocusAreaSelect, GoalSelect, MilestoneSelect, PersonSelect, PrioritySelect, RatingInput, SimpleSelect } from "@/components/common/fields";
 import { StatusPill, TONE_TEXT } from "@/components/common/status";
+import { TaskSourceSection } from "@/components/intelligence/task-source";
 import { useUI } from "@/components/shell/ui-context";
 import type { TaskStatus } from "@/generated/prisma/enums";
 import { dayKey, daysBetween, formatDateTime, formatDay, timeAgo, today as todayIn } from "@/lib/dates";
@@ -175,6 +176,8 @@ export function TaskSheet({ taskId, onClose }: { taskId: string | null; onClose:
                   )}
                 </section>
               )}
+
+              <TaskSourceSection taskId={task.id} confidence={task.extractionConfidence} />
 
               <section>
                 <h3 className="eyebrow mb-2">Details</h3>

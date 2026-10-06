@@ -375,7 +375,7 @@ export async function applyAttention(w: ItemCtx): Promise<AttentionLevel> {
 
   if (level === "IMMEDIATE" || level === "TODAY") {
     const rec = w.extraction.recommendedActions[0]?.action ?? null;
-    if (mainCommitment && ceoOwesDue.length) {
+    if (mainCommitment) {
       await inbox(
         "COMMITMENT",
         `You owe ${who ?? short ?? "them"}: ${mainCommitment.title}`,
@@ -406,7 +406,8 @@ export async function applyAttention(w: ItemCtx): Promise<AttentionLevel> {
       );
     } else if (topChange) {
       const insight = await w.tx.brainInsight.findUnique({ where: { id: topChange.insightId }, select: { summary: true, recommendation: true } });
-      await inbox("CHANGE", topChange.title.replace(/^Important change:\s*/, ""), insight?.summary ?? topChange.title, insight?.recommendation ?? "Review the change.", null);
+      const type: InboxType = topChange.changeKind === "new_investor" ? "INVESTOR_FOLLOW_UP" : "CHANGE";
+      await inbox(type, topChange.title.replace(/^Important change:\s*/, ""), insight?.summary ?? topChange.title, insight?.recommendation ?? "Review the change.", null);
     } else if (w.written.risks.length && company?.type === "CUSTOMER") {
       const r = w.written.risks[0];
       await inbox("CUSTOMER_ISSUE", `${short}: ${r.title}`, `${party}: ${r.title} (severity ${r.severity}/5).`, rec ?? "Call the customer sponsor and agree a recovery plan.", null);

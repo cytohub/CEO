@@ -117,12 +117,15 @@ export async function completeOAuthFlow(input: { flow: OAuthFlowState; code: str
   const meta = SOURCE_PROVIDERS[provider];
 
   // Reconnect target: the connection the flow started from, else an earlier connection of the same account.
-  const target = flow.connectionId
-    ? await db.sourceConnection.findUnique({ where: { id: flow.connectionId } })
-    : externalAccountId
-      ? await db.sourceConnection.findFirst({ where: { provider, mode: "LIVE", externalAccountId }, orderBy: { createdAt: "desc" } })
-      : null;
-  if (flow.connectionId && (!target || target.provider !== provider)) throw new OAuthFlowError("invalid_connection");
+  const started = flow.connectionId ? await db.sourceConnection.findUnique({ where: { id: flow.connectionId } }) : null;
+  if (flow.connectionId && (!started || started.provider !== provider)) throw new OAuthFlowError("invalid_connection");
+  // A demo connection is never upgraded in place (its sample data would mix with real mail): connect alongside it.
+  const target =
+    started && started.mode === "LIVE"
+      ? started
+      : externalAccountId
+        ? await db.sourceConnection.findFirst({ where: { provider, mode: "LIVE", externalAccountId }, orderBy: { createdAt: "desc" } })
+        : null;
 
   const previous = target ? decryptCredentials(target.credentials) : null;
   const credentials: StoredCredentials = {
@@ -161,7 +164,7 @@ export async function completeOAuthFlow(input: { flow: OAuthFlowState; code: str
       where: { id: target.id },
       data: {
         ...common,
-        ...(accountChanged || target.mode !== "LIVE" ? { cursor: Prisma.DbNull, label: `${meta.label} · ${identity.email ?? "account"}` } : {}),
+        ...(accountChanged ? { cursor: Prisma.DbNull, label: `${meta.label} · ${identity.email ?? "account"}` } : {}),
       },
     });
     connectionId = target.id;
