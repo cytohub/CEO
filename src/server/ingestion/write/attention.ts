@@ -15,7 +15,9 @@ import { confidenceFromScore } from "@/lib/intelligence";
 import { companyShortName } from "../resolve/names";
 import type { WriteEnv } from "./env";
 import { upsertInsight } from "./insights";
+import { tokenCoverage } from "./dedupe";
 import { ceoSoleRecipient, dealFor, personName, type ItemCtx } from "./item";
+import { actionClause, actionWithRecipient, cleanDecisionTitle, cleanTitle } from "./phrasing";
 import { hasReferenceFrom, reference } from "./provenance";
 import { formatMoney, sourceToItemSource } from "./records";
 
@@ -284,6 +286,30 @@ async function partyDescriptor(w: ItemCtx, companyId: string | null): Promise<st
   return `${company.name} — ${companyTypeLabel(company.type)}${dealPart}`;
 }
 
+/** "today", "tomorrow", "by Fri, Oct 9", or "now — it was due Mon, Oct 5". */
+function dueLabel(dueText: string | null | undefined, due: Date | null, today: Date): string {
+  if (!due) return dueText ? dueClause(dueText, null).trim() : "soon";
+  const d = daysBetween(today, due);
+  if (d < 0) return `now — it was due ${formatDayLong(due)}`;
+  if (d === 0) return /tonight/i.test(dueText ?? "") ? "tonight" : "today";
+  if (d === 1) return "by tomorrow";
+  return `by ${formatDayLong(due)}`;
+}
+
+/**
+ * The extractor's recommended action, when it adds something: not a restated
+ * title ("<title> by <date> and reply to <name>") and not a templated stub.
+ */
+function usefulRecommendation(actions: { action: string; urgency: string }[], titles: (string | null | undefined)[]): string | null {
+  for (const a of actions) {
+    const text = a.action.trim();
+    if (!text || /and reply to|^(address|track|review)[: ]/i.test(text)) continue;
+    if (titles.some((t) => t && tokenCoverage(t, text) >= 0.6)) continue;
+    return cleanTitle(text, 160).replace(/(?<![.?!])$/, ".");
+  }
+  return null;
+}
+
 function dueClause(dueText: string | null | undefined, due: Date | null): string {
   if (dueText && /^(by|before|no later than|on|until|end of|eod|this|next|today|tomorrow)\b/i.test(dueText.trim())) return ` ${dueText.trim()}`;
   if (dueText) return ` by ${dueText.trim()}`;
@@ -344,7 +370,10 @@ export async function applyAttention(w: ItemCtx): Promise<AttentionLevel> {
   const level = result.level;
   const fingerprint = w.threadId ? `inbox:thread:${w.threadId}` : `inbox:item:${w.item.id}`;
   const person = w.resolution.counterpartPersonIds[0] ?? null;
-  const who = personName(w, person);
+  // Who is asking: the (non-CEO) sender or organizer, else the main external counterpart.
+  const requesterId = w.resolution.people.find((p) => !p.isCeo && (p.role === "SENDER" || p.role === "ORGANIZER"))?.id ?? person;
+  const requester = personName(w, requesterId);
+  const requesterFirst = requester?.split(" ")[0] ?? null;
   const descriptor = await partyDescriptor(w, companyId);
   const goalTitle = w.extraction.strategicRelevance.goalTitles[0] ?? w.extraction.strategicRelevance.pillarNames[0] ?? null;
   const confidence = confidenceFromScore(Math.max(w.classification.relevanceScore, ...w.written.tasks.map((t) => t.confidence), ...w.written.commitments.map((c) => c.confidence), 0));
@@ -354,10 +383,10 @@ export async function applyAttention(w: ItemCtx): Promise<AttentionLevel> {
 
   const links = {
     insightId: topChange?.insightId ?? null,
-    personId: person,
+    personId: requesterId,
     companyId,
     taskId: mainTask?.id ?? mainCommitment?.taskId ?? null,
-    decisionId: decisions[0] && !decisions[0].queued ? decisions[0].id : null,
+    decisionId: decisions.find((d) => d.id && !d.queued)?.id ?? null,
     goalId: null as string | null,
     dealId: deal?.id ?? null,
     commitmentId: mainCommitment?.id ?? null,
@@ -367,25 +396,46 @@ export async function applyAttention(w: ItemCtx): Promise<AttentionLevel> {
   if (mainTask) links.goalId = (await w.tx.task.findUnique({ where: { id: mainTask.id }, select: { goalId: true } }))?.goalId ?? null;
 
   const base = { level, confidence, strategicRelevance: goalTitle, occurredAt: w.item.occurredAt, links, summary: w.extraction.summary || w.item.snippet || null };
-  const party = who && descriptor ? `${who} (${descriptor})` : (who ?? descriptor ?? (company ? companyShortName(company.name) : "Someone"));
   const short = company ? companyShortName(company.name) : null;
+  /** "Henrik Sørensen (Calder Biosciences — customer, …)", or whatever part is known; null when nobody is known. */
+  const party = requester && descriptor ? `${requester} (${descriptor})` : (requester ?? descriptor ?? null);
+  const rec = usefulRecommendation(w.extraction.recommendedActions, [mainTask?.title, mainCommitment?.title, decisions[0]?.title]);
 
   const inbox = async (type: InboxType, title: string, whyCeo: string, recommendedAction: string, dueDate: Date | null) =>
-    upsertInboxItem(w, { ...base, fingerprint, type, title, whyCeo, recommendedAction, dueDate });
+    upsertInboxItem(w, { ...base, fingerprint, type, title: cleanTitle(title, 120), whyCeo, recommendedAction, dueDate });
+
+  const commitmentInbox = async (c: NonNullable<typeof mainCommitment>, thisWeek: boolean) => {
+    const cpName = c.counterpartyPersonId && c.counterpartyPersonId !== w.ceo.personId ? personName(w, c.counterpartyPersonId) : null;
+    const cpFirst = cpName?.split(" ")[0] ?? null;
+    const cpDescriptor = cpName && descriptor && w.refs.people.get(c.counterpartyPersonId!)?.companyId === companyId ? ` (${descriptor})` : "";
+    const advice = thisWeek && c.dueDate
+      ? `Plan time for it before ${formatDayLong(c.dueDate)}: ${lowerFirst(actionWithRecipient(c.title, cpFirst))}.`
+      : `${actionWithRecipient(c.title, cpFirst)} ${dueLabel(c.dueText, c.dueDate, w.today)}${cpFirst ? `, or tell ${cpFirst} when it will arrive` : ""}.`;
+    await inbox(
+      "COMMITMENT",
+      cpName ? `You owe ${cpName}: ${cleanTitle(c.title)}` : `You promised: ${cleanTitle(c.title)}`,
+      `You promised ${cpName ? `${cpName}${cpDescriptor} ` : ""}to ${actionClause(c.title)}${dueClause(c.dueText, c.dueDate)}.`,
+      advice,
+      c.dueDate,
+    );
+  };
+  const decisionInbox = async (d: (typeof decisions)[number], thisWeek: boolean) => {
+    const title = cleanDecisionTitle(d.title);
+    const by = d.deadline ? ` by ${formatDayLong(d.deadline)}` : "";
+    await inbox(
+      "DECISION",
+      `Decision needed: ${title}`,
+      `${requester ? `${requester} needs` : "Needs"} your decision${by}: ${title}${/[.?!]$/.test(title) ? "" : "."}`,
+      rec ?? `Decide${by || (thisWeek ? " this week" : " today")}${requesterFirst ? ` and tell ${requesterFirst}` : ""}, or set a date to decide.`,
+      d.deadline,
+    );
+  };
 
   if (level === "IMMEDIATE" || level === "TODAY") {
-    const rec = w.extraction.recommendedActions[0]?.action ?? null;
     if (mainCommitment) {
-      await inbox(
-        "COMMITMENT",
-        `You owe ${who ?? short ?? "them"}: ${mainCommitment.title}`,
-        `You promised ${party} to ${lowerFirst(mainCommitment.title)}${dueClause(mainCommitment.dueText, mainCommitment.dueDate)}.`,
-        rec ?? `Deliver it${mainCommitment.dueDate ? ` by ${formatDayLong(mainCommitment.dueDate)}` : ""}, or tell ${who ?? "them"} when it will arrive.`,
-        mainCommitment.dueDate,
-      );
+      await commitmentInbox(mainCommitment, false);
     } else if (decisions.length) {
-      const d = decisions[0];
-      await inbox("DECISION", `Decision needed: ${d.title}`, `${who ?? short ?? "The team"} needs your decision on ${lowerFirst(d.title)}${d.deadline ? ` by ${formatDayLong(d.deadline)}` : ""}.`, rec ?? "Decide, or set a date to decide and tell them.", d.deadline);
+      await decisionInbox(decisions[0], false);
     } else if (mainTask) {
       const type: InboxType =
         w.classification.category === "INTERNAL_ESCALATION" || ESCALATION.test(textForCues)
@@ -397,11 +447,12 @@ export async function applyAttention(w: ItemCtx): Promise<AttentionLevel> {
               : APPROVAL.test(textForCues)
                 ? "APPROVAL"
                 : "REQUEST";
+      const asker = requesterFirst ?? short;
       await inbox(
         type,
-        `${who ? `${who.split(" ")[0]} asked` : short ? `${short} asked` : "Request"}: ${mainTask.title}`,
-        `${party} asked you directly to ${lowerFirst(mainTask.title)}${dueClause(mainTask.dueText, mainTask.dueDate)}.`,
-        rec ?? `${mainTask.title}${mainTask.dueDate ? ` by ${formatDayLong(mainTask.dueDate)}` : ""} — or delegate it with a clear deadline.`,
+        `${asker ? `${asker} asked` : "Request"}: ${cleanTitle(mainTask.title)}`,
+        `${party ? `${party} asked you` : "You were asked"} directly to ${actionClause(mainTask.title)}${dueClause(mainTask.dueText, mainTask.dueDate)}.`,
+        rec ?? `${actionWithRecipient(mainTask.title, requesterFirst)}${mainTask.dueDate ? ` ${dueLabel(mainTask.dueText, mainTask.dueDate, w.today)}` : ""}.`,
         mainTask.dueDate,
       );
     } else if (topChange) {
@@ -410,23 +461,20 @@ export async function applyAttention(w: ItemCtx): Promise<AttentionLevel> {
       await inbox(type, topChange.title.replace(/^Important change:\s*/, ""), insight?.summary ?? topChange.title, insight?.recommendation ?? "Review the change.", null);
     } else if (w.written.risks.length && company?.type === "CUSTOMER") {
       const r = w.written.risks[0];
-      await inbox("CUSTOMER_ISSUE", `${short}: ${r.title}`, `${party}: ${r.title} (severity ${r.severity}/5).`, rec ?? "Call the customer sponsor and agree a recovery plan.", null);
+      await inbox("CUSTOMER_ISSUE", `${short}: ${cleanTitle(r.title)}`, `${party ? `${party}: ` : ""}${cleanTitle(r.title, 200)} (severity ${r.severity}/5).`, rec ?? `Call ${requesterFirst ?? "the customer sponsor"} and agree a dated recovery plan.`, null);
     } else if (w.written.opportunities.length) {
       const o = w.written.opportunities[0];
-      await inbox("OPPORTUNITY", `Opportunity: ${o.title}`, `${party} — ${o.title}${o.value ? ` (${formatMoney(o.value)})` : ""}.`, rec ?? "Decide whether to pursue it and who owns the next step.", null);
+      await inbox("OPPORTUNITY", `Opportunity: ${cleanTitle(o.title)}`, `${party ? `${party} — ` : ""}${cleanTitle(o.title, 200)}${o.value ? ` (${formatMoney(o.value)})` : ""}.`, rec ?? "Decide whether to pursue it and who owns the next step.", null);
     } else {
       const why = w.extraction.ceoRelevance.reasons[0] ?? w.classification.reasons[0] ?? "High-relevance source.";
-      await inbox(fundraising ? "INVESTOR_FOLLOW_UP" : "REQUEST", w.item.title, `${party}: ${why}`, rec ?? "Read and reply.", earliest);
+      await inbox(fundraising ? "INVESTOR_FOLLOW_UP" : "REQUEST", w.item.title, `${party ? `${party}: ` : ""}${why}`, rec ?? (requesterFirst ? `Read and reply to ${requesterFirst}.` : "Read and reply."), earliest);
     }
   } else if (level === "THIS_WEEK") {
     const weekEnd = addDays(w.today, 7);
     const owed = ceoCommitments.find((c) => c.dueDate && c.dueDate <= weekEnd);
-    if (owed) {
-      await inbox("COMMITMENT", `You owe ${who ?? short ?? "them"}: ${owed.title}`, `You promised ${party} to ${lowerFirst(owed.title)}${dueClause(owed.dueText, owed.dueDate)}.`, `Plan time for it before ${formatDayLong(owed.dueDate!)}.`, owed.dueDate);
-    } else if (decisions.length && !decisions[0].queued) {
-      const d = decisions[0];
-      await inbox("DECISION", `Decision needed: ${d.title}`, `${who ?? short ?? "The team"} needs your decision on ${lowerFirst(d.title)}${d.deadline ? ` by ${formatDayLong(d.deadline)}` : ""}.`, "Decide this week, or set a date to decide.", d.deadline);
-    }
+    const decision = decisions.find((d) => !d.queued);
+    if (owed) await commitmentInbox(owed, true);
+    else if (decision) await decisionInbox(decision, true);
   } else if (level === "DELEGATE") {
     const t = teamTasks[0];
     const owner = personName(w, t.ownerId);

@@ -58,13 +58,13 @@ describe("SQL access filter (scope → where)", () => {
   });
   it("one clause per scope field, all parameterized", () => {
     const sql = sourceItemAccessSql(scope({ levels: ["INTERNAL", "CONFIDENTIAL"], connectionIds: ["c1"], sourceItemIds: ["s1"], documentIds: ["d1"], threadIds: ["t1"] }));
-    assert.match(sql.sql, /^\(.*\)$/s);
-    assert.equal(sql.sql.split(" OR ").length, 5);
-    assert.match(sql.sql, /"si"\."sensitivity"::text = ANY\(\$1::text\[\]\)/);
-    assert.match(sql.sql, /"si"\."connectionId" = ANY\(\$2::text\[\]\)/);
-    assert.match(sql.sql, /"si"\."id" = ANY\(\$3::text\[\]\)/);
-    assert.match(sql.sql, /FROM "Document" gd WHERE gd\."sourceItemId" = "si"\."id" AND gd\."id" = ANY\(\$4::text\[\]\)/);
-    assert.match(sql.sql, /FROM "EmailMessage" gm WHERE gm\."sourceItemId" = "si"\."id" AND gm\."threadId" = ANY\(\$5::text\[\]\)/);
+    assert.match(sql.text, /^\(.*\)$/s);
+    assert.equal(sql.text.split(" OR ").length, 5);
+    assert.match(sql.text, /"si"\."sensitivity"::text = ANY\(\$1::text\[\]\)/);
+    assert.match(sql.text, /"si"\."connectionId" = ANY\(\$2::text\[\]\)/);
+    assert.match(sql.text, /"si"\."id" = ANY\(\$3::text\[\]\)/);
+    assert.match(sql.text, /FROM "Document" gd WHERE gd\."sourceItemId" = "si"\."id" AND gd\."id" = ANY\(\$4::text\[\]\)/);
+    assert.match(sql.text, /FROM "EmailMessage" gm WHERE gm\."sourceItemId" = "si"\."id" AND gm\."threadId" = ANY\(\$5::text\[\]\)/);
     assert.deepEqual(sql.values, [["INTERNAL", "CONFIDENTIAL"], ["c1"], ["s1"], ["d1"], ["t1"]]);
   });
   it("grant-only viewers (advisors) get just their grants", () => {

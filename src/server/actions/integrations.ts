@@ -155,8 +155,7 @@ export async function connectDemoAccount(provider: SourceProvider): Promise<Acti
     // (connection ownership grants read access — an admin setting it up must not gain that).
     const ceo = await getCeoContext();
     try {
-      const conn = await createDemoConnection(SOURCE_PROVIDERS[p].kind, p, { userId: ceo.userId });
-      await audit({ action: "connection.connect", viewer, targetType: "SourceConnection", targetId: conn.id, metadata: { provider: p, mode: "DEMO" } });
+      const conn = await createDemoConnection(SOURCE_PROVIDERS[p].kind, p, { userId: ceo.userId }, { actor: viewer });
       revalidateIntegrations();
       return ok({ id: conn.id }, `${SOURCE_PROVIDERS[p].label} demo account connected — run a sync to ingest sample data`);
     } catch (error) {

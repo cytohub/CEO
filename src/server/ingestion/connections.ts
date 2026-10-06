@@ -124,7 +124,13 @@ const DEMO_SCOPE_NOTE = "demo: read-only sample data";
  * data). `opts.anchor` fixes the demo timeline (defaults to now): fixtures are
  * placed relative to it and revealed as time passes it.
  */
-export async function createDemoConnection(kind: SourceKind, provider: SourceProvider, owner: { userId: string }, opts: { anchor?: Date } = {}): Promise<SourceConnection> {
+export async function createDemoConnection(
+  kind: SourceKind,
+  provider: SourceProvider,
+  owner: { userId: string },
+  /** `actor`: who clicked connect (audited); defaults to the owner. */
+  opts: { anchor?: Date; actor?: { userId: string; email: string } } = {},
+): Promise<SourceConnection> {
   const meta = SOURCE_PROVIDERS[provider];
   if (meta.kind !== kind) throw new Error(`${meta.label} is not a ${kind.toLowerCase()} source`);
   if (provider === "LOCAL_UPLOAD" || provider === "CYTOHUB_INTERNAL") throw new Error(`${meta.label} has no demo mode`);
@@ -161,7 +167,13 @@ export async function createDemoConnection(kind: SourceKind, provider: SourcePro
     },
   });
   if (brainSourceId) await db.brainSource.update({ where: { id: brainSourceId }, data: { status: "CONNECTED", error: null } }).catch(() => {});
-  await audit({ action: "connection.connect", viewer: { userId: user.id, email: user.email }, targetType: "SourceConnection", targetId: conn.id, metadata: { provider, kind, mode: "DEMO" } });
+  await audit({
+    action: "connection.connect",
+    viewer: opts.actor ?? { userId: user.id, email: user.email },
+    targetType: "SourceConnection",
+    targetId: conn.id,
+    metadata: { provider, kind, mode: "DEMO", ownerUserId: user.id },
+  });
   await db.activity.create({ data: { type: "SOURCE_CONNECTED", summary: `Connected ${conn.label}`, actor: user.name, metadata: { connectionId: conn.id, provider, mode: "DEMO" } } });
   return conn;
 }
