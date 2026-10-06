@@ -144,6 +144,7 @@ export async function analyzeSignals(ctx: BrainContext): Promise<SignalStageResu
       } else {
         const c = meta.commitment;
         const due = parseDayInput(c.dueDate) ?? addDays(ctx.today, 3);
+        const goal = links.goalId ? await ctx.tx.goal.findUnique({ where: { id: links.goalId }, select: { pillarId: true } }) : null;
         const task = await ctx.tx.task.create({
           data: {
             title: c.title,
@@ -167,6 +168,7 @@ export async function analyzeSignals(ctx: BrainContext): Promise<SignalStageResu
             ownerId: ctx.ceoPersonId,
             companyId: s.companyId,
             goalId: links.goalId ?? null,
+            pillarId: goal?.pillarId ?? null,
             milestoneId: links.milestoneId ?? null,
             ...(s.personId ? { people: { connect: [{ id: s.personId }] } } : {}),
             createdAt: ctx.now,

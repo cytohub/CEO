@@ -10,7 +10,7 @@
  * Connectors are inert until their credentials are present. Sources seeded
  * with sample data carry `config.mode = "sample"` and report as such in the UI.
  */
-import type { BrainContext, Connector, ConnectorDefinition, SyncResult } from "./types";
+import type { Connector, ConnectorDefinition, SyncResult } from "./types";
 
 export const CONNECTOR_DEFINITIONS: ConnectorDefinition[] = [
   {
@@ -135,7 +135,8 @@ function makeConnector(def: ConnectorDefinition): Connector {
   return {
     ...def,
     isConfigured: () => def.key === "workspace" || (env.length > 0 && env.every((v) => Boolean(process.env[v]))),
-    async sync(_ctx: BrainContext, _sourceId: string): Promise<SyncResult> {
+    // Vendor implementations receive (ctx, sourceId); the default is a no-op.
+    async sync(): Promise<SyncResult> {
       if (def.key === "workspace") {
         // The workspace is read live by the analyzers; nothing to ingest.
         return { key: def.key, status: "ok", items: 0, message: "Workspace graph analyzed live" };

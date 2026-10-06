@@ -40,24 +40,27 @@ import { ScoreBreakdownView, ScoreChip } from "./score";
 
 export function TaskSheet({ taskId, onClose }: { taskId: string | null; onClose: () => void }) {
   const { lookups, openDelegate } = useUI();
-  const [task, setTask] = useState<TaskDetail | null>(null);
-  const [loading, setLoading] = useState(false);
+  // Loaded detail is keyed by id so a stale task never shows for a new one.
+  const [state, setState] = useState<{ id: string; task: TaskDetail | null } | null>(null);
   const [busy, setBusy] = useState(false);
+  const task = state && state.id === taskId ? state.task : null;
+  const loading = Boolean(taskId) && state?.id !== taskId;
 
   const load = useCallback(async (id: string) => {
     const t = await fetchTaskDetail(id);
-    setTask(t);
-    setLoading(false);
+    setState({ id, task: t });
   }, []);
 
   useEffect(() => {
-    if (!taskId) {
-      setTask(null);
-      return;
-    }
-    setLoading(true);
-    load(taskId);
-  }, [taskId, load]);
+    if (!taskId) return;
+    let cancelled = false;
+    fetchTaskDetail(taskId).then((t) => {
+      if (!cancelled) setState({ id: taskId, task: t });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [taskId]);
 
   async function save(patch: UpdateTaskInput, silent = false) {
     if (!task) return;

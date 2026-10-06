@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { EmptyState, Panel } from "@/components/common/bits";
 import { useUI } from "@/components/shell/ui-context";
 import { cn } from "@/lib/utils";
-import { addDays, dayFromKey, dayKeyInTz, dayStartInstant, formatDayLong, formatTime, relativeDay } from "@/lib/dates";
+import { addDays, dayFromKey, dayKeyInTz, dayStartInstant, formatDayLong, formatTime, relativeDay, toDay } from "@/lib/dates";
 import type { UpcomingEvent, UpcomingKind } from "@/server/queries/today";
 
 const KIND_ICON: Record<UpcomingKind, typeof Video> = {
@@ -77,7 +77,7 @@ export function UpcomingPanel({ events, today, timezone }: { events: UpcomingEve
   );
 }
 
-export function UpcomingRow({ event: e, timezone }: { event: UpcomingEvent; timezone: string }) {
+export function UpcomingRow({ event: e, timezone, showDate }: { event: UpcomingEvent; timezone: string; showDate?: boolean }) {
   const { openEntity } = useUI();
   const Icon = KIND_ICON[e.kind];
   const open = () => {
@@ -88,7 +88,10 @@ export function UpcomingRow({ event: e, timezone }: { event: UpcomingEvent; time
   };
   return (
     <li className="group flex items-start gap-2.5 px-3.5 py-2">
-      <span className="mt-0.5 w-12 shrink-0 text-2xs text-muted-foreground tabular">{e.allDay ? "Due" : formatTime(e.at, timezone)}</span>
+      <span className={cn("mt-0.5 shrink-0 text-2xs text-muted-foreground tabular", showDate ? "w-20" : "w-12")}>
+        {showDate && <span className="block font-medium text-ink-2">{e.allDay ? formatDayLong(e.at) : formatDayLong(toDay(e.at, timezone))}</span>}
+        {e.allDay ? "Due" : formatTime(e.at, timezone)}
+      </span>
       <Icon className={cn("mt-0.5 size-3.5 shrink-0", e.importance >= 5 ? "text-foreground" : "text-ink-3")} aria-hidden />
       <button type="button" onClick={open} className="min-w-0 flex-1 text-left">
         <span className={cn("block truncate text-[13px]", e.importance >= 4 ? "font-medium text-foreground" : "text-ink-2")}>{e.title}</span>

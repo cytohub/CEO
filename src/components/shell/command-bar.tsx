@@ -75,13 +75,10 @@ export function CommandBar() {
 
   // Debounced Brain search on the root page.
   useEffect(() => {
-    if (page !== "root" || query.trim().length < 2) {
-      setHits([]);
-      return;
-    }
-    setSearching(true);
+    if (page !== "root" || query.trim().length < 2) return;
     let cancelled = false;
     const t = setTimeout(async () => {
+      setSearching(true);
       try {
         const res = await searchBrain(query);
         if (!cancelled) setHits(res);
@@ -94,6 +91,7 @@ export function CommandBar() {
       clearTimeout(t);
     };
   }, [query, page]);
+  const visibleHits = page === "root" && query.trim().length >= 2 ? hits : [];
 
   useEffect(() => {
     if ((page === "complete" || page === "delegate") && pickerTasks === null) {
@@ -180,9 +178,9 @@ export function CommandBar() {
               </CommandGroup>
             )}
 
-            {hits.length > 0 && (
+            {visibleHits.length > 0 && (
               <CommandGroup heading="CytoHub Brain">
-                {hits.map((h) => (
+                {visibleHits.map((h) => (
                   <CommandItem key={`${h.type}-${h.id}`} value={`${h.type} ${h.title} ${h.id}`} keywords={[query]} onSelect={() => run(() => router.push(h.href))}>
                     <Brain className="text-ink-3" />
                     <div className="min-w-0 flex-1">

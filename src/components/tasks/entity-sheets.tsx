@@ -53,17 +53,26 @@ function SheetSkeleton() {
 
 function MilestoneSheet({ milestoneId, onClose }: { milestoneId: string | null; onClose: () => void }) {
   const { lookups, openEntity, openCreate } = useUI();
-  const [m, setM] = useState<MilestoneDetail | null>(null);
+  const [state, setState] = useState<{ id: string; data: MilestoneDetail | null } | null>(null);
   const [progress, setProgress] = useState(0);
+  const m = state && state.id === milestoneId ? state.data : null;
   const load = useCallback(async (id: string) => {
     const d = await fetchMilestoneDetail(id);
-    setM(d);
+    setState({ id, data: d });
     if (d) setProgress(d.progress);
   }, []);
   useEffect(() => {
-    setM(null);
-    if (milestoneId) load(milestoneId);
-  }, [milestoneId, load]);
+    if (!milestoneId) return;
+    let cancelled = false;
+    fetchMilestoneDetail(milestoneId).then((d) => {
+      if (cancelled) return;
+      setState({ id: milestoneId, data: d });
+      if (d) setProgress(d.progress);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [milestoneId]);
 
   async function save(patch: Parameters<typeof updateMilestone>[1]) {
     if (!m) return;
@@ -205,23 +214,23 @@ function MilestoneSheet({ milestoneId, onClose }: { milestoneId: string | null; 
 
 function MeetingSheet({ meetingId, onClose }: { meetingId: string | null; onClose: () => void }) {
   const { lookups } = useUI();
-  const [m, setM] = useState<MeetingDetail | null>(null);
+  const [state, setState] = useState<{ id: string; data: MeetingDetail | null } | null>(null);
   const [preparing, setPreparing] = useState(false);
+  const m = state && state.id === meetingId ? state.data : null;
 
   const prepare = useCallback(async (id: string) => {
     setPreparing(true);
     const res = await prepareMeeting(id);
     setPreparing(false);
     if (res.ok) {
-      setM((cur) => (cur ? { ...cur, prepBrief: res.data, preparedAt: new Date() } : cur));
+      setState((cur) => (cur?.data ? { ...cur, data: { ...cur.data, prepBrief: res.data, preparedAt: new Date() } } : cur));
     } else toast.error(res.error);
   }, []);
 
   useEffect(() => {
-    setM(null);
     if (!meetingId) return;
     fetchMeetingDetail(meetingId).then((d) => {
-      setM(d);
+      setState({ id: meetingId, data: d });
       // Prepare Me on open when no brief exists yet.
       if (d && !d.prepBrief) prepare(d.id);
     });

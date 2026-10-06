@@ -22,7 +22,8 @@ export async function rescoreTasks(
 ): Promise<number> {
   const tasks = await client.task.findMany({
     where: {
-      status: { in: [...OPEN_TASK_STATUSES, "SOMEDAY"] },
+      // Open work is rescored every time; closed work is scored once so history keeps its score.
+      OR: [{ status: { in: [...OPEN_TASK_STATUSES, "SOMEDAY"] } }, { scoredAt: null }],
       ...(opts.taskIds ? { id: { in: opts.taskIds } } : {}),
     },
     include: scoringInclude,
@@ -58,7 +59,8 @@ export async function rescoreTasks(
     );
 
     const ownedByCeo = t.ownerId === opts.ceoPersonId;
-    const shouldDelegate = ownedByCeo && breakdown.delegable && !t.delegation && t.status !== "SOMEDAY";
+    const closed = t.status === "DONE" || t.status === "CANCELLED";
+    const shouldDelegate = ownedByCeo && breakdown.delegable && !t.delegation && t.status !== "SOMEDAY" && !closed;
     let suggestedDelegateId: string | null = null;
     if (shouldDelegate) {
       const candidates = team

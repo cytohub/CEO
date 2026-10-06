@@ -41,15 +41,15 @@ export function classify(question: string): string {
 export async function answerWithRules(ceo: CeoContext, question: string): Promise<RulesAnswer> {
   const intent = classify(question);
   const citations: Citation[] = [];
-  const use = <T>(r: tools.ToolResult<T>) => {
+  const collect = <T>(r: tools.ToolResult<T>) => {
     citations.push(...r.citations);
     return r.data;
   };
 
   switch (intent) {
     case "focus": {
-      const o = use(await tools.getTodayOverview(ceo)) as { top5: Row[]; inbox: Row[]; nextMeetings: Row[]; brief: { headline: string } | null; top5Confirmed: boolean };
-      const a = use(await tools.getAttention(ceo)) as { areas: Row[] };
+      const o = collect(await tools.getTodayOverview(ceo)) as { top5: Row[]; inbox: Row[]; nextMeetings: Row[]; brief: { headline: string } | null; top5Confirmed: boolean };
+      const a = collect(await tools.getAttention(ceo)) as { areas: Row[] };
       const under = a.areas.filter((x) => x.flag === "under").map((x) => `${x.area} (${x.actual} vs ${x.recommended})`);
       return {
         markdown: [
@@ -67,11 +67,11 @@ export async function answerWithRules(ceo: CeoContext, question: string): Promis
       };
     }
     case "forget": {
-      const overdue = use(await tools.listTasks(ceo, "overdue", 6)) as Row[];
-      const postponed = use(await tools.listTasks(ceo, "postponed", 5)) as Row[];
-      const follow = use(await tools.getFollowUps(ceo)) as Row[];
-      const del = use(await tools.getDelegations(ceo)) as { delegated: Row[] };
-      const waiting = use(await tools.getDecisions(ceo, "waiting")) as Row[];
+      const overdue = collect(await tools.listTasks(ceo, "overdue", 6)) as Row[];
+      const postponed = collect(await tools.listTasks(ceo, "postponed", 5)) as Row[];
+      const follow = collect(await tools.getFollowUps(ceo)) as Row[];
+      const del = collect(await tools.getDelegations(ceo)) as { delegated: Row[] };
+      const waiting = collect(await tools.getDecisions(ceo, "waiting")) as Row[];
       return {
         markdown: [
           "Here’s what’s at risk of slipping through the cracks:",
@@ -87,10 +87,10 @@ export async function answerWithRules(ceo: CeoContext, question: string): Promis
       };
     }
     case "problem": {
-      const goals = use(await tools.getGoalsStatus(ceo, true)) as Row[];
-      const ms = use(await tools.getMilestones(ceo, "at_risk")) as Row[];
-      const overdueMs = use(await tools.getMilestones(ceo, "overdue")) as Row[];
-      const changes = use(await tools.getRecentChanges(ceo, 7)) as { insights: Row[] };
+      const goals = collect(await tools.getGoalsStatus(ceo, true)) as Row[];
+      const ms = collect(await tools.getMilestones(ceo, "at_risk")) as Row[];
+      const overdueMs = collect(await tools.getMilestones(ceo, "overdue")) as Row[];
+      const changes = collect(await tools.getRecentChanges(ceo, 7)) as { insights: Row[] };
       const risks = changes.insights.filter((i) => ["Risk", "Deal slowing", "Milestone at risk"].includes(String(i.type))).slice(0, 6);
       return {
         markdown: [
@@ -103,7 +103,7 @@ export async function answerWithRules(ceo: CeoContext, question: string): Promis
       };
     }
     case "delegate": {
-      const d = use(await tools.getDelegations(ceo)) as { shouldDelegate: Row[]; delegated: Row[] };
+      const d = collect(await tools.getDelegations(ceo)) as { shouldDelegate: Row[]; delegated: Row[] };
       return {
         markdown: [
           `### Hand these off\n${list(d.shouldDelegate.map((t) => `**${t.task}** → ${t.suggestedOwner ?? "a team member"}${t.freesUp ? ` (frees ~${t.freesUp})` : ""}`), "_Nothing obvious — your plate is CEO-only work._")}`,
@@ -114,8 +114,8 @@ export async function answerWithRules(ceo: CeoContext, question: string): Promis
       };
     }
     case "investor": {
-      const p = use(await tools.getPipeline(ceo, "FUNDRAISING")) as Row[];
-      const f = (use(await tools.getFollowUps(ceo)) as Row[]).filter((x) => x.role === "INVESTOR" || x.role === "BOARD");
+      const p = collect(await tools.getPipeline(ceo, "FUNDRAISING")) as Row[];
+      const f = (collect(await tools.getFollowUps(ceo)) as Row[]).filter((x) => x.role === "INVESTOR" || x.role === "BOARD");
       return {
         markdown: [
           `### Follow up now\n${list(f.map((x) => `**${x.person}** (${x.company}) — silent for ${x.lastContactDaysAgo} days`), "_All active investors contacted recently._")}`,
@@ -125,8 +125,8 @@ export async function answerWithRules(ceo: CeoContext, question: string): Promis
       };
     }
     case "customer": {
-      const p = use(await tools.getPipeline(ceo, "SALES")) as Row[];
-      const o = use(await tools.getTodayOverview(ceo)) as { inbox: Row[] };
+      const p = collect(await tools.getPipeline(ceo, "SALES")) as Row[];
+      const o = collect(await tools.getTodayOverview(ceo)) as { inbox: Row[] };
       const issues = o.inbox.filter((i) => ["CUSTOMER_ISSUE", "ESCALATION"].includes(String(i.type)));
       return {
         markdown: [
@@ -143,14 +143,14 @@ export async function answerWithRules(ceo: CeoContext, question: string): Promis
       };
     }
     case "goals": {
-      const g = use(await tools.getGoalsStatus(ceo, true)) as Row[];
+      const g = collect(await tools.getGoalsStatus(ceo, true)) as Row[];
       return {
         markdown: `### Goals slipping\n${list(g.map((x) => `**${x.title}** — ${x.status}, ${x.progress} complete, ${x.confidence} confidence (owner: ${x.owner ?? "—"})${(x.nextMilestones as string[]).length ? `\n  - ${(x.nextMilestones as string[]).join("\n  - ")}` : ""}`), "_Every goal is on track._")}`,
         citations,
       };
     }
     case "changed": {
-      const c = use(await tools.getRecentChanges(ceo, 7)) as { insights: Row[]; completedByCeo: string[]; decisionsMade: string[]; milestonesReached: string[] };
+      const c = collect(await tools.getRecentChanges(ceo, 7)) as { insights: Row[]; completedByCeo: string[]; decisionsMade: string[]; milestonesReached: string[] };
       return {
         markdown: [
           "### This week in CytoHub Brain",
@@ -165,7 +165,7 @@ export async function answerWithRules(ceo: CeoContext, question: string): Promis
       };
     }
     case "prepare": {
-      const r = use(await tools.prepareNextMeeting(ceo)) as { meeting?: string; at?: string; brief?: PrepBrief; message?: string };
+      const r = collect(await tools.prepareNextMeeting(ceo)) as { meeting?: string; at?: string; brief?: PrepBrief; message?: string };
       if (!r.brief) return { markdown: r.message ?? "No important meetings coming up.", citations };
       const b = r.brief;
       return {
@@ -185,8 +185,8 @@ export async function answerWithRules(ceo: CeoContext, question: string): Promis
       };
     }
     case "leverage": {
-      const top = use(await tools.listTasks(ceo, "top", 7)) as Row[];
-      const decisions = use(await tools.getDecisions(ceo, "pending")) as Row[];
+      const top = collect(await tools.listTasks(ceo, "top", 7)) as Row[];
+      const decisions = collect(await tools.getDecisions(ceo, "pending")) as Row[];
       return {
         markdown: [
           "Highest-leverage actions right now — CEO-only work with the largest strategic effect:",
@@ -199,10 +199,10 @@ export async function answerWithRules(ceo: CeoContext, question: string): Promis
       };
     }
     case "stop": {
-      const sinks = use(await tools.getTimeSinks(ceo)) as Row[];
-      const a = use(await tools.getAttention(ceo)) as { areas: Row[] };
+      const sinks = collect(await tools.getTimeSinks(ceo)) as Row[];
+      const a = collect(await tools.getAttention(ceo)) as { areas: Row[] };
       const over = a.areas.filter((x) => x.flag === "over");
-      const d = use(await tools.getDelegations(ceo)) as { shouldDelegate: Row[] };
+      const d = collect(await tools.getDelegations(ceo)) as { shouldDelegate: Row[] };
       return {
         markdown: [
           `### Where your time leaked\n${list(sinks.map((s) => `**${s.task}** — ${s.actual} (estimated ${s.estimate ?? "—"}), strategic impact ${s.strategicImpact}`))}`,
@@ -216,8 +216,8 @@ export async function answerWithRules(ceo: CeoContext, question: string): Promis
     }
     case "avoid":
     case "decisions": {
-      const pending = use(await tools.getDecisions(ceo, "pending")) as Row[];
-      const waiting = use(await tools.getDecisions(ceo, "waiting")) as Row[];
+      const pending = collect(await tools.getDecisions(ceo, "pending")) as Row[];
+      const waiting = collect(await tools.getDecisions(ceo, "waiting")) as Row[];
       const sorted = [...pending].sort((a, b) => Number(b.daysPending) - Number(a.daysPending));
       return {
         markdown: [
@@ -233,11 +233,11 @@ export async function answerWithRules(ceo: CeoContext, question: string): Promis
     case "entity": {
       const m = /(?:about|related to|on|show me|know about)\s+(.+?)[?.!]*$/i.exec(question);
       const target = (m?.[1] ?? question).replace(/^(everything|all)\s+/i, "").replace(/\b(related to|about)\b/gi, "").trim();
-      const ctx = use(await tools.getEntityContext(ceo, target)) as Row;
+      const ctx = collect(await tools.getEntityContext(ceo, target)) as Row;
       return { markdown: renderEntity(ctx, target), citations };
     }
     default: {
-      const hits = use(await tools.searchBrainTool(question)) as Row[];
+      const hits = collect(await tools.searchBrainTool(question)) as Row[];
       return {
         markdown: hits.length
           ? `Here’s what CytoHub Brain found for “${question}”:\n\n${list(hits.map((h) => `**${h.title}** — ${h.type}${h.detail ? ` · ${h.detail}` : ""}`))}`

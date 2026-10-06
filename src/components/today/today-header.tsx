@@ -1,7 +1,7 @@
 "use client";
 
 import { Check, Loader2, Moon, RefreshCcw, Sparkles } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { Button } from "@/components/ui/button";
 import { useAction } from "@/components/common/use-action";
 import { cn } from "@/lib/utils";
@@ -10,11 +10,12 @@ import { runDailyRefresh } from "@/server/actions/brain";
 import { EndOfDayDialog, type EodTask } from "./end-of-day";
 
 export function Greeting({ name, timezone, dateLabel }: { name: string; timezone: string; dateLabel: string }) {
-  // Greeting depends on the clock; render after mount to avoid hydration drift.
-  const [hello, setHello] = useState<string | null>(null);
-  useEffect(() => {
-    setHello(greeting(hourInTz(new Date(), timezone)));
-  }, [timezone]);
+  // Greeting depends on the clock; computed on the client only to avoid hydration drift.
+  const hello = useSyncExternalStore(
+    noopSubscribe,
+    () => greeting(hourInTz(new Date(), timezone)),
+    () => null,
+  );
   return (
     <div className="min-w-0">
       <h1 className="text-[22px] font-semibold tracking-tight text-foreground">
@@ -24,6 +25,8 @@ export function Greeting({ name, timezone, dateLabel }: { name: string; timezone
     </div>
   );
 }
+
+const noopSubscribe = () => () => {};
 
 export function RefreshButton({ refreshedToday }: { refreshedToday: boolean }) {
   const { pending, run } = useAction();

@@ -121,7 +121,7 @@ export function normalizeWeights(weights: Partial<PriorityWeights> | null | unde
   const total = FACTOR_KEYS.reduce((s, k) => s + Math.max(0, merged[k]), 0);
   if (total <= 0) return { ...DEFAULT_WEIGHTS };
   const out = {} as PriorityWeights;
-  for (const k of FACTOR_KEYS) out[k] = (Math.max(0, merged[k]) / total) * 100;
+  for (const k of FACTOR_KEYS) out[k] = (Math.max(0, merged[k]) * 100) / total;
   return out;
 }
 

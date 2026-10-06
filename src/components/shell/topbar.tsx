@@ -3,7 +3,7 @@
 import { Menu, Moon, Search, Sparkles, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { cn } from "@/lib/utils";
 import { formatTime, timeAgo } from "@/lib/dates";
 import { Button } from "@/components/ui/button";
@@ -58,9 +58,12 @@ function BrainStatusPill({ brain, timezone }: { brain: ShellData["brain"]; timez
   useEffect(() => {
     // Relative time is client-only to avoid hydration mismatch; refresh each minute.
     const tick = () => setNow(new Date());
-    tick();
+    const first = setTimeout(tick, 0);
     const t = setInterval(tick, 60_000);
-    return () => clearInterval(t);
+    return () => {
+      clearTimeout(first);
+      clearInterval(t);
+    };
   }, []);
   const healthy = brain.status === "SUCCEEDED" || brain.status === "PARTIAL";
   const stale = !brain.refreshedToday;
@@ -89,12 +92,17 @@ function BrainStatusPill({ brain, timezone }: { brain: ShellData["brain"]; timez
 
 export function ThemeToggle() {
   const { resolvedTheme, setTheme } = useTheme();
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+  const mounted = useMounted();
   const dark = mounted && resolvedTheme === "dark";
   return (
     <Button variant="ghost" size="icon-sm" onClick={() => setTheme(dark ? "light" : "dark")} aria-label={dark ? "Switch to light mode" : "Switch to dark mode"}>
       {dark ? <Sun /> : <Moon />}
     </Button>
   );
+}
+
+const noopSubscribe = () => () => {};
+/** True only on the client after hydration (no effect-driven re-render). */
+export function useMounted() {
+  return useSyncExternalStore(noopSubscribe, () => true, () => false);
 }
