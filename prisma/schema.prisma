@@ -1,0 +1,1146 @@
+// CytoHub CEO Command Center — relational data model.
+//
+// Shape of the domain:
+//   StrategicPillar → Goal → Milestone → Task
+//   Decision / Resource / Note / Activity attach to the execution graph.
+//   Person ↔ Company, Deal, Meeting describe the outside world.
+//   BrainSource → BrainSignal → BrainInsight → (InboxItem | Task | DailyBrief)
+//   is the CytoHub Brain pipeline: ingest → understand → act.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Enums
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum GoalType {
+  COMPANY
+  ANNUAL
+  QUARTERLY
+  CEO
+  DEPARTMENT
+}
+
+enum GoalStatus {
+  ON_TRACK
+  AT_RISK
+  OFF_TRACK
+  COMPLETED
+  PAUSED
+}
+
+enum MilestoneType {
+  ARR
+  PHARMA_CONTRACT
+  FUNDRAISING
+  PRODUCT_RELEASE
+  AI_MODEL
+  SCIENTIFIC_VALIDATION
+  PUBLICATION
+  REGULATORY
+  PARTNERSHIP
+  HIRING
+  THERAPEUTIC
+  OTHER
+}
+
+enum MilestoneStatus {
+  PLANNED
+  IN_PROGRESS
+  AT_RISK
+  BLOCKED
+  COMPLETED
+  MISSED
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  WAITING
+  BLOCKED
+  DONE
+  CANCELLED
+  SOMEDAY
+}
+
+enum Priority {
+  P0
+  P1
+  P2
+  P3
+}
+
+/// Where CEO attention goes. Used for tasks, meetings and time allocation.
+enum FocusArea {
+  FUNDRAISING
+  REVENUE
+  CUSTOMERS
+  PRODUCT
+  CYTOHUB_AI
+  SCIENCE
+  PARTNERSHIPS
+  TEAM
+  FINANCE
+  OPERATIONS
+  LEGAL
+  RECRUITING
+  STRATEGY
+  CEO_DEVELOPMENT
+}
+
+enum ItemSource {
+  MANUAL
+  BRAIN
+  EMAIL
+  CALENDAR
+  CRM
+  MEETING
+  DOCUMENT
+  DECISION
+  INBOX
+}
+
+enum DecisionStatus {
+  NEEDED
+  WAITING_INFO
+  DECIDED
+  DEFERRED
+}
+
+enum ResourceType {
+  DOCUMENT
+  PRESENTATION
+  CONTRACT
+  FINANCIAL_MODEL
+  MEETING_NOTES
+  SCIENTIFIC_PAPER
+  DATASET
+  LINK
+  INTELLIGENCE
+  OTHER
+}
+
+enum PersonType {
+  TEAM
+  INVESTOR
+  CUSTOMER
+  PARTNER
+  ADVISOR
+  BOARD
+  CANDIDATE
+  OTHER
+}
+
+enum CompanyType {
+  CUSTOMER
+  PROSPECT
+  INVESTOR
+  PARTNER
+  ACADEMIC
+  VENDOR
+  COMPETITOR
+  OTHER
+}
+
+enum DealType {
+  SALES
+  FUNDRAISING
+  PARTNERSHIP
+}
+
+enum DealStatus {
+  OPEN
+  WON
+  LOST
+  ON_HOLD
+}
+
+enum MeetingType {
+  INVESTOR
+  CUSTOMER
+  BOARD
+  PARTNER
+  INTERNAL
+  ONE_ON_ONE
+  CANDIDATE
+  EXTERNAL
+}
+
+enum MetricCategory {
+  REVENUE
+  ARR
+  PIPELINE
+  CUSTOMERS
+  FUNDRAISING
+  CASH
+  PRODUCT
+  AI
+  SCIENCE
+  THERAPEUTICS
+  PARTNERSHIPS
+  TEAM
+}
+
+enum MetricUnit {
+  CURRENCY
+  PERCENT
+  COUNT
+  NUMBER
+  MONTHS
+  DAYS
+}
+
+enum MetricDirection {
+  HIGHER_IS_BETTER
+  LOWER_IS_BETTER
+}
+
+enum DelegationStatus {
+  ACTIVE
+  NEEDS_FOLLOW_UP
+  COMPLETED
+  RECALLED
+}
+
+enum InboxType {
+  APPROVAL
+  DECISION
+  RESPONSE
+  ESCALATION
+  CUSTOMER_ISSUE
+  INVESTOR_FOLLOW_UP
+  DEADLINE_RISK
+  HIRING_DECISION
+  OPPORTUNITY
+}
+
+enum InboxStatus {
+  OPEN
+  SNOOZED
+  DONE
+  DISMISSED
+}
+
+enum InsightType {
+  DEVELOPMENT
+  OPPORTUNITY
+  RISK
+  DEAL_PROGRESS
+  DEAL_SLOWING
+  COMMUNICATION
+  MILESTONE_REACHED
+  MILESTONE_AT_RISK
+  DECISION_NEEDED
+  DEADLINE
+  FOLLOW_UP
+  COMMITMENT
+  DELEGATION
+  ATTENTION
+}
+
+enum InsightStatus {
+  NEW
+  ACKNOWLEDGED
+  ACTIONED
+  DISMISSED
+}
+
+enum RefreshStatus {
+  RUNNING
+  SUCCEEDED
+  PARTIAL
+  FAILED
+}
+
+enum RefreshTrigger {
+  MANUAL
+  SCHEDULED
+  SEED
+}
+
+enum SourceCategory {
+  WORKSPACE
+  COMMUNICATION
+  CALENDAR
+  CRM
+  DOCUMENTS
+  FINANCE
+  SCIENCE
+  PEOPLE
+}
+
+enum SourceStatus {
+  CONNECTED
+  NOT_CONNECTED
+  SYNCING
+  ERROR
+  DISABLED
+}
+
+enum SignalKind {
+  EMAIL
+  CALENDAR_EVENT
+  CRM_UPDATE
+  DOCUMENT
+  MEETING_NOTE
+  METRIC_UPDATE
+  MESSAGE
+  MANUAL
+}
+
+enum ActivityType {
+  TASK_CREATED
+  TASK_UPDATED
+  TASK_COMPLETED
+  TASK_REOPENED
+  TASK_RESCHEDULED
+  TASK_DELEGATED
+  TASK_PRIORITY_CHANGED
+  NOTE_ADDED
+  GOAL_CREATED
+  GOAL_UPDATED
+  MILESTONE_CREATED
+  MILESTONE_UPDATED
+  MILESTONE_COMPLETED
+  DECISION_CREATED
+  DECISION_UPDATED
+  DECISION_MADE
+  RESOURCE_ADDED
+  INBOX_RESOLVED
+  DELEGATION_UPDATED
+  METRIC_RECORDED
+  MEETING_PREPARED
+  BRAIN_REFRESH
+  TOP5_CONFIRMED
+  END_OF_DAY
+  REVIEW_COMPLETED
+}
+
+enum ReviewType {
+  WEEKLY
+  MONTHLY
+}
+
+enum PrioritySource {
+  BRAIN
+  CEO
+}
+
+enum TimeSource {
+  CALENDAR
+  TASK
+  MANUAL
+}
+
+enum ChatRole {
+  USER
+  ASSISTANT
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Identity & configuration
+// ─────────────────────────────────────────────────────────────────────────────
+
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  title     String   @default("Chief Executive Officer")
+  timezone  String   @default("America/New_York")
+  /// The Person record representing this user in the execution graph.
+  personId  String?  @unique
+  person    Person?  @relation(fields: [personId], references: [id], onDelete: SetNull)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  chatThreads ChatThread[]
+}
+
+/// Key/value configuration (priority weights, thresholds, preferences).
+model AppSetting {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @updatedAt
+}
+
+model StrategicPillar {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  /// Token from the app's pillar palette (e.g. "teal", "indigo").
+  color       String   @default("slate")
+  order       Int      @default(0)
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  goals      Goal[]
+  milestones Milestone[]
+  tasks      Task[]
+  decisions  Decision[]
+  metrics    Metric[]
+}
+
+/// Recommended share of CEO attention per focus area. Configurable by the CEO.
+model AttentionTarget {
+  focusArea      FocusArea @id
+  recommendedPct Float
+  rationale      String?
+  updatedAt      DateTime  @updatedAt
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// People & companies
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Company {
+  id             String      @id @default(cuid())
+  name           String      @unique
+  type           CompanyType
+  industry       String?
+  website        String?
+  description    String?
+  location       String?
+  /// 1 (cold) – 5 (strong). Updated by the Brain from interaction history.
+  relationship   Int         @default(3)
+  lastActivityAt DateTime?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  people      Person[]
+  deals       Deal[]
+  tasks       Task[]
+  meetings    Meeting[]
+  insights    BrainInsight[]
+  inboxItems  InboxItem[]
+  notes       Note[]
+  activities  Activity[]
+  signals     BrainSignal[]
+  resources   Resource[]     @relation("ResourceCompanies")
+  decisions   Decision[]     @relation("DecisionCompanies")
+}
+
+model Person {
+  id            String     @id @default(cuid())
+  name          String
+  email         String?    @unique
+  title         String?
+  type          PersonType
+  isCeo         Boolean    @default(false)
+  department    String?
+  /// Focus areas this person can own; used for delegation recommendations.
+  expertise     FocusArea[]
+  companyId     String?
+  company       Company?   @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  lastContactAt DateTime?
+  notesText     String?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  user               User?
+  ownedGoals         Goal[]         @relation("GoalOwner")
+  ownedMilestones    Milestone[]    @relation("MilestoneOwner")
+  ownedTasks         Task[]         @relation("TaskOwner")
+  suggestedForTasks  Task[]         @relation("TaskSuggestedDelegate")
+  relatedTasks       Task[]         @relation("TaskPeople")
+  ownedDecisions     Decision[]     @relation("DecisionOwner")
+  delegationsIn      Delegation[]   @relation("DelegationDelegate")
+  ownedDeals         Deal[]         @relation("DealOwner")
+  meetings           Meeting[]      @relation("MeetingAttendees")
+  insights           BrainInsight[]
+  inboxItems         InboxItem[]
+  notes              Note[]
+  activities         Activity[]
+  signals            BrainSignal[]
+  resources          Resource[]     @relation("ResourcePeople")
+
+  @@index([type])
+  @@index([companyId])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Strategy & execution graph
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Goal {
+  id          String     @id @default(cuid())
+  title       String
+  description String?
+  type        GoalType
+  status      GoalStatus @default(ON_TRACK)
+  /// 0–100
+  progress    Int        @default(0)
+  /// 0–100, the owner's confidence the goal will be achieved on time.
+  confidence  Int        @default(70)
+  department  String?
+  /// e.g. "2026-Q4" for quarterly goals.
+  period      String?
+  startDate   DateTime?  @db.Date
+  targetDate  DateTime?  @db.Date
+  risks       String?
+  notesText   String?
+  pillarId    String?
+  pillar      StrategicPillar? @relation(fields: [pillarId], references: [id], onDelete: SetNull)
+  ownerId     String?
+  owner       Person?    @relation("GoalOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  parentId    String?
+  parent      Goal?      @relation("GoalHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  children    Goal[]     @relation("GoalHierarchy")
+  completedAt DateTime?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  milestones Milestone[]
+  tasks      Task[]
+  decisions  Decision[]
+  metrics    Metric[]
+  meetings   Meeting[]
+  insights   BrainInsight[]
+  inboxItems InboxItem[]
+  notes      Note[]
+  activities Activity[]
+  resources  Resource[]  @relation("ResourceGoals")
+
+  @@index([type, status])
+  @@index([pillarId])
+}
+
+model Milestone {
+  id            String          @id @default(cuid())
+  title         String
+  description   String?
+  type          MilestoneType
+  status        MilestoneStatus @default(PLANNED)
+  /// 0–100
+  progress      Int             @default(0)
+  dueDate       DateTime        @db.Date
+  completedAt   DateTime?
+  blocker       String?
+  /// Free-form success criterion, e.g. "Signed MSA ≥ $1.2M".
+  successMetric String?
+  goalId        String?
+  goal          Goal?           @relation(fields: [goalId], references: [id], onDelete: SetNull)
+  pillarId      String?
+  pillar        StrategicPillar? @relation(fields: [pillarId], references: [id], onDelete: SetNull)
+  ownerId       String?
+  owner         Person?         @relation("MilestoneOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  tasks      Task[]
+  insights   BrainInsight[]
+  notes      Note[]
+  activities Activity[]
+  resources  Resource[]  @relation("ResourceMilestones")
+
+  @@index([dueDate])
+  @@index([status])
+  @@index([goalId])
+}
+
+model Task {
+  id                 String     @id @default(cuid())
+  title              String
+  description        String?
+  status             TaskStatus @default(TODO)
+  priority           Priority   @default(P2)
+  focusArea          FocusArea  @default(OPERATIONS)
+  dueDate            DateTime?  @db.Date
+  /// First due date ever set; lets the Brain detect slippage.
+  originalDueDate    DateTime?  @db.Date
+  postponeCount      Int        @default(0)
+  hardDeadline       Boolean    @default(false)
+  completedAt        DateTime?
+  estimatedMinutes   Int?
+  actualMinutes      Int?
+  blocker            String?
+  source             ItemSource @default(MANUAL)
+  sourceRef          String?
+  notesText          String?
+  tags               String[]
+
+  // CEO Priority Score inputs (0–5). Urgency and dependency are derived.
+  strategicImpact    Int        @default(3)
+  revenueImpact      Int        @default(0)
+  fundraisingImpact  Int        @default(0)
+  customerImpact     Int        @default(0)
+  scientificImpact   Int        @default(0)
+  riskLevel          Int        @default(1)
+  ceoUniqueness      Int        @default(3)
+  opportunityCost    Int        @default(2)
+
+  // Brain output (cached, recomputed on every refresh / mutation).
+  priorityScore         Float     @default(0)
+  scoreBreakdown        Json?
+  scoredAt              DateTime?
+  aiRecommendation      String?
+  delegationRecommended Boolean   @default(false)
+  suggestedDelegateId   String?
+  suggestedDelegate     Person?   @relation("TaskSuggestedDelegate", fields: [suggestedDelegateId], references: [id], onDelete: SetNull)
+
+  ownerId     String?
+  owner       Person?          @relation("TaskOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  goalId      String?
+  goal        Goal?            @relation(fields: [goalId], references: [id], onDelete: SetNull)
+  milestoneId String?
+  milestone   Milestone?       @relation(fields: [milestoneId], references: [id], onDelete: SetNull)
+  pillarId    String?
+  pillar      StrategicPillar? @relation(fields: [pillarId], references: [id], onDelete: SetNull)
+  companyId   String?
+  company     Company?         @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  decisionId  String?
+  decision    Decision?        @relation(fields: [decisionId], references: [id], onDelete: SetNull)
+  meetingId   String?
+  meeting     Meeting?         @relation(fields: [meetingId], references: [id], onDelete: SetNull)
+
+  dependsOn Task[] @relation("TaskDependencies")
+  blocks    Task[] @relation("TaskDependencies")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  people          Person[]        @relation("TaskPeople")
+  resources       Resource[]      @relation("ResourceTasks")
+  delegation      Delegation?
+  dailyPriorities DailyPriority[]
+  insights        BrainInsight[]
+  inboxItems      InboxItem[]
+  notes           Note[]
+  activities      Activity[]
+  timeEntries     TimeEntry[]
+
+  @@index([status, dueDate])
+  @@index([ownerId])
+  @@index([goalId])
+  @@index([milestoneId])
+  @@index([priorityScore])
+  @@index([completedAt])
+}
+
+model Decision {
+  id             String         @id @default(cuid())
+  title          String
+  context        String?
+  status         DecisionStatus @default(NEEDED)
+  raisedAt       DateTime       @default(now())
+  deadline       DateTime?      @db.Date
+  /// 1–5
+  strategicImpact Int           @default(3)
+  supportingInfo String?
+  recommendation String?
+  /// What information the decision is waiting on (WAITING_INFO).
+  waitingOn      String?
+  finalDecision  String?
+  decidedAt      DateTime?
+  outcome        String?
+  lessonsLearned String?
+  goalId         String?
+  goal           Goal?            @relation(fields: [goalId], references: [id], onDelete: SetNull)
+  pillarId       String?
+  pillar         StrategicPillar? @relation(fields: [pillarId], references: [id], onDelete: SetNull)
+  ownerId        String?
+  owner          Person?          @relation("DecisionOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  options    DecisionOption[]
+  tasks      Task[]
+  companies  Company[]       @relation("DecisionCompanies")
+  resources  Resource[]      @relation("ResourceDecisions")
+  insights   BrainInsight[]
+  inboxItems InboxItem[]
+  notes      Note[]
+  activities Activity[]
+
+  @@index([status, deadline])
+}
+
+model DecisionOption {
+  id          String   @id @default(cuid())
+  decisionId  String
+  decision    Decision @relation(fields: [decisionId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  pros        String[]
+  cons        String[]
+  risks       String[]
+  recommended Boolean  @default(false)
+  order       Int      @default(0)
+}
+
+model Resource {
+  id          String       @id @default(cuid())
+  title       String
+  type        ResourceType
+  url         String?
+  description String?
+  /// Brain-generated summary of the resource contents.
+  summary     String?
+  tags        String[]
+  source      ItemSource   @default(MANUAL)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  goals      Goal[]      @relation("ResourceGoals")
+  tasks      Task[]      @relation("ResourceTasks")
+  milestones Milestone[] @relation("ResourceMilestones")
+  decisions  Decision[]  @relation("ResourceDecisions")
+  people     Person[]    @relation("ResourcePeople")
+  companies  Company[]   @relation("ResourceCompanies")
+
+  @@index([type])
+}
+
+model Delegation {
+  id             String           @id @default(cuid())
+  taskId         String           @unique
+  task           Task             @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  delegateId     String
+  delegate       Person           @relation("DelegationDelegate", fields: [delegateId], references: [id], onDelete: Cascade)
+  status         DelegationStatus @default(ACTIVE)
+  expectations   String?
+  delegatedAt    DateTime         @default(now())
+  dueDate        DateTime?        @db.Date
+  lastUpdateAt   DateTime?
+  lastUpdateNote String?
+  followUpAt     DateTime?        @db.Date
+  completedAt    DateTime?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  activities Activity[]
+
+  @@index([status])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Outside world: deals, meetings, metrics
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Deal {
+  id             String     @id @default(cuid())
+  name           String
+  type           DealType
+  status         DealStatus @default(OPEN)
+  stage          String
+  stageOrder     Int        @default(0)
+  /// Contract value / round contribution in USD.
+  value          Float?
+  /// 0–100
+  probability    Int        @default(20)
+  expectedClose  DateTime?  @db.Date
+  stageChangedAt DateTime?
+  lastActivityAt DateTime?
+  nextStep       String?
+  companyId      String?
+  company        Company?   @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  ownerId        String?
+  owner          Person?    @relation("DealOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  insights   BrainInsight[]
+  inboxItems InboxItem[]
+  signals    BrainSignal[]
+
+  @@index([type, status])
+}
+
+model Meeting {
+  id          String      @id @default(cuid())
+  title       String
+  type        MeetingType
+  focusArea   FocusArea   @default(OPERATIONS)
+  startsAt    DateTime
+  endsAt      DateTime
+  location    String?
+  description String?
+  objective   String?
+  /// 1–5; ≥4 qualifies for "Prepare Me".
+  importance  Int         @default(3)
+  source      ItemSource  @default(CALENDAR)
+  externalId  String?     @unique
+  companyId   String?
+  company     Company?    @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  goalId      String?
+  goal        Goal?       @relation(fields: [goalId], references: [id], onDelete: SetNull)
+  /// Cached Prepare Me brief (see src/server/brain/prepare.ts for shape).
+  prepBrief   Json?
+  preparedAt  DateTime?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  attendees   Person[]    @relation("MeetingAttendees")
+  tasks       Task[]
+  notes       Note[]
+  activities  Activity[]
+  timeEntries TimeEntry[]
+
+  @@index([startsAt])
+}
+
+model Metric {
+  id          String          @id @default(cuid())
+  key         String          @unique
+  name        String
+  category    MetricCategory
+  unit        MetricUnit
+  direction   MetricDirection @default(HIGHER_IS_BETTER)
+  description String?
+  target      Float?
+  targetDate  DateTime?       @db.Date
+  /// "manual", or a connector/derivation key such as "derived:pipeline.weighted".
+  sourceKey   String          @default("manual")
+  order       Int             @default(0)
+  pillarId    String?
+  pillar      StrategicPillar? @relation(fields: [pillarId], references: [id], onDelete: SetNull)
+  goalId      String?
+  goal        Goal?           @relation(fields: [goalId], references: [id], onDelete: SetNull)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  values MetricValue[]
+
+  @@index([category])
+}
+
+model MetricValue {
+  id         String   @id @default(cuid())
+  metricId   String
+  metric     Metric   @relation(fields: [metricId], references: [id], onDelete: Cascade)
+  recordedAt DateTime @db.Date
+  value      Float
+  note       String?
+  source     String   @default("manual")
+  createdAt  DateTime @default(now())
+
+  @@unique([metricId, recordedAt])
+}
+
+/// A block of CEO time. Sourced from the calendar, task effort or manual logging.
+model TimeEntry {
+  id          String     @id @default(cuid())
+  date        DateTime   @db.Date
+  minutes     Int
+  focusArea   FocusArea
+  source      TimeSource
+  description String?
+  taskId      String?
+  task        Task?      @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  meetingId   String?
+  meeting     Meeting?   @relation(fields: [meetingId], references: [id], onDelete: SetNull)
+  createdAt   DateTime   @default(now())
+
+  @@index([date])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CytoHub Brain
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// A connector the Brain can ingest from (calendar, email, CRM, docs, …).
+model BrainSource {
+  id           String         @id @default(cuid())
+  key          String         @unique
+  name         String
+  category     SourceCategory
+  status       SourceStatus   @default(NOT_CONNECTED)
+  description  String?
+  lastSyncAt   DateTime?
+  itemsIndexed Int            @default(0)
+  error        String?
+  config       Json?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  signals BrainSignal[]
+}
+
+/// A raw, normalized item ingested from a source. Signals are immutable;
+/// the analysis stage turns them into insights.
+model BrainSignal {
+  id          String       @id @default(cuid())
+  sourceId    String
+  source      BrainSource  @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  externalId  String?
+  kind        SignalKind
+  title       String
+  body        String?
+  occurredAt  DateTime
+  ingestedAt  DateTime     @default(now())
+  processedAt DateTime?
+  /// Connector-provided structure (e.g. { stageFrom, stageTo } for CRM updates).
+  metadata    Json?
+  personId    String?
+  person      Person?      @relation(fields: [personId], references: [id], onDelete: SetNull)
+  companyId   String?
+  company     Company?     @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  dealId      String?
+  deal        Deal?        @relation(fields: [dealId], references: [id], onDelete: SetNull)
+  createdAt   DateTime     @default(now())
+
+  insights BrainInsight[]
+
+  @@unique([sourceId, externalId])
+  @@index([processedAt])
+}
+
+model BrainRefresh {
+  id             String         @id @default(cuid())
+  status         RefreshStatus  @default(RUNNING)
+  trigger        RefreshTrigger @default(MANUAL)
+  startedAt      DateTime       @default(now())
+  completedAt    DateTime?
+  durationMs     Int?
+  signalsScanned Int            @default(0)
+  insightsCreated Int           @default(0)
+  tasksCreated   Int            @default(0)
+  tasksUpdated   Int            @default(0)
+  milestonesChanged Int         @default(0)
+  inboxCreated   Int            @default(0)
+  /// Per-source sync results: [{ key, status, items, error? }]
+  sourceResults  Json?
+  /// Stage-by-stage log of the pipeline run.
+  log            Json?
+  error          String?
+
+  insights BrainInsight[]
+  briefs   DailyBrief[]
+
+  @@index([startedAt])
+}
+
+model BrainInsight {
+  id             String        @id @default(cuid())
+  type           InsightType
+  status         InsightStatus @default(NEW)
+  title          String
+  summary        String?
+  /// 1–5
+  importance     Int           @default(3)
+  requiresCeo    Boolean       @default(false)
+  recommendation String?
+  /// Stable identity so repeated refreshes update instead of duplicating.
+  fingerprint    String        @unique
+  refreshId      String?
+  refresh        BrainRefresh? @relation(fields: [refreshId], references: [id], onDelete: SetNull)
+  signalId       String?
+  signal         BrainSignal?  @relation(fields: [signalId], references: [id], onDelete: SetNull)
+  personId       String?
+  person         Person?       @relation(fields: [personId], references: [id], onDelete: SetNull)
+  companyId      String?
+  company        Company?      @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  goalId         String?
+  goal           Goal?         @relation(fields: [goalId], references: [id], onDelete: SetNull)
+  milestoneId    String?
+  milestone      Milestone?    @relation(fields: [milestoneId], references: [id], onDelete: SetNull)
+  taskId         String?
+  task           Task?         @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  decisionId     String?
+  decision       Decision?     @relation(fields: [decisionId], references: [id], onDelete: SetNull)
+  dealId         String?
+  deal           Deal?         @relation(fields: [dealId], references: [id], onDelete: SetNull)
+  occurredAt     DateTime      @default(now())
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  inboxItems InboxItem[]
+
+  @@index([type, status])
+  @@index([createdAt])
+}
+
+model DailyBrief {
+  id         String        @id @default(cuid())
+  /// Calendar day (CEO timezone) this brief covers.
+  date       DateTime      @unique @db.Date
+  headline   String
+  summary    String
+  /// Structured sections: see src/server/brain/types.ts (BriefSections).
+  sections   Json
+  refreshId  String?
+  refresh    BrainRefresh? @relation(fields: [refreshId], references: [id], onDelete: SetNull)
+  reviewedAt DateTime?
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+}
+
+model InboxItem {
+  id                String      @id @default(cuid())
+  type              InboxType
+  status            InboxStatus @default(OPEN)
+  title             String
+  summary           String?
+  whyCeo            String
+  recommendedAction String
+  /// 1–5
+  urgency           Int         @default(3)
+  dueDate           DateTime?   @db.Date
+  snoozedUntil      DateTime?
+  resolvedAt        DateTime?
+  resolution        String?
+  source            ItemSource  @default(BRAIN)
+  fingerprint       String?     @unique
+  insightId         String?
+  insight           BrainInsight? @relation(fields: [insightId], references: [id], onDelete: SetNull)
+  personId          String?
+  person            Person?     @relation(fields: [personId], references: [id], onDelete: SetNull)
+  companyId         String?
+  company           Company?    @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  taskId            String?
+  task              Task?       @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  decisionId        String?
+  decision          Decision?   @relation(fields: [decisionId], references: [id], onDelete: SetNull)
+  goalId            String?
+  goal              Goal?       @relation(fields: [goalId], references: [id], onDelete: SetNull)
+  dealId            String?
+  deal              Deal?       @relation(fields: [dealId], references: [id], onDelete: SetNull)
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  @@index([status, urgency])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Daily operating rhythm, history & reviews
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// One row per CEO working day: tracks the morning → evening workflow.
+model DayPlan {
+  id              String    @id @default(cuid())
+  date            DateTime  @unique @db.Date
+  briefReviewedAt DateTime?
+  top5ConfirmedAt DateTime?
+  endOfDayAt      DateTime?
+  endOfDayNotes   String?
+  intention       String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  priorities DailyPriority[]
+}
+
+model DailyPriority {
+  id        String         @id @default(cuid())
+  dayPlanId String
+  dayPlan   DayPlan        @relation(fields: [dayPlanId], references: [id], onDelete: Cascade)
+  taskId    String
+  task      Task           @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  rank      Int
+  score     Float
+  rationale String?
+  source    PrioritySource @default(BRAIN)
+  pinned    Boolean        @default(false)
+  createdAt DateTime       @default(now())
+
+  @@unique([dayPlanId, taskId])
+  @@index([dayPlanId, rank])
+}
+
+model Activity {
+  id           String       @id @default(cuid())
+  type         ActivityType
+  summary      String
+  /// "CEO", "CytoHub Brain", or a team member's name.
+  actor        String       @default("CEO")
+  metadata     Json?
+  taskId       String?
+  task         Task?        @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  goalId       String?
+  goal         Goal?        @relation(fields: [goalId], references: [id], onDelete: SetNull)
+  milestoneId  String?
+  milestone    Milestone?   @relation(fields: [milestoneId], references: [id], onDelete: SetNull)
+  decisionId   String?
+  decision     Decision?    @relation(fields: [decisionId], references: [id], onDelete: SetNull)
+  meetingId    String?
+  meeting      Meeting?     @relation(fields: [meetingId], references: [id], onDelete: SetNull)
+  companyId    String?
+  company      Company?     @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  personId     String?
+  person       Person?      @relation(fields: [personId], references: [id], onDelete: SetNull)
+  delegationId String?
+  delegation   Delegation?  @relation(fields: [delegationId], references: [id], onDelete: SetNull)
+  createdAt    DateTime     @default(now())
+
+  @@index([createdAt])
+  @@index([type])
+}
+
+model Note {
+  id          String     @id @default(cuid())
+  body        String
+  author      String     @default("CEO")
+  taskId      String?
+  task        Task?      @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  goalId      String?
+  goal        Goal?      @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  milestoneId String?
+  milestone   Milestone? @relation(fields: [milestoneId], references: [id], onDelete: Cascade)
+  decisionId  String?
+  decision    Decision?  @relation(fields: [decisionId], references: [id], onDelete: Cascade)
+  meetingId   String?
+  meeting     Meeting?   @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  personId    String?
+  person      Person?    @relation(fields: [personId], references: [id], onDelete: Cascade)
+  companyId   String?
+  company     Company?   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  @@index([createdAt])
+}
+
+model Review {
+  id          String     @id @default(cuid())
+  type        ReviewType
+  periodStart DateTime   @db.Date
+  periodEnd   DateTime   @db.Date
+  whatWorked  String?
+  whatDidnt   String?
+  learned     String?
+  changeNext  String?
+  /// Frozen copy of the generated review at completion time.
+  snapshot    Json?
+  completedAt DateTime?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  @@unique([type, periodStart])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Chief of Staff conversations
+// ─────────────────────────────────────────────────────────────────────────────
+
+model ChatThread {
+  id        String        @id @default(cuid())
+  title     String
+  userId    String
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  messages ChatMessage[]
+}
+
+model ChatMessage {
+  id        String     @id @default(cuid())
+  threadId  String
+  thread    ChatThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  role      ChatRole
+  content   String
+  /// Entities the answer drew on: [{ type, id, label, href }]
+  citations Json?
+  /// "claude" or "brain-rules" — which engine produced the answer.
+  engine    String?
+  createdAt DateTime   @default(now())
+
+  @@index([threadId, createdAt])
+}

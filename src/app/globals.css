@@ -1,0 +1,269 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * CytoHub design tokens.
+ * Warm-neutral surfaces, a single blue accent, a violet reserved for
+ * Brain/AI-generated content, and a fixed status palette
+ * (good / warning / serious / critical) that always ships with a label.
+ * Chart colors follow the validated reference palette (see src/lib/viz.ts).
+ */
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+  --font-heading: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+
+  /* CytoHub semantic tokens */
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-hairline: var(--hairline);
+  --color-brand: var(--brand);
+  --color-brand-soft: var(--brand-soft);
+  --color-brain: var(--brain);
+  --color-brain-soft: var(--brain-soft);
+  --color-good: var(--good);
+  --color-warning: var(--warning);
+  --color-serious: var(--serious);
+  --color-critical: var(--critical);
+  --color-good-ink: var(--good-ink);
+  --color-warning-ink: var(--warning-ink);
+  --color-critical-ink: var(--critical-ink);
+  --color-serious-ink: var(--serious-ink);
+  --color-serious-soft: var(--serious-soft);
+  --color-good-soft: var(--good-soft);
+  --color-warning-soft: var(--warning-soft);
+  --color-critical-soft: var(--critical-soft);
+  --color-track: var(--track);
+
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+
+  --text-2xs: 0.6875rem;
+  --text-2xs--line-height: 1rem;
+}
+
+:root {
+  --radius: 0.5rem;
+
+  --background: #f7f7f5;
+  --foreground: #121211;
+  --surface: #fdfdfc;
+  --surface-2: #f2f2ef;
+  --card: #fdfdfc;
+  --card-foreground: #121211;
+  --popover: #ffffff;
+  --popover-foreground: #121211;
+  --primary: #1b1b1a;
+  --primary-foreground: #fafaf9;
+  --secondary: #efefec;
+  --secondary-foreground: #1b1b1a;
+  --muted: #f0f0ed;
+  --muted-foreground: #6c6b66;
+  --accent: #efefec;
+  --accent-foreground: #1b1b1a;
+  --destructive: #c4321f;
+  --border: #e4e3de;
+  --hairline: #ecebe7;
+  --input: #dddcd6;
+  --ring: #2a78d6;
+
+  --ink-2: #52514e;
+  --ink-3: #898781;
+
+  --brand: #2a78d6;
+  --brand-soft: #e8f0fb;
+  --brain: #5b4bc4;
+  --brain-soft: #efedfb;
+
+  --good: #0ca30c;
+  --warning: #fab219;
+  --serious: #ec835a;
+  --critical: #d03b3b;
+  --good-ink: #146c14;
+  --warning-ink: #8a5a00;
+  --critical-ink: #b42318;
+  --serious-ink: #a4441c;
+  --serious-soft: #fcefe8;
+  --good-soft: #eaf6ea;
+  --warning-soft: #fdf4e1;
+  --critical-soft: #fbecea;
+  --track: #e9e8e3;
+
+  --chart-1: #2a78d6;
+  --chart-2: #eb6834;
+  --chart-3: #1baf7a;
+  --chart-4: #eda100;
+  --chart-5: #e87ba4;
+
+  --cat-blue: #2a78d6;
+  --cat-orange: #eb6834;
+  --cat-aqua: #1baf7a;
+  --cat-yellow: #eda100;
+  --cat-magenta: #e87ba4;
+  --cat-green: #008300;
+  --cat-violet: #4a3aa7;
+  --cat-red: #e34948;
+
+  --sidebar: #f2f2ef;
+  --sidebar-foreground: #2b2b29;
+  --sidebar-primary: #1b1b1a;
+  --sidebar-primary-foreground: #fafaf9;
+  --sidebar-accent: #e7e7e3;
+  --sidebar-accent-foreground: #121211;
+  --sidebar-border: #e4e3de;
+  --sidebar-ring: #2a78d6;
+}
+
+.dark {
+  --background: #0e0e0d;
+  --foreground: #f1f0ec;
+  --surface: #171716;
+  --surface-2: #1d1d1c;
+  --card: #171716;
+  --card-foreground: #f1f0ec;
+  --popover: #1b1b1a;
+  --popover-foreground: #f1f0ec;
+  --primary: #f1f0ec;
+  --primary-foreground: #141413;
+  --secondary: #232322;
+  --secondary-foreground: #f1f0ec;
+  --muted: #212120;
+  --muted-foreground: #9d9c95;
+  --accent: #242423;
+  --accent-foreground: #f1f0ec;
+  --destructive: #e66767;
+  --border: #2a2a28;
+  --hairline: #232322;
+  --input: #34342f;
+  --ring: #3987e5;
+
+  --ink-2: #c3c2b7;
+  --ink-3: #898781;
+
+  --brand: #3987e5;
+  --brand-soft: #172433;
+  --brain: #9085e9;
+  --brain-soft: #1f1c33;
+
+  --good: #0ca30c;
+  --warning: #fab219;
+  --serious: #ec835a;
+  --critical: #d03b3b;
+  --good-ink: #4cc24c;
+  --warning-ink: #f5bd4a;
+  --critical-ink: #f07a7a;
+  --serious-ink: #f09a74;
+  --serious-soft: #2a1b14;
+  --good-soft: #142414;
+  --warning-soft: #2a2213;
+  --critical-soft: #2c1615;
+  --track: #2a2a28;
+
+  --chart-1: #3987e5;
+  --chart-2: #d95926;
+  --chart-3: #199e70;
+  --chart-4: #c98500;
+  --chart-5: #d55181;
+
+  --cat-blue: #3987e5;
+  --cat-orange: #d95926;
+  --cat-aqua: #199e70;
+  --cat-yellow: #c98500;
+  --cat-magenta: #d55181;
+  --cat-green: #008300;
+  --cat-violet: #9085e9;
+  --cat-red: #e66767;
+
+  --sidebar: #121211;
+  --sidebar-foreground: #d6d5cf;
+  --sidebar-primary: #f1f0ec;
+  --sidebar-primary-foreground: #141413;
+  --sidebar-accent: #1f1f1e;
+  --sidebar-accent-foreground: #f1f0ec;
+  --sidebar-border: #232322;
+  --sidebar-ring: #3987e5;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    @apply font-sans;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-feature-settings: "cv11", "ss01";
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-size: 0.8125rem;
+    line-height: 1.25rem;
+  }
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+  ::selection {
+    background: color-mix(in oklch, var(--brand) 22%, transparent);
+  }
+}
+
+@layer utilities {
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+  .panel {
+    @apply rounded-lg border border-border bg-surface;
+  }
+  .eyebrow {
+    @apply text-2xs font-medium tracking-[0.06em] text-ink-3 uppercase;
+  }
+}
