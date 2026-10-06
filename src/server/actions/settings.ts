@@ -69,6 +69,7 @@ export async function createPillar(input: z.input<typeof pillarSchema>): Promise
     const pillar = await db.strategicPillar.create({
       data: { name: data.name, description: data.description || null, color: data.color, order: (last?.order ?? -1) + 1 },
     });
+    await logActivity(db, { type: "SETTINGS_UPDATED", summary: `Strategic pillar “${pillar.name}” created`, metadata: { kind: "pillar", pillarId: pillar.id } });
     revalidateAll();
     return ok({ id: pillar.id }, "Pillar created");
   });
@@ -92,6 +93,9 @@ export async function updatePillar(pillarId: string, input: z.input<typeof pilla
         ...(data.active !== undefined ? { active: data.active } : {}),
       },
     });
+    if (data.active !== undefined && data.active !== current.active) {
+      await logActivity(db, { type: "SETTINGS_UPDATED", summary: `Strategic pillar “${current.name}” ${data.active ? "reactivated" : "deactivated"}`, metadata: { kind: "pillar", pillarId } });
+    }
     revalidateAll();
     const message =
       data.active === false ? `“${current.name}” deactivated — hidden from pickers, links kept` : data.active === true ? `“${current.name}” reactivated` : "Pillar saved";
@@ -128,6 +132,7 @@ export async function deletePillar(pillarId: string): Promise<ActionResult> {
     if (linked > 0) return fail(`“${pillar.name}” has ${linked} linked item${linked === 1 ? "" : "s"} — deactivate it instead`);
     await db.strategicPillar.delete({ where: { id: pillarId } });
     await renumberPillars();
+    await logActivity(db, { type: "SETTINGS_UPDATED", summary: `Strategic pillar “${pillar.name}” deleted`, metadata: { kind: "pillar" } });
     revalidateAll();
     return ok(undefined, `“${pillar.name}” deleted`);
   });
@@ -163,6 +168,7 @@ export async function saveAttentionTargets(rows: z.input<typeof targetsSchema>):
         }),
       ),
     );
+    await logActivity(db, { type: "SETTINGS_UPDATED", summary: "CEO attention targets updated", metadata: { kind: "attentionTargets" } });
     revalidateAll();
     return ok(undefined, "Attention targets saved");
   });
@@ -207,7 +213,7 @@ export async function savePriorityWeights(weights: Partial<Record<FactorKey, num
           .map((c) => `${FACTOR_META[c.k].label} ${Math.round(c.from)}→${Math.round(c.to)}%`)
           .join(", ")}${changes.length > 3 ? ` +${changes.length - 3} more` : ""}`
       : "Priority Score weights saved";
-    await logActivity(db, { type: "TASK_PRIORITY_CHANGED", summary, metadata: { kind: "priorityWeights", from: before, to: rounded } as unknown as Prisma.InputJsonValue });
+    await logActivity(db, { type: "SETTINGS_UPDATED", summary, metadata: { kind: "priorityWeights", from: before, to: rounded } as unknown as Prisma.InputJsonValue });
     revalidateAll();
     return ok({ rescored }, `Weights saved · ${rescored} open tasks rescored`);
   });
@@ -229,6 +235,7 @@ export async function saveThresholds(input: z.input<typeof thresholdsSchema>): P
   return attempt(async () => {
     const data = thresholdsSchema.parse(input);
     await setSetting(db, "brainThresholds", data);
+    await logActivity(db, { type: "SETTINGS_UPDATED", summary: "Brain thresholds updated", metadata: { kind: "brainThresholds", to: data } });
     revalidateAll();
     return ok(undefined, "Brain thresholds saved · applied on the next refresh");
   });
@@ -251,6 +258,7 @@ export async function setSourceEnabled(key: string, enabled: boolean): Promise<A
         where: { key },
         data: { status: "DISABLED", config: { ...config, previousStatus: source.status } as Prisma.InputJsonValue },
       });
+      await logActivity(db, { type: "SETTINGS_UPDATED", summary: `${source.name} source disabled`, metadata: { kind: "source", key } });
       revalidateAll();
       return ok(undefined, `${source.name} disabled — skipped on the next refresh`);
     }
@@ -266,6 +274,7 @@ export async function setSourceEnabled(key: string, enabled: boolean): Promise<A
           ? "CONNECTED"
           : "NOT_CONNECTED";
     await db.brainSource.update({ where: { key }, data: { status: restored === "SYNCING" ? "CONNECTED" : restored, config: rest as Prisma.InputJsonValue } });
+    await logActivity(db, { type: "SETTINGS_UPDATED", summary: `${source.name} source enabled`, metadata: { kind: "source", key } });
     revalidateAll();
     return ok(undefined, `${source.name} enabled`);
   });

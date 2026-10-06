@@ -12,7 +12,7 @@ export const maxDuration = 120;
 
 const bodySchema = z.object({
   message: z.string().trim().min(1).max(4000),
-  threadId: z.string().optional(),
+  threadId: z.string().nullish(),
 });
 
 /**

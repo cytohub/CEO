@@ -72,7 +72,7 @@ export function AttentionTargetsForm({ rows, windowDays, totalMinutes, strategic
           const target = parsed[i];
           const bad = Number.isNaN(target) || target < 0 || target > 100;
           return (
-            <li key={d.focusArea} className="grid grid-cols-[minmax(0,1fr)_92px] items-center gap-x-3 gap-y-1.5 px-4 py-2 @3xl:grid-cols-[minmax(150px,200px)_92px_minmax(140px,220px)_minmax(0,1fr)]">
+            <li key={d.focusArea} className="grid grid-cols-[minmax(0,1fr)_92px] items-center gap-x-3 gap-y-1.5 px-4 py-2 @xl:grid-cols-[minmax(130px,180px)_92px_minmax(0,1fr)] @3xl:grid-cols-[minmax(150px,200px)_92px_minmax(140px,220px)_minmax(0,1fr)]">
               <div className="flex min-w-0 items-center gap-2">
                 <Icon className="size-3.5 shrink-0 text-ink-3" aria-hidden />
                 <label htmlFor={`target-${d.focusArea}`} className="truncate text-[13px] text-foreground">
@@ -98,7 +98,7 @@ export function AttentionTargetsForm({ rows, windowDays, totalMinutes, strategic
                 </span>
               </div>
               <div
-                className="col-span-2 flex items-center gap-2 @3xl:col-span-1"
+                className="col-span-2 flex items-center gap-2 @xl:col-span-1"
                 title={`${meta.label}: actual ${actual?.actualPct.toFixed(1) ?? 0}% · target ${Number.isNaN(target) ? "—" : target}%`}
               >
                 <div className="relative h-2 flex-1 rounded-full bg-track" aria-hidden>
@@ -116,7 +116,7 @@ export function AttentionTargetsForm({ rows, windowDays, totalMinutes, strategic
                 placeholder="Why this share of your time"
                 aria-label={`Rationale for ${meta.label}`}
                 maxLength={300}
-                className="col-span-2 h-7 text-xs @3xl:col-span-1 md:text-xs"
+                className="col-span-2 h-7 text-xs @xl:col-span-3 @3xl:col-span-1 md:text-xs"
               />
             </li>
           );

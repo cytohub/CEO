@@ -292,7 +292,7 @@ export async function getPersonDetail(id: string) {
     db.task.findMany({ where: { ...involved, status: { in: OPEN_TASK_STATUSES } }, orderBy: [{ priorityScore: "desc" }], take: 40, select: taskSelect }),
     db.task.findMany({ where: { ...involved, status: "DONE" }, orderBy: { completedAt: "desc" }, take: 6, select: taskSelect }),
     db.meeting.findMany({ where: { attendees: { some: { id } } }, orderBy: { startsAt: "desc" }, take: 40, select: meetingSelect }),
-    person.type === "TEAM"
+    person.type === "TEAM" && !person.isCeo
       ? db.delegation.findMany({
           where: { delegateId: id },
           orderBy: [{ status: "asc" }, { dueDate: "asc" }],

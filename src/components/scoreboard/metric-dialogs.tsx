@@ -12,6 +12,7 @@ import { dayKey, formatDay } from "@/lib/dates";
 import { cn } from "@/lib/utils";
 import { recordMetricValue, updateMetricTarget } from "@/server/actions/metrics";
 import type { ScoreboardMetric } from "@/server/queries/scoreboard";
+import { returnFocus } from "./focus";
 import { displayName, formatMetricValue, parseMetricInput, UNIT_HINT } from "./metric-format";
 
 function ValuePreview({ raw, value, unit }: { raw: string; value: number | null; unit: ScoreboardMetric["unit"] }) {
@@ -28,15 +29,17 @@ export function RecordValueDialog({
   today,
   open,
   onOpenChange,
+  returnFocusTo,
 }: {
   metric: ScoreboardMetric;
   today: Date;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  returnFocusTo?: React.RefObject<HTMLElement | null>;
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-md">
+      <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-md" onCloseAutoFocus={returnFocus(returnFocusTo)}>
         {open && <RecordValueForm metric={metric} today={today} onDone={() => onOpenChange(false)} />}
       </DialogContent>
     </Dialog>
@@ -149,14 +152,16 @@ export function EditTargetDialog({
   metric,
   open,
   onOpenChange,
+  returnFocusTo,
 }: {
   metric: ScoreboardMetric;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  returnFocusTo?: React.RefObject<HTMLElement | null>;
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">{open && <EditTargetForm metric={metric} onDone={() => onOpenChange(false)} />}</DialogContent>
+      <DialogContent className="sm:max-w-md" onCloseAutoFocus={returnFocus(returnFocusTo)}>{open && <EditTargetForm metric={metric} onDone={() => onOpenChange(false)} />}</DialogContent>
     </Dialog>
   );
 }

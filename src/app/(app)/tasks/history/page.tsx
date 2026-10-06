@@ -92,10 +92,10 @@ export default async function TaskHistoryPage(props: { searchParams: Promise<SP>
           ) : (
             <ul className="grid divide-y divide-hairline md:grid-cols-2 md:divide-y-0">
               {ins.priorityChanges.map((a) => (
-                <li key={a.id} className="flex items-center gap-3 border-hairline px-3.5 py-2 text-[13px] md:border-b">
+                <li key={a.id} className="flex min-w-0 items-center gap-3 border-hairline px-3.5 py-2 text-[13px] md:border-b">
                   <span className="w-16 shrink-0 text-2xs text-muted-foreground tabular">{formatDay(a.createdAt)}</span>
                   {a.task ? <TaskLink id={a.task.id} title={a.task.title} className="min-w-0 flex-1 truncate" /> : <span className="flex-1">—</span>}
-                  <span className="shrink-0 text-xs text-ink-2">{a.summary.replace(/^Added .*/, "Added to Top 5").replace(/^Removed .*/, "Removed from Top 5")}</span>
+                  <span className="max-w-[45%] shrink-0 truncate text-xs text-ink-2">{a.summary.replace(/^Added .*/, "Added to Top 5").replace(/^Removed .*/, "Removed from Top 5")}</span>
                 </li>
               ))}
             </ul>

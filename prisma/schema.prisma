@@ -321,6 +321,7 @@ enum ActivityType {
   TOP5_CONFIRMED
   END_OF_DAY
   REVIEW_COMPLETED
+  SETTINGS_UPDATED
 }
 
 enum ReviewType {

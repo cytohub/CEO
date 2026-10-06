@@ -33,13 +33,13 @@ export function ProfileForm({
       }}
     >
       <div className="grid gap-4 p-4 sm:grid-cols-2">
-        <Field label="Name" htmlFor="profile-name" hint="Shown in the greeting and on your person record.">
+        <Field className="content-start" label="Name" htmlFor="profile-name" hint="Shown in the greeting and on your person record.">
           <Input id="profile-name" value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" maxLength={120} required />
         </Field>
-        <Field label="Title" htmlFor="profile-title">
+        <Field className="content-start" label="Title" htmlFor="profile-title">
           <Input id="profile-title" value={title} onChange={(e) => setTitle(e.target.value)} autoComplete="organization-title" maxLength={120} required />
         </Field>
-        <Field label="Timezone" htmlFor="profile-timezone" hint="Drives “today”: due dates, the daily brief, Top 5 and end-of-day roll over at midnight in this zone.">
+        <Field className="content-start" label="Timezone" htmlFor="profile-timezone" hint="Drives “today”: due dates, the daily brief, Top 5 and end-of-day roll over at midnight in this zone.">
           <SimpleSelect
             id="profile-timezone"
             value={timezone}
@@ -47,7 +47,7 @@ export function ProfileForm({
             options={timezones.map((t) => ({ value: t.value, label: t.label, group: t.region }))}
           />
         </Field>
-        <Field label="Sign-in email" htmlFor="profile-email" hint="Managed by your identity provider.">
+        <Field className="content-start" label="Sign-in email" htmlFor="profile-email" hint="Managed by your identity provider.">
           <Input id="profile-email" value={profile.email} readOnly disabled />
         </Field>
       </div>

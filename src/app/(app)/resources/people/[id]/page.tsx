@@ -31,7 +31,8 @@ export default async function PersonPage(props: { params: Promise<{ id: string }
   if (!d) notFound();
   const { person: p, today, now, timezone } = d;
   const displayName = p.isCeo ? "You" : p.name;
-  const team = p.type === "TEAM";
+  // Delegation is something the CEO does to team members, so the CEO's own page skips it.
+  const team = p.type === "TEAM" && !p.isCeo;
   const activeDelegations = d.delegations.filter((x) => x.status === "ACTIVE" || x.status === "NEEDS_FOLLOW_UP");
   const followUps = d.delegations.filter((x) => x.status === "NEEDS_FOLLOW_UP").length;
   const openDeals = d.deals.filter((x) => x.status === "OPEN");
@@ -65,9 +66,11 @@ export default async function PersonPage(props: { params: Promise<{ id: string }
                   <Mail className="size-3" aria-hidden /> {p.email}
                 </a>
               )}
-              <span title={p.lastContactAt ? formatDateTime(p.lastContactAt, timezone) : undefined}>
-                Last contact {p.lastContactAt ? timeAgo(p.lastContactAt, now) : "not recorded"}
-              </span>
+              {!p.isCeo && (
+                <span title={p.lastContactAt ? formatDateTime(p.lastContactAt, timezone) : undefined}>
+                  Last contact {p.lastContactAt ? timeAgo(p.lastContactAt, now) : "not recorded"}
+                </span>
+              )}
             </div>
             {p.expertise.length > 0 && (
               <ul className="mt-2 flex flex-wrap gap-1" aria-label="Can own">
@@ -95,7 +98,7 @@ export default async function PersonPage(props: { params: Promise<{ id: string }
           },
           team
             ? { label: "Delegated to them", value: activeDelegations.length, hint: followUps ? `${followUps} need follow-up` : "None need follow-up" }
-            : { label: "Open deals", value: openDeals.length, hint: p.company ? `At ${p.company.name}` : "Owned or at their company" },
+            : { label: "Open deals", value: openDeals.length, hint: p.isCeo ? "Deals you own" : p.company ? `At ${p.company.name}` : "Owned or at their company" },
           { label: "Intelligence", value: d.intel.length, hint: "Brain insights & signals" },
         ]}
       />
@@ -122,8 +125,8 @@ export default async function PersonPage(props: { params: Promise<{ id: string }
               <DelegationRows delegations={d.delegations} today={today} />
             </Panel>
           )}
-          {(d.deals.length > 0 || !team) && <DealsPanel deals={d.deals} today={today} now={now} showCompany title={team ? "Deals they own" : "Deals"} />}
-          {d.decisions.length > 0 && <DecisionsPanel decisions={d.decisions} today={today} title="Decisions they own" />}
+          {(d.deals.length > 0 || !team) && <DealsPanel deals={d.deals} today={today} now={now} showCompany title={p.isCeo ? "Deals you own" : team ? "Deals they own" : "Deals"} />}
+          {d.decisions.length > 0 && <DecisionsPanel decisions={d.decisions} today={today} title={p.isCeo ? "Decisions you own" : "Decisions they own"} />}
           <ResourcesPanel resources={d.resources} addHint="Link documents to this person from the Resource Center (Edit links)." />
           <NotesPanel
             notes={d.notes}

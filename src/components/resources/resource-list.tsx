@@ -1,7 +1,7 @@
 "use client";
 
 import { ArrowUpRight, FolderOpen, Link2, Loader2, MoreHorizontal, Pencil, Plus, Trash2 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -33,6 +33,7 @@ import { EntityChip } from "./chips";
 import { FilterToolbar } from "./filter-toolbar";
 import { safeHref } from "./links";
 import { ResourceEditDialog, type EditTab } from "./resource-edit-dialog";
+import { returnFocus } from "@/components/scoreboard/focus";
 
 function haystack(r: ResourceRow): string {
   return [
@@ -59,6 +60,8 @@ export function ResourceList({ resources, highlightId }: { resources: ResourceRo
   const [type, setType] = useState<ResourceType | null>(null);
   const [editing, setEditing] = useState<{ id: string; tab: EditTab } | null>(null);
   const [deleting, setDeleting] = useState<ResourceRow | null>(null);
+  // Where focus returns when a dialog launched from a row closes.
+  const returnRef = useRef<HTMLElement | null>(null);
 
   const index = useMemo(() => new Map(resources.map((r) => [r.id, haystack(r)])), [resources]);
   const terms = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
@@ -135,16 +138,22 @@ export function ResourceList({ resources, highlightId }: { resources: ResourceRo
                 resource={r}
                 highlighted={r.id === highlightId}
                 onTag={(tag) => setQuery(tag)}
-                onEdit={(tab) => setEditing({ id: r.id, tab })}
-                onDelete={() => setDeleting(r)}
+                onEdit={(tab, from) => {
+                  returnRef.current = from;
+                  setEditing({ id: r.id, tab });
+                }}
+                onDelete={(from) => {
+                  returnRef.current = from;
+                  setDeleting(r);
+                }}
               />
             ))}
           </ul>
         )}
       </div>
 
-      <ResourceEditDialog resource={editingRow} tab={editing?.tab ?? "links"} onOpenChange={(o) => !o && setEditing(null)} />
-      <DeleteResourceDialog resource={deleting} onClose={() => setDeleting(null)} />
+      <ResourceEditDialog resource={editingRow} tab={editing?.tab ?? "links"} onOpenChange={(o) => !o && setEditing(null)} returnFocusTo={returnRef} />
+      <DeleteResourceDialog resource={deleting} onClose={() => setDeleting(null)} returnFocusTo={returnRef} />
     </div>
   );
 }
@@ -159,9 +168,12 @@ function ResourceItem({
   resource: ResourceRow;
   highlighted: boolean;
   onTag: (tag: string) => void;
-  onEdit: (tab: EditTab) => void;
-  onDelete: () => void;
+  onEdit: (tab: EditTab, returnTo: HTMLElement | null) => void;
+  onDelete: (returnTo: HTMLElement | null) => void;
 }) {
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  // A menu item that opens a dialog must not let the menu pull focus back to its trigger.
+  const launching = useRef(false);
   const meta = RESOURCE_TYPES[r.type];
   const Icon = meta.icon;
   const href = safeHref(r.url);
@@ -204,15 +216,34 @@ function ResourceItem({
           </div>
           <DropdownMenu modal={false}>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon-xs" className="text-ink-3" aria-label={`Actions for ${r.title}`}>
+              <Button ref={triggerRef} variant="ghost" size="icon-xs" className="text-ink-3" aria-label={`Actions for ${r.title}`}>
                 <MoreHorizontal />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-44">
-              <DropdownMenuItem onSelect={() => onEdit("links")}>
+            <DropdownMenuContent
+              align="end"
+              className="w-44"
+              onCloseAutoFocus={(e) => {
+                if (launching.current) {
+                  e.preventDefault();
+                  launching.current = false;
+                }
+              }}
+            >
+              <DropdownMenuItem
+                onSelect={() => {
+                  launching.current = true;
+                  onEdit("links", triggerRef.current);
+                }}
+              >
                 <Link2 /> Edit links…
               </DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => onEdit("details")}>
+              <DropdownMenuItem
+                onSelect={() => {
+                  launching.current = true;
+                  onEdit("details", triggerRef.current);
+                }}
+              >
                 <Pencil /> Edit details…
               </DropdownMenuItem>
               {href && (
@@ -223,7 +254,13 @@ function ResourceItem({
                 </DropdownMenuItem>
               )}
               <DropdownMenuSeparator />
-              <DropdownMenuItem variant="destructive" onSelect={onDelete}>
+              <DropdownMenuItem
+                variant="destructive"
+                onSelect={() => {
+                  launching.current = true;
+                  onDelete(triggerRef.current);
+                }}
+              >
                 <Trash2 /> Delete…
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -264,7 +301,7 @@ function ResourceItem({
             <EntityChip key={x.id} kind="person" id={x.id} label={x.isCeo ? "You" : x.name} />
           ))}
           {linkCount === 0 && (
-            <button type="button" onClick={() => onEdit("links")} className="inline-flex h-5 items-center gap-1 rounded px-1 text-2xs text-muted-foreground hover:bg-muted hover:text-foreground">
+            <button type="button" onClick={(e) => onEdit("links", e.currentTarget)} className="inline-flex h-5 items-center gap-1 rounded px-1 text-2xs text-muted-foreground hover:bg-muted hover:text-foreground">
               <Link2 className="size-3" aria-hidden /> Not linked to any work — link it
             </button>
           )}
@@ -274,12 +311,20 @@ function ResourceItem({
   );
 }
 
-function DeleteResourceDialog({ resource, onClose }: { resource: ResourceRow | null; onClose: () => void }) {
+function DeleteResourceDialog({
+  resource,
+  onClose,
+  returnFocusTo,
+}: {
+  resource: ResourceRow | null;
+  onClose: () => void;
+  returnFocusTo: React.RefObject<HTMLElement | null>;
+}) {
   const { pending, run } = useAction();
   const links = resource ? resource.goals.length + resource.milestones.length + resource.tasks.length + resource.decisions.length + resource.people.length + resource.companies.length : 0;
   return (
     <AlertDialog open={resource !== null} onOpenChange={(o) => !o && !pending && onClose()}>
-      <AlertDialogContent>
+      <AlertDialogContent onCloseAutoFocus={returnFocus(returnFocusTo)}>
         <AlertDialogHeader>
           <AlertDialogTitle>Delete this resource?</AlertDialogTitle>
           <AlertDialogDescription>

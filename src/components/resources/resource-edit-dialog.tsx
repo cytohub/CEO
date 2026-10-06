@@ -16,6 +16,7 @@ import { COMPANY_TYPES, DECISION_STATUS, GOAL_TYPES, MILESTONE_STATUS, PERSON_TY
 import { cn } from "@/lib/utils";
 import { updateResource } from "@/server/actions/resources";
 import type { ResourceRow } from "@/server/queries/resources";
+import { returnFocus } from "@/components/scoreboard/focus";
 import { CHIP_META, type ChipKind } from "./chips";
 
 type LinkKind = Exclude<ChipKind, "task">;
@@ -29,14 +30,16 @@ export function ResourceEditDialog({
   resource,
   tab,
   onOpenChange,
+  returnFocusTo,
 }: {
   resource: ResourceRow | null;
   tab: EditTab;
   onOpenChange: (open: boolean) => void;
+  returnFocusTo?: React.RefObject<HTMLElement | null>;
 }) {
   return (
     <Dialog open={resource !== null} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-xl">
+      <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-xl" onCloseAutoFocus={returnFocus(returnFocusTo)}>
         {resource && <EditForm key={resource.id} resource={resource} initialTab={tab} onDone={() => onOpenChange(false)} />}
       </DialogContent>
     </Dialog>

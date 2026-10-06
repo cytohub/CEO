@@ -11,7 +11,7 @@ import { ChatComposer, ChatTranscript, NewThreadButton, SuggestedPrompts, useChi
 /** Global slide-over Chief of Staff (⌘J). */
 export function ChiefOfStaffPanel() {
   const { chief, closeChief } = useUI();
-  const { messages, busy, ask, reset } = useChiefChat();
+  const { threadId, messages, busy, ask, reset } = useChiefChat();
   const handled = useRef(0);
 
   // A prompt handed over from the command bar is sent once.
@@ -36,7 +36,7 @@ export function ChiefOfStaffPanel() {
           <div className="ml-auto flex items-center gap-1">
             {messages.length > 0 && <NewThreadButton onClick={reset} />}
             <Button variant="ghost" size="icon-sm" asChild>
-              <Link href="/chief-of-staff" onClick={closeChief} aria-label="Open full page">
+              <Link href={threadId ? `/chief-of-staff?thread=${threadId}` : "/chief-of-staff"} onClick={closeChief} aria-label="Open full page">
                 <Maximize2 />
               </Link>
             </Button>

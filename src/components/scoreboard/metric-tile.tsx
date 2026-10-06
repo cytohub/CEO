@@ -2,7 +2,7 @@
 
 import { ArrowUpRight, Clock3, Info, MoreHorizontal, PenLine, Plug, Sigma, Target, Unplug } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -110,28 +110,53 @@ function Freshness({ metric, today }: { metric: ScoreboardMetric; today: Date })
   );
 }
 
-function MetricMenu({ metric, onRecord, onTarget }: { metric: ScoreboardMetric; onRecord: () => void; onTarget: () => void }) {
+function MetricMenu({
+  metric,
+  onRecord,
+  onTarget,
+  triggerRef,
+}: {
+  metric: ScoreboardMetric;
+  onRecord: () => void;
+  onTarget: () => void;
+  triggerRef: React.RefObject<HTMLButtonElement | null>;
+}) {
   const name = displayName(metric.name);
+  // When an item opens a dialog, the menu must not pull focus back to its trigger.
+  const launching = useRef(false);
+  const launch = (fn: () => void) => () => {
+    launching.current = true;
+    fn();
+  };
   return (
     // Non-modal so the dialogs it opens own focus and pointer events cleanly.
     <DropdownMenu modal={false}>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon-xs" className="-mt-0.5 -mr-1 text-ink-3" aria-label={`Actions for ${name}`}>
+        <Button ref={triggerRef} variant="ghost" size="icon-xs" className="-mt-0.5 -mr-1 text-ink-3" aria-label={`Actions for ${name}`}>
           <MoreHorizontal />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-60">
+      <DropdownMenuContent
+        align="end"
+        className="w-60"
+        onCloseAutoFocus={(e) => {
+          if (launching.current) {
+            e.preventDefault();
+            launching.current = false;
+          }
+        }}
+      >
         {metric.derived ? (
           <DropdownMenuLabel className="text-2xs font-normal text-muted-foreground">
             Read-only — computes from live data
             {metric.source.label.startsWith("Derived: ") ? `: ${metric.source.label.slice(9)}` : ""}.
           </DropdownMenuLabel>
         ) : (
-          <DropdownMenuItem onSelect={onRecord}>
+          <DropdownMenuItem onSelect={launch(onRecord)}>
             <PenLine /> Record value…
           </DropdownMenuItem>
         )}
-        <DropdownMenuItem onSelect={onTarget}>
+        <DropdownMenuItem onSelect={launch(onTarget)}>
           <Target /> {metric.target === null ? "Set target…" : "Edit target…"}
         </DropdownMenuItem>
         {(COMPOSITION_SOURCES.has(metric.sourceKey) || metric.goal) && <DropdownMenuSeparator />}
@@ -156,13 +181,16 @@ function MetricMenu({ metric, onRecord, onTarget }: { metric: ScoreboardMetric; 
 
 function useMetricDialogs(metric: ScoreboardMetric, today: Date) {
   const [dialog, setDialog] = useState<"record" | "target" | null>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const dialogs = (
     <>
-      {!metric.derived && <RecordValueDialog metric={metric} today={today} open={dialog === "record"} onOpenChange={(o) => setDialog(o ? "record" : null)} />}
-      <EditTargetDialog metric={metric} open={dialog === "target"} onOpenChange={(o) => setDialog(o ? "target" : null)} />
+      {!metric.derived && (
+        <RecordValueDialog metric={metric} today={today} open={dialog === "record"} onOpenChange={(o) => setDialog(o ? "record" : null)} returnFocusTo={triggerRef} />
+      )}
+      <EditTargetDialog metric={metric} open={dialog === "target"} onOpenChange={(o) => setDialog(o ? "target" : null)} returnFocusTo={triggerRef} />
     </>
   );
-  const menu = <MetricMenu metric={metric} onRecord={() => setDialog("record")} onTarget={() => setDialog("target")} />;
+  const menu = <MetricMenu metric={metric} onRecord={() => setDialog("record")} onTarget={() => setDialog("target")} triggerRef={triggerRef} />;
   return { menu, dialogs };
 }
 
