@@ -168,21 +168,37 @@ customer importance, risk, urgency, deadline, CEO relationship ownership, legal
 impact, scientific significance and opportunity size, then classified:
 `IMMEDIATE`, `TODAY`, `THIS_WEEK`, `MONITOR`, `DELEGATE` or `ARCHIVE`. Only
 `IMMEDIATE`/`TODAY` (and CEO-owed commitments due this week) reach the CEO
-Inbox, grouped per thread, with a cap per refresh, so the CEO does not get
-hundreds of notifications.
+Inbox, so the CEO does not get hundreds of notifications:
+
+* **Grouped per thread** — a conversation is one item that evolves with it.
+* **One item per record** — if the Daily Brain Refresh or another thread already
+  filed the same decision, commitment, task, risk, opportunity or deal, that
+  item is refreshed with the newer context (wording, source, attention) instead
+  of a second one being filed (`src/server/inbox-dedupe.ts`).
+* **Capped** — at most 8 new ingestion items per CEO day; `IMMEDIATE` bypasses the cap.
+* **Respectful of resolution** — an item the CEO closed reopens only for newer
+  `IMMEDIATE` information (or `TODAY` information, if it was marked done).
+
+Each item says what happened, why it needs the CEO, the source, the
+recommended action, the deadline, strategic relevance and confidence; the CEO
+can take action, delegate, snooze, ignore or open the source.
 
 ## 10. Security
 
 * Sessions: random 256-bit tokens, SHA-256 hashed at rest, `httpOnly`,
-  `SameSite=Lax`, `Secure` in production, sliding 12-hour expiry, revocable.
+  `SameSite=Lax`, `Secure` with the `__Host-` prefix in production, sliding
+  12-hour idle expiry and a 7-day absolute lifetime. Changing a user's role,
+  deactivating them or resetting their password revokes their sessions.
 * Passwords: scrypt with per-user salt; login rate-limited and lockout after
   repeated failures.
 * Authorization: role → capabilities; source content additionally filtered by
   **clearance** (`INTERNAL` < `CONFIDENTIAL` < `RESTRICTED`), connection
   ownership and explicit `AccessGrant`s. Search, View Source, Prepare Me and the
   Chief of Staff all go through the same filter.
-* Secrets: OAuth tokens and raw payloads encrypted with AES-256-GCM
-  (`CYTOHUB_ENCRYPTION_KEY`); disk-level encryption is expected from the
+* Secrets: OAuth tokens, raw payloads and stored documents encrypted with
+  AES-256-GCM (`CYTOHUB_ENCRYPTION_KEY`, required in production). Ciphertext is
+  versioned, so keys rotate by moving the old key to
+  `CYTOHUB_ENCRYPTION_KEY_PREVIOUS`. Disk-level encryption is expected from the
   database host.
 * CSRF: server actions are origin-checked by Next.js; custom routes check
   `Origin` and use `SameSite` cookies. Webhooks verify provider tokens or HMAC
@@ -201,8 +217,39 @@ policy says otherwise, so company history is never silently destroyed.
 
 ## 12. Implementation phases
 
+All five phases are implemented:
+
 1. Schema, source abstraction, email / calendar / document ingestion, raw storage, incremental sync.
 2. Entity, task, commitment, deadline, decision, risk and opportunity extraction.
 3. Entity resolution, relationship graph, deduplication, source traceability, review queue.
 4. Daily Brain Refresh, CEO Inbox, Top 5, Prepare Me, universal search.
 5. Production security, monitoring, retries, audit logs, performance.
+
+## 13. Operating it
+
+| Concern | Where |
+| --- | --- |
+| Connect, reconnect, disconnect, set frequency, run sync now | Settings → Integrations (`/settings/integrations`) |
+| Sync runs, queue depth, failed and dead jobs (retry), review backlog | Ingestion Health (`/brain/ingestion`) |
+| Uncertain or protected intelligence | Brain Review Queue (`/brain/review`) |
+| Users and roles, audit log, retention policy | `/settings/users`, `/settings/audit`, `/settings/retention` |
+| Scheduled syncs and retention | `/api/ingestion/tick` (cron, `Bearer $CRON_SECRET`) or `npm run ingest:worker` |
+| Morning pipeline | `/api/brain/refresh` (cron) or "Run morning refresh" |
+
+**Adding a provider** means implementing `EmailProvider`, `CalendarProvider` or
+`DocumentProvider` (`src/server/ingestion/types.ts`) — changes since a
+cursor, plus optional webhook subscribe/verify — and registering it in
+`providers/registry.ts`. Everything downstream (normalization, extraction,
+resolution, the Brain writer, search and retention) is provider-agnostic.
+
+**Demo mode.** `DEMO` connections use mock adapters over CytoHub fixtures
+(`providers/mock/`) anchored to the connection's creation time; each sync
+reveals what has "arrived" since the cursor, so the full pipeline — including
+incremental sync, version changes and change detection — runs exactly as it
+would against a live account.
+
+**Testing.** `npm test` covers security, jobs, providers and webhooks, parsers,
+extraction quality, resolution, search planning, health and retention. The
+end-to-end writer test needs a disposable database seeded with
+`SEED_DEMO_SOURCES=0`; see the header of
+`src/server/ingestion/write/pipeline.integration.test.ts`.
