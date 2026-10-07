@@ -111,7 +111,7 @@ detection and "Run sync now" behave as they would with a real account.
 ## Deploying
 
 [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) walks through putting the app on
-`ceo.cytohub.com`: Vercel Pro and a managed PostgreSQL database, the secrets to
+`ceo.cytolab.ai`: Vercel Pro and a managed PostgreSQL database, the secrets to
 generate, creating the CEO account with `npm run db:bootstrap`, the DNS record,
 and the Google / Microsoft / Dropbox app setup. It also covers running it on
 your own server instead.
