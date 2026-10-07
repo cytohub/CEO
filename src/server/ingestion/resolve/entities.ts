@@ -45,6 +45,7 @@ import {
   prettifyDomain,
   registrableLabel,
 } from "./names";
+import { lockBrainWrites } from "../write/lock";
 
 const PARTICIPANT_ROLES: ReadonlySet<MentionRole> = new Set(["SENDER", "RECIPIENT", "CC", "ORGANIZER", "ATTENDEE"]);
 const ROLE_RANK: Record<MentionRole, number> = { SENDER: 7, ORGANIZER: 6, RECIPIENT: 5, CC: 4, ATTENDEE: 3, AUTHOR: 2, MENTIONED: 1 };
@@ -549,6 +550,8 @@ export async function resolveMentions(ctx: PipelineContext, item: LoadedSourceIt
 
   return ctx.db.$transaction(
     async (tx) => {
+      // Two items naming the same new company must not both create it.
+      await lockBrainWrites(tx);
       const dir = await loadDirectory(tx);
       const r = new Resolver(ctx, tx, item, classification, dir, ownDomain);
       for (const w of work) {

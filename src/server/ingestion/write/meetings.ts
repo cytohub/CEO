@@ -17,6 +17,7 @@ import { recordActivity } from "./history";
 import { matchGoal, type ItemCtx } from "./item";
 import { FOCUS_BY_MEETING_CATEGORY, formatSlot, meetingPhrase, meetingTypeFor } from "./phrasing";
 import { hasReferenceFrom, reference } from "./provenance";
+import { lockBrainWrites } from "./lock";
 
 function sameTitle(a: string, b: string): boolean {
   const na = normalizeCompanyName(a);
@@ -239,6 +240,7 @@ export async function markCompletedMeetings(ctx: PipelineContext): Promise<numbe
   if (!ended.length) return 0;
   return ctx.db.$transaction(
     async (tx) => {
+      await lockBrainWrites(tx);
       const env: WriteEnv = {
         tx,
         now: ctx.now,

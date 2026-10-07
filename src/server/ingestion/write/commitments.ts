@@ -19,6 +19,7 @@ import { hasReferenceFrom } from "./provenance";
 import { actionClause, actionWithRecipient, cleanTitle, fulfilmentMatch, hasDeliveryCue } from "./phrasing";
 import { fulfillCommitment } from "./records";
 import { queueReview } from "./review";
+import { lockBrainWrites } from "./lock";
 
 export async function detectFulfillment(w: ItemCtx) {
   const msg = w.item.emailMessage;
@@ -92,6 +93,7 @@ export async function sweepCommitments(ctx: PipelineContext): Promise<{ overdue:
 
   await ctx.db.$transaction(
     async (tx) => {
+      await lockBrainWrites(tx);
       const env: WriteEnv = {
         tx,
         now: ctx.now,

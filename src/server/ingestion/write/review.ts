@@ -33,6 +33,7 @@ import {
   createTask,
 } from "./records";
 import { applyEdit, parseProposal, type ProposalFor } from "./review-schemas";
+import { lockBrainWrites } from "./lock";
 
 export type ReviewDecision =
   | { action: "APPROVE"; note?: string }
@@ -365,6 +366,7 @@ export async function resolveReviewItem(reviewItemId: string, decision: ReviewDe
 
   const outcome = await db.$transaction(
     async (tx) => {
+      await lockBrainWrites(tx);
       const item = await tx.reviewQueueItem.findUnique({ where: { id: reviewItemId }, include: { sourceItem: { include: { connection: { select: { provider: true } } } } } });
       if (!item) throw new ReviewError("Review item not found.");
 

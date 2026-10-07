@@ -47,11 +47,18 @@ function pause(ms: number) {
   });
 }
 
+let waitingNoted = false;
+
 async function cycle(n: number) {
   const started = Date.now();
   try {
     const scheduled = await scheduleDueSyncs();
     const drain = await drainQueue({ budgetMs: BUDGET_MS, workerId });
+    if (drain.waitingForSetup) {
+      if (!waitingNoted) console.log("[ingest:worker] waiting for the CEO account — create it with `npm run db:bootstrap`");
+      waitingNoted = true;
+      return;
+    }
     const q = await queueSummary();
     console.log(
       `[ingest:worker] #${n} ${new Date().toISOString()} scheduled=${scheduled} processed=${drain.processed} ok=${drain.succeeded} failed=${drain.failed} dead=${drain.dead} ` +

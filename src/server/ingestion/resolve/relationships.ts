@@ -14,6 +14,7 @@ import type { Tx } from "@/lib/db";
 import type { LoadedSourceItem, PipelineContext, ResolutionContext } from "../types";
 import { knownForms, knownOrganizationByName, KNOWN_ORGANIZATIONS, type KnownOrganization } from "./known-organizations";
 import { domainOf, normalizeCompanyName } from "./names";
+import { lockBrainWrites } from "../write/lock";
 
 export interface EdgeInput {
   fromType: EntityType;
@@ -150,6 +151,7 @@ export async function mapSourceRelationships(ctx: PipelineContext, item: LoadedS
   const src = item.id;
   return ctx.db.$transaction(
     async (tx) => {
+      await lockBrainWrites(tx);
       let n = 0;
       const edge = async (e: Omit<EdgeInput, "sourceItemId" | "at">) => {
         const r = await upsertRelationship(tx, { ...e, sourceItemId: src, at });

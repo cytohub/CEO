@@ -493,7 +493,7 @@ describe("ingestion resolve & write (integration)", { skip: !enabled && "set ING
     assert.ok(meeting.attendees.some((a) => a.email === sarah.email));
     await m.db.meeting.update({ where: { id: seeded.id }, data: { prepBrief: { stale: true }, preparedAt: m.ctx.now } });
 
-    // Northbridge moves it from Thu 10:00 to Fri 14:00 (New York).
+    // Northbridge moves it a day and four hours later: 10:00 → 14:00 the next day (New York).
     const newStart = new Date(seeded.startsAt.getTime() + 28 * 3_600_000);
     await m.db.calendarEvent.update({ where: { id: ev.id }, data: { startsAt: newStart, endsAt: new Date(newStart.getTime() + 90 * 60_000), previousStartsAt: seeded.startsAt, organizerEmail: sarah.email, organizerName: sarah.name } });
     const moved = [person(sarah, "ORGANIZER"), person(CEO, "ATTENDEE"), person(jonas, "ATTENDEE")];
@@ -506,7 +506,9 @@ describe("ingestion resolve & write (integration)", { skip: !enabled && "set ING
     assert.equal(after.prepBrief, null, "stale prep brief cleared");
     assert.ok(await m.db.activity.count({ where: { meetingId: seeded.id, type: "MEETING_RESCHEDULED" } }));
     const change = await m.db.brainInsight.findFirstOrThrow({ where: { meetingId: seeded.id, changeKind: "meeting_rescheduled" } });
-    assert.equal(change.title, "Important change: Northbridge moved the partner meeting from Thu 10:00 to Fri 14:00");
+    // The seed places the meeting relative to today, so the weekdays depend on the run date.
+    const weekday = (d: Date) => new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", weekday: "short" }).format(d);
+    assert.equal(change.title, `Important change: Northbridge moved the partner meeting from ${weekday(seeded.startsAt)} 10:00 to ${weekday(newStart)} 14:00`);
     assert.equal(await m.db.meeting.count({ where: { title: seeded.title } }), 1);
 
     await m.db.calendarEvent.update({ where: { id: ev.id }, data: { status: "CANCELLED" } });

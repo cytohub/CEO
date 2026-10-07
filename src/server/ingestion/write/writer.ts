@@ -67,6 +67,7 @@ import {
 import { flushReviews, queueReview } from "./review";
 import type { CommitmentProposalT, TaskProposalT } from "./review-schemas";
 import { defaultPriority, focusAreaFor, isHardDeadline, taskScores } from "./task-scoring";
+import { lockBrainWrites } from "./lock";
 
 export async function writeIntelligence(
   ctx: PipelineContext,
@@ -81,7 +82,7 @@ export async function writeIntelligence(
   await ctx.db.$transaction(
     async (tx) => {
       // Brain writes are serialized: dedupe must see what the previous item just wrote, even with several workers.
-      await tx.$executeRaw`SELECT pg_advisory_xact_lock(${BRAIN_WRITE_LOCK})`;
+      await lockBrainWrites(tx);
       const w: ItemCtx = {
         tx,
         now: ctx.now,
@@ -144,8 +145,6 @@ export async function writeIntelligence(
   return summary;
 }
 
-/** Advisory lock id for BRAIN_WRITE transactions (arbitrary constant, "brain" in ASCII). */
-const BRAIN_WRITE_LOCK = 0x627261696e;
 
 // ─── Shared helpers ──────────────────────────────────────────────────────────
 

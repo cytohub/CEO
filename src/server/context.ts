@@ -25,7 +25,7 @@ export async function loadCeoContext(client: Db | Tx = db, now: Date = new Date(
     (await client.user.findFirst({ where: { role: "CEO", active: true }, orderBy: { createdAt: "asc" }, include: { person: true } })) ??
     (await client.user.findFirst({ orderBy: { createdAt: "asc" }, include: { person: true } }));
   if (!user || !user.personId) {
-    throw new Error("No CEO user found. Run `npm run db:seed` to load the CytoHub workspace.");
+    throw new Error("No CEO user found. Create the CEO account with `npm run db:bootstrap` (or load the demo workspace with `npm run db:seed`).");
   }
   return {
     userId: user.id,

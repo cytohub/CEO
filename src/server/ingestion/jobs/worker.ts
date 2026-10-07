@@ -21,6 +21,8 @@ export interface DrainResult {
   /** Jobs still runnable when the budget ran out. */
   remaining: number;
   durationMs: number;
+  /** Nothing ran: there is no CEO account yet (`npm run db:bootstrap`). */
+  waitingForSetup?: boolean;
 }
 
 export async function drainQueue(
@@ -39,6 +41,11 @@ export async function drainQueue(
   const budget = opts.budgetMs ?? 55_000;
   const workerId = opts.workerId ?? `worker-${process.pid}-${randomUUID().slice(0, 8)}`;
   const result: DrainResult = { processed: 0, succeeded: 0, failed: 0, dead: 0, remaining: 0, durationMs: 0 };
+  // Every job runs in the CEO's context. On a fresh install, leave the queue
+  // untouched until the CEO account exists rather than failing (and retrying) each job.
+  if (!(await db.user.findFirst({ where: { personId: { not: null } }, select: { id: true } }))) {
+    return { ...result, waitingForSetup: true };
+  }
   await recoverStale();
 
   while (Date.now() - started < budget && (!opts.maxJobs || result.processed < opts.maxJobs)) {
@@ -58,8 +65,10 @@ export async function drainQueue(
       continue;
     }
     result.processed++;
-    const ctx = await createPipelineContext({ runId: job.runId, trigger: "MANUAL", now: opts.now });
+    let ctx: Awaited<ReturnType<typeof createPipelineContext>> | null = null;
     try {
+      // Inside the try: a claimed job must always end as succeeded, failed or dead, never stuck RUNNING.
+      ctx = await createPipelineContext({ runId: job.runId, trigger: "MANUAL", now: opts.now });
       const out = await HANDLERS[job.type](job, ctx);
       await complete(job, out ?? undefined);
       result.succeeded++;
@@ -81,7 +90,7 @@ export async function drainQueue(
       else result.failed++;
       console.error(`[ingest] ${job.type} ${job.id} failed (attempt ${job.attempts}${dead ? ", giving up" : ""}):`, error instanceof Error ? error.message : error);
     } finally {
-      await ctx.flush();
+      await ctx?.flush();
     }
   }
 
