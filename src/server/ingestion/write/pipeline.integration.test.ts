@@ -1,8 +1,10 @@
 /**
  * End-to-end test of resolution → relationships → Brain write against a
  * seeded database. It writes to the database, so it only runs when
- * INGEST_INTEGRATION=1 and DATABASE_URL points at a disposable copy:
+ * INGEST_INTEGRATION=1 and DATABASE_URL points at a disposable copy seeded
+ * without the demo sources (whose mailbox already holds these requests):
  *
+ *   SEED_DEMO_SOURCES=0 DATABASE_URL=… npx tsx prisma/seed.ts
  *   INGEST_INTEGRATION=1 DATABASE_URL=… node --import tsx --test src/server/ingestion/write/pipeline.integration.test.ts
  *
  * The extraction stage is simulated: EntityMention rows + stageData are
@@ -791,8 +793,11 @@ describe("ingestion resolve & write (integration)", { skip: !enabled && "set ING
     const reviews = await m.db.reviewQueueItem.findMany({ where: { sourceItemId: id } });
     assert.ok(reviews.length <= 2, `reviews ${reviews.map((r) => r.title).join(" | ")}`);
     assert.equal(reviews.filter((r) => r.kind === "DEADLINE").length, 0, "deadlines quoting the decision are covered");
-    const thread = await m.db.emailThread.findFirstOrThrow({ where: { externalThreadId: `${run}-laura` } });
-    const inbox = await m.db.inboxItem.findUniqueOrThrow({ where: { fingerprint: `inbox:thread:${thread.id}` } });
+    // The seeded decision already had an inbox item from the Brain refresh: the email refreshes it rather than filing a second.
+    const items = await m.db.inboxItem.findMany({ where: { decisionId: seeded.id, status: { in: ["OPEN", "SNOOZED"] } } });
+    assert.equal(items.length, 1, "one inbox item per decision");
+    const inbox = items[0];
+    assert.equal(inbox.sourceItemId, id);
     assert.equal(inbox.type, "DECISION");
     assert.equal(inbox.title, "Decision needed: Hire Laura Mitchell as VP Sales at the requested package?");
     assert.match(inbox.whyCeo, /^Sofia Andersen needs your decision by .+: Hire Laura Mitchell as VP Sales at the requested package\?$/);
@@ -949,6 +954,40 @@ describe("ingestion resolve & write (integration)", { skip: !enabled && "set ING
     });
     assert.ok(results.out.some((x) => x === null), "TODAY items beyond the cap are held back");
     assert.ok(results.urgent, "IMMEDIATE items bypass the cap");
+  });
+
+  it("files one inbox item per record across producers (Brain refresh and ingestion)", async () => {
+    const { upsertInboxItem } = await import("./attention");
+    const { emptySummary, emptyCounters } = await import("./env");
+    const decision = await m.db.decision.create({ data: { title: `Approve the pilot budget ${run}` } });
+    const brainItem = await m.db.inboxItem.create({
+      data: { type: "DECISION", title: decision.title, whyCeo: "Decision due", recommendedAction: "Decide", fingerprint: `inbox:decision:${decision.id}`, decisionId: decision.id, source: "BRAIN" },
+    });
+    const r = await m.db.$transaction(async (tx) =>
+      upsertInboxItem(
+        {
+          tx,
+          now: m.ctx.now,
+          today: m.ctx.ceo.today,
+          timezone: m.ctx.ceo.timezone,
+          ceo: { personId: m.ctx.ceo.personId, userId: m.ctx.ceo.userId, name: m.ctx.ceo.name, email: m.ctx.ceo.email },
+          actor: "CytoHub Brain",
+          source: { id: ids.ask, kind: "EMAIL_MESSAGE" as const, provider: "GMAIL" as const, title: "dedupe", externalId: null, externalUrl: null, occurredAt: m.ctx.now, ingestedAt: m.ctx.now },
+          engine: null,
+          relevance: null,
+          summary: emptySummary(),
+          counters: emptyCounters(),
+        },
+        { fingerprint: `inbox:thread:dedupe-${run}`, type: "DECISION", level: "IMMEDIATE", title: `Decision needed: ${decision.title}`, whyCeo: "test", recommendedAction: "test", links: { decisionId: decision.id } },
+      ),
+    );
+    assert.deepEqual(r, { id: brainItem.id, created: false }, "the existing item absorbs the new source");
+    assert.equal(await m.db.inboxItem.count({ where: { decisionId: decision.id } }), 1);
+    const refreshed = await m.db.inboxItem.findUniqueOrThrow({ where: { id: brainItem.id } });
+    assert.equal(refreshed.title, `Decision needed: ${decision.title}`, "newer wording wins");
+    assert.equal(refreshed.sourceItemId, ids.ask);
+    const refs = await m.db.sourceReference.count({ where: { targetType: "INBOX_ITEM", targetId: brainItem.id, sourceItemId: ids.ask } });
+    assert.equal(refs, 1, "the new source is traceable from the existing item");
   });
 
   it("sweepCommitments raises overdue promises once; markCompletedMeetings is idempotent", async () => {

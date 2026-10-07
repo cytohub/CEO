@@ -108,8 +108,8 @@ export default async function DocumentPage(props: { params: Promise<{ id: string
               <p className="px-4 py-3 text-xs text-muted-foreground">No key figures extracted.</p>
             ) : (
               <dl className="grid sm:grid-cols-2">
-                {facts.map((f) => (
-                  <div key={f.label} className="border-t border-hairline px-4 py-3 first:border-t-0 sm:odd:border-r sm:[&:nth-child(2)]:border-t-0">
+                {facts.map((f, i) => (
+                  <div key={`${f.label}-${i}`} className="border-t border-hairline px-4 py-3 first:border-t-0 sm:odd:border-r sm:[&:nth-child(2)]:border-t-0">
                     <dt className="text-2xs text-muted-foreground">{f.label}</dt>
                     <dd className="mt-0.5 text-[15px] font-semibold tabular">{f.value}</dd>
                   </div>

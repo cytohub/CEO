@@ -165,7 +165,18 @@ export async function runStage(type: JobType, sourceItemId: string, ctx: Pipelin
       if (item.calendarEvent && classification.meetingCategory) {
         await db.calendarEvent.update({ where: { id: item.calendarEvent.id }, data: { category: classification.meetingCategory } });
       }
-      if (skip) return { sourceItemId, stage: type, outcome: "skipped", detail: `noise (${classification.category})` };
+      if (skip) {
+        // The sync's first-pass thread status ("awaiting you") must still be corrected for noise.
+        if (item.emailMessage) {
+          await enqueue("THREAD_SUMMARY", {
+            payload: { threadId: item.emailMessage.threadId },
+            dedupeKey: `thread-summary:${item.emailMessage.threadId}`,
+            runAt: new Date(Date.now() + 2_000),
+            runId: ctx.runId,
+          });
+        }
+        return { sourceItemId, stage: type, outcome: "skipped", detail: `noise (${classification.category})` };
+      }
       break;
     }
 

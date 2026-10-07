@@ -33,6 +33,7 @@ import {
   analyzeMilestones,
 } from "./analyzers/workspace";
 import { composeBrief, enhanceBriefWithClaude } from "./brief";
+import { findOpenItemForRecord } from "@/server/inbox-dedupe";
 import { runIngestStage, type IngestStageResult } from "@/server/ingestion/refresh-stage";
 import { CONNECTORS, PIPELINE_SOURCE_KEYS } from "./connectors";
 import { snapshotDerivedMetrics } from "./metrics";
@@ -295,7 +296,9 @@ async function persistInsights(ctx: BrainContext, drafts: InsightDraft[]) {
 
     if (d.inbox && insight.status !== "DISMISSED") {
       const fingerprint = `inbox:${d.fingerprint}`;
-      const exists = await ctx.tx.inboxItem.findUnique({ where: { fingerprint }, select: { id: true } });
+      const exists =
+        (await ctx.tx.inboxItem.findUnique({ where: { fingerprint }, select: { id: true } })) ??
+        (await findOpenItemForRecord(ctx.tx, { decisionId: d.decisionId, taskId: d.taskId, dealId: d.dealId }));
       if (!exists) {
         await ctx.tx.inboxItem.create({
           data: {

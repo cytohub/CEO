@@ -19,7 +19,8 @@ import { cn } from "@/lib/utils";
 import { convertInboxToTask, dismissInboxItem, reopenInboxItem, resolveInboxItem, snoozeInboxItem } from "@/server/actions/inbox";
 import type { InboxEntry } from "@/server/queries/inbox";
 
-export function InboxView({ items, today, timezone, status }: { items: InboxEntry[]; today: Date; timezone: string; status: string }) {
+/** `now` is the server's render time, so relative times hydrate identically. */
+export function InboxView({ items, today, now, timezone, status }: { items: InboxEntry[]; today: Date; now: Date; timezone: string; status: string }) {
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
@@ -75,7 +76,7 @@ export function InboxView({ items, today, timezone, status }: { items: InboxEntr
                     <span className="truncate text-2xs font-medium text-muted-foreground">{meta.label}</span>
                     <Urgency value={i.urgency} />
                     {i.attention && <AttentionBadge level={i.attention} className="h-4 px-1.5" />}
-                    <span className="ml-auto shrink-0 text-2xs text-muted-foreground tabular">{timeAgo(i.createdAt)}</span>
+                    <span className="ml-auto shrink-0 text-2xs text-muted-foreground tabular">{timeAgo(i.createdAt, now)}</span>
                   </span>
                   <span className="mt-0.5 line-clamp-2 text-[13px] leading-snug font-medium text-foreground">{i.title}</span>
                   <span className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">{i.recommendedAction}</span>
@@ -85,7 +86,7 @@ export function InboxView({ items, today, timezone, status }: { items: InboxEntr
           );
         })}
       </ul>
-      {selected ? <InboxDetail key={selected.id} item={selected} today={today} timezone={timezone} /> : null}
+      {selected ? <InboxDetail key={selected.id} item={selected} today={today} now={now} timezone={timezone} /> : null}
     </div>
   );
 }
@@ -100,7 +101,7 @@ function Urgency({ value }: { value: number }) {
   );
 }
 
-function InboxDetail({ item: i, today, timezone }: { item: InboxEntry; today: Date; timezone: string }) {
+function InboxDetail({ item: i, today, now, timezone }: { item: InboxEntry; today: Date; now: Date; timezone: string }) {
   const meta = INBOX_TYPES[i.type];
   const { openEntity, openDelegate } = useUI();
   const router = useRouter();
@@ -174,7 +175,7 @@ function InboxDetail({ item: i, today, timezone }: { item: InboxEntry; today: Da
             <SourceKindIcon kind={i.source.kind} className="size-3" />
             <span className="font-medium text-ink-2">{providerLabel(i.source.provider)}</span>
             {i.source.author && <span>· {i.source.author}</span>}
-            <span>· {timeAgo(i.source.occurredAt)}</span>
+            <span>· {timeAgo(i.source.occurredAt, now)}</span>
           </p>
         ) : (
           i.sourceHidden && (

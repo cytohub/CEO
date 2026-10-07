@@ -526,13 +526,16 @@ async function main() {
   // ── Ingestion: demo mailbox, calendar and drive (mock providers) ──────────
   // Fixtures are anchored to now: each refresh below reveals what had
   // "arrived" by its clock, and later hourly syncs reveal the rest.
+  // SEED_DEMO_SOURCES=0 skips them (the ingestion integration test needs a base seed).
   const ceoUser = await db.user.findFirstOrThrow({ where: { role: "CEO" } });
-  for (const [kind, provider] of [
-    ["EMAIL", "OUTLOOK_MAIL"],
-    ["CALENDAR", "OUTLOOK_CALENDAR"],
-    ["DOCUMENTS", "GOOGLE_DRIVE"],
-  ] as const) {
-    await createDemoConnection(kind, provider, { userId: ceoUser.id }, { anchor: NOW });
+  if (process.env.SEED_DEMO_SOURCES !== "0") {
+    for (const [kind, provider] of [
+      ["EMAIL", "OUTLOOK_MAIL"],
+      ["CALENDAR", "OUTLOOK_CALENDAR"],
+      ["DOCUMENTS", "GOOGLE_DRIVE"],
+    ] as const) {
+      await createDemoConnection(kind, provider, { userId: ceoUser.id }, { anchor: NOW });
+    }
   }
 
   // ── History: activities, goals, day plans, reviews ───────────────────────

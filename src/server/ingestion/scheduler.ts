@@ -24,7 +24,7 @@ export function nextSyncTime(conn: Pick<SourceConnection, "syncFrequency" | "con
 }
 
 /** Create an IngestionRun and queue the sync job for one connection (idempotent while one is pending). */
-export async function requestSync(connectionId: string, trigger: RunTrigger, opts: { priorityBoost?: number } = {}): Promise<{ run: IngestionRun; queued: boolean }> {
+export async function requestSync(connectionId: string, trigger: RunTrigger): Promise<{ run: IngestionRun; queued: boolean }> {
   const conn = await db.sourceConnection.findUniqueOrThrow({ where: { id: connectionId } });
   const type = SYNC_JOB[conn.kind];
   const pending = await db.ingestionJob.findUnique({ where: { dedupeKey: `sync:${connectionId}` }, include: { run: true } });
@@ -35,7 +35,6 @@ export async function requestSync(connectionId: string, trigger: RunTrigger, opt
     runId: run.id,
     payload: { runId: run.id },
     dedupeKey: `sync:${connectionId}`,
-    priority: undefined,
     maxAttempts: 4,
   });
   return { run, queued: true };

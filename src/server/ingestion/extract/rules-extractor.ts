@@ -1093,7 +1093,8 @@ function riskDetail(d: RiskDraft): string | null {
     case "delay": {
       const topic = delayTopic(t);
       const dur = durationIn(t);
-      return topic ? `${topic} delayed${dur ? ` ${dur}` : ""}` : dur ? `delayed ${dur}` : null;
+      const verb = TENTATIVE_DELAY.test(t) ? "may slip" : "delayed";
+      return topic ? `${topic} ${verb}${dur ? ` ${dur}` : ""}` : dur ? `${verb} ${dur}` : null;
     }
     case "escalation":
       return "escalation";
@@ -1102,12 +1103,15 @@ function riskDetail(d: RiskDraft): string | null {
   }
 }
 
+/** "may slip", "could be delayed": a possible delay, not one that has happened. */
+const TENTATIVE_DELAY = /\b(?:may|might|could|can|would|is likely to|are likely to)\s+(?:still\s+)?(?:slip|be (?:delayed|late|pushed|postponed)|delay)\b/i;
+
 function delayTopic(t: string): string | null {
   const m =
     /\b(?:the|our|their)\s+([\w-]+)(?:\s+of\s+[^,.;]+?)?\s+(?:will be|is|are|was|were|has been|have been|got|is being)\s+(?:delayed|late|pushed|postponed)\b/i.exec(t) ??
-    /\b([\w-]+)\s+(?:delay|slip)(?:s|ped|ping)?\b(?!\s+(?:affects|will|means))/i.exec(t);
+    /\b([\w-]+)\s+(?:(?:may|might|could|can|will|would|is likely to|are likely to)\s+(?:still\s+)?)?(?:delay|slip)(?:s|ped|ping)?\b(?!\s+(?:affects|will|means))/i.exec(t);
   const w = m?.[1]?.toLowerCase();
-  return w && !/^(?:this|that|the|a|an|it|our|their|of)$/.test(w) ? w : null;
+  return w && !/^(?:this|that|the|a|an|it|our|their|of|may|might|could|can|will|would|should|to|not|also|still|likely)$/.test(w) ? w : null;
 }
 
 function riskTitle(run: Run, d: RiskDraft): string {
@@ -1134,7 +1138,8 @@ function riskTitle(run: Run, d: RiskDraft): string {
       const dur = durationIn(t);
       const cause = /\b(?:because of|due to|owing to)\s+(?:a|an|the)?\s*([^,.;]{3,40}?)(?=\s+(?:at|in|from|with|for|on)\b|[,.;]|$)/i.exec(t)?.[1];
       const impact = /\bdelay (?:affects|will affect|hits|impacts|threatens)\s+(?:our\s+|the\s+)?([^,.;]{3,50}?)(?:\s+for\b|[,.;]|$)/i.exec(t)?.[1];
-      if (topic) return tidy(`${P ? `${P} ` : ""}${topic} delayed${dur ? ` ${dur}` : ""}${cause ? `: ${cause}` : ""}`, 70);
+      const verb = TENTATIVE_DELAY.test(t) ? "may slip" : "delayed";
+      if (topic) return tidy(`${P ? `${P} ` : ""}${topic} ${verb}${dur ? ` ${dur}` : ""}${cause ? `: ${cause}` : ""}`, 70);
       if (impact) return tidy(`${P ? `${P} ` : ""}delay affects ${impact}`, 70);
       return tidy(`${P ? `${P} ` : ""}delay${dur ? ` of ${dur}` : ""}`, 70);
     }

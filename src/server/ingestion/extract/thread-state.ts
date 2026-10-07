@@ -255,7 +255,7 @@ export function computeThreadState(input: ThreadStateInput): ThreadState {
     recommendedAction = "No action needed — the thread is resolved";
   } else if (status === "FYI") {
     nextStep = "No reply needed";
-    recommendedAction = "No action needed — you're copied for information";
+    recommendedAction = human.length ? "No action needed — you're copied for information" : "No action needed — automated or promotional mail";
   } else {
     const rec = [...human].reverse().find((m) => m.extraction?.recommendedActions.length)?.extraction?.recommendedActions[0];
     nextStep = rec?.action ?? null;

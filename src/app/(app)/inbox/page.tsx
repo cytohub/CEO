@@ -48,7 +48,7 @@ export default async function InboxPage(props: { searchParams: Promise<{ status?
         ))}
       </nav>
       <Suspense>
-        <InboxView items={items} today={today} timezone={timezone} status={status} />
+        <InboxView items={items} today={today} now={new Date()} timezone={timezone} status={status} />
       </Suspense>
     </div>
   );

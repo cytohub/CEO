@@ -81,11 +81,11 @@ export function MergeCompare({ merge, keepId, onKeep, disabled }: { merge: NonNu
                 </div>
               </div>
               <dl className="mt-2.5 space-y-1 text-xs">
-                {s.fields.map((f) => {
+                {s.fields.map((f, fi) => {
                   const otherVal = sides[i === 0 ? 1 : 0]?.fields.find((x) => x.label === f.label)?.value;
                   const differs = otherVal !== undefined && otherVal !== f.value;
                   return (
-                    <div key={f.label} className="grid grid-cols-[72px_1fr] gap-2">
+                    <div key={`${f.label}-${fi}`} className="grid grid-cols-[72px_1fr] gap-2">
                       <dt className="text-muted-foreground">{f.label}</dt>
                       <dd className={cn("min-w-0 truncate", differs ? "font-medium text-foreground" : "text-ink-2")} title={f.value}>
                         {f.value}

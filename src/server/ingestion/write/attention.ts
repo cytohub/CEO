@@ -11,6 +11,7 @@
  */
 import type { AttentionLevel, CeoCategory, CompanyType, Confidence, InboxType, Relevance } from "@/generated/prisma/enums";
 import { addDays, dayStartInstant, daysBetween, formatDayLong } from "@/lib/dates";
+import { findItemForRecord } from "@/server/inbox-dedupe";
 import { confidenceFromScore } from "@/lib/intelligence";
 import { companyShortName } from "../resolve/names";
 import type { WriteEnv } from "./env";
@@ -190,7 +191,8 @@ export interface InboxInput {
 const URGENCY: Record<AttentionLevel, number> = { IMMEDIATE: 5, TODAY: 4, THIS_WEEK: 3, MONITOR: 2, DELEGATE: 2, ARCHIVE: 1 };
 
 /**
- * Create or refresh an inbox item (one per fingerprint). New ingestion items
+ * Create or refresh an inbox item (one per fingerprint, and one per record
+ * across producers — see inbox-dedupe). New ingestion items
  * are capped per CEO day unless IMMEDIATE; an item the CEO resolved reopens
  * only for newer information, and a dismissed one only for IMMEDIATE news.
  */
@@ -221,7 +223,11 @@ export async function upsertInboxItem(env: WriteEnv, input: InboxInput): Promise
     opportunityId: links.opportunityId ?? null,
     sourceItemId: env.source?.id ?? null,
   };
-  const existing = await tx.inboxItem.findUnique({ where: { fingerprint: input.fingerprint }, select: { id: true, status: true, resolvedAt: true, urgency: true, snoozedUntil: true } });
+  const select = { id: true, status: true, resolvedAt: true, urgency: true, snoozedUntil: true } as const;
+  // One item per record: if another producer or thread already filed this record, refresh that item instead.
+  const existing =
+    (await tx.inboxItem.findUnique({ where: { fingerprint: input.fingerprint }, select })) ??
+    (await findItemForRecord(tx, links, select, { includeResolved: true }));
   let id: string;
   let created = false;
   if (existing) {

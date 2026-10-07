@@ -333,6 +333,11 @@ describe("quality: board, partners, finance", () => {
     assert.deepEqual(r.risks.map((k) => k.title).sort(), ["Aster Cloud compute agreement stuck in legal", "Lumen renewal at risk"]);
   });
 
+  it("a possible slip in a memo is phrased as one ('may slip'), never 'may delayed'", () => {
+    const memo = { ...documentInput({ title: "Board memo.md", docType: "INTERNAL_MEMO", text: "Risk: the Lumen pilot timeline may slip two weeks if the assay validation is late." }), known: WORLD };
+    assert.deepEqual(x(memo).risks.map((k) => k.title), ["Lumen timeline may slip 2 weeks"]);
+  });
+
   it("expense reminders in the handbook produce no deadlines or tasks", () => {
     const r = x(documentInput({ title: "Employee Handbook — Time Off and Expenses", docType: "EMPLOYEE_DOCUMENT", text: "Submit receipts by October 6 for reimbursement. Expenses above $5,000 need CFO approval." }));
     assert.equal(r.deadlines.length, 0);
