@@ -91,6 +91,8 @@ export interface UserRow {
   isSelf: boolean;
   activeSessions: number;
   hasPassword: boolean;
+  /** Signed in with a password an admin chose; must replace it at next sign-in. */
+  mustChangePassword: boolean;
   /** Actions the server will accept for this row (same rules as the actions). */
   allowed: { changeRole: boolean; deactivate: boolean; reactivate: boolean; resetPassword: boolean; unlock: boolean };
   /** Roles this viewer may assign to this user. */
@@ -114,6 +116,7 @@ export async function getUsers(viewer: Pick<Viewer, "userId" | "role">): Promise
       failedLogins: true,
       createdAt: true,
       passwordHash: true,
+      mustChangePassword: true,
       _count: { select: { sessions: { where: { revokedAt: null, expiresAt: { gt: now } } } } },
     },
   });
@@ -137,6 +140,7 @@ export async function getUsers(viewer: Pick<Viewer, "userId" | "role">): Promise
       isSelf: u.id === viewer.userId,
       activeSessions: u._count.sessions,
       hasPassword: Boolean(u.passwordHash),
+      mustChangePassword: u.mustChangePassword,
       allowed: {
         changeRole: assignableRoles.length > 0,
         deactivate: !userChangeProblem(actor, target, { kind: "deactivate" }, activeCeos),

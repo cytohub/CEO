@@ -34,6 +34,7 @@ export async function rateLimit(scope: string, subject: string, opts: { limit: n
 export const LIMITS = {
   loginIp: { limit: 30, windowSec: 15 * 60 },
   loginAccount: { limit: 8, windowSec: 15 * 60 },
+  passwordChange: { limit: 10, windowSec: 15 * 60 },
   search: { limit: 120, windowSec: 60 },
   chief: { limit: 30, windowSec: 60 },
   upload: { limit: 30, windowSec: 60 * 60 },

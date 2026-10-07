@@ -388,6 +388,10 @@ model User {
   lastLoginAt  DateTime?
   failedLogins Int       @default(0)
   lockedUntil  DateTime?
+  /// Set when someone else chose the password (admin create or reset); the
+  /// user must replace it before they can use anything else.
+  mustChangePassword Boolean   @default(false)
+  passwordChangedAt  DateTime?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

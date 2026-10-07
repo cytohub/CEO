@@ -28,7 +28,8 @@ export function OneTimePasswordDialog({ value, who, onClose }: { value: { passwo
             <KeyRound className="size-4 text-ink-3" aria-hidden /> One-time password
           </DialogTitle>
           <DialogDescription>
-            Share it with {who} over a secure channel. It is shown only once — CytoHub stores just a hash and can’t display it again.
+            Share it with {who} over a secure channel. It works for one sign-in: they’ll be asked to choose their own password straight away. It is shown only
+            once — CytoHub stores just a hash and can’t display it again.
           </DialogDescription>
         </DialogHeader>
         {value && (

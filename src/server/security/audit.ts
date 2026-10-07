@@ -13,6 +13,7 @@ export type AuditAction =
   | "auth.logout"
   | "auth.lockout"
   | "auth.denied"
+  | "auth.password_change"
   | "user.create"
   | "user.update"
   | "user.password_reset"

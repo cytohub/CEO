@@ -29,10 +29,16 @@ type Pending = { kind: "role" | "deactivate" | "reactivate" | "reset"; user: Use
 
 export function UsersTable({ users, now, timezone }: { users: UserRow[]; now: Date; timezone: string }) {
   const [dialog, setDialog] = useState<Pending>(null);
+  // Open state is separate so a closing dialog keeps its content while it animates out.
+  const [dialogOpen, setDialogOpen] = useState(false);
   const [role, setRole] = useState<UserRole | null>(null);
   const [shown, setShown] = useState<{ password: string; email: string; who: string } | null>(null);
   const { pending, run } = useAction();
-  const close = () => setDialog(null);
+  const openDialog = (next: NonNullable<Pending>) => {
+    setDialog(next);
+    setDialogOpen(true);
+  };
+  const close = () => setDialogOpen(false);
 
   return (
     <div className="panel">
@@ -74,6 +80,7 @@ export function UsersTable({ users, now, timezone }: { users: UserRow[]; now: Da
                       <StatusPill tone={u.active ? "good" : "neutral"} label={u.active ? "Active" : "Deactivated"} />
                       {u.locked && <StatusPill tone="serious" label="Locked" />}
                       {!u.hasPassword && <StatusPill tone="warning" label="No password" />}
+                      {u.hasPassword && u.mustChangePassword && <StatusPill tone="neutral" label="Temporary password" />}
                     </div>
                     {u.locked && u.lockedUntil && <div className="mt-0.5 text-2xs text-muted-foreground">until {formatDateTime(u.lockedUntil, timezone)}</div>}
                     {!u.locked && u.failedLogins > 0 && <div className="mt-0.5 text-2xs text-muted-foreground">{u.failedLogins} failed sign-in{u.failedLogins === 1 ? "" : "s"}</div>}
@@ -101,14 +108,14 @@ export function UsersTable({ users, now, timezone }: { users: UserRow[]; now: Da
                             <DropdownMenuItem
                               onSelect={() => {
                                 setRole(u.assignableRoles[0] ?? null);
-                                setDialog({ kind: "role", user: u });
+                                openDialog({ kind: "role", user: u });
                               }}
                             >
                               <ShieldCheck aria-hidden /> Change role…
                             </DropdownMenuItem>
                           )}
                           {u.allowed.resetPassword && (
-                            <DropdownMenuItem onSelect={() => setDialog({ kind: "reset", user: u })}>
+                            <DropdownMenuItem onSelect={() => openDialog({ kind: "reset", user: u })}>
                               <KeyRound aria-hidden /> Reset password…
                             </DropdownMenuItem>
                           )}
@@ -119,12 +126,12 @@ export function UsersTable({ users, now, timezone }: { users: UserRow[]; now: Da
                           )}
                           {(u.allowed.deactivate || u.allowed.reactivate) && <DropdownMenuSeparator />}
                           {u.allowed.deactivate && (
-                            <DropdownMenuItem variant="destructive" onSelect={() => setDialog({ kind: "deactivate", user: u })}>
+                            <DropdownMenuItem variant="destructive" onSelect={() => openDialog({ kind: "deactivate", user: u })}>
                               <UserX aria-hidden /> Deactivate…
                             </DropdownMenuItem>
                           )}
                           {u.allowed.reactivate && (
-                            <DropdownMenuItem onSelect={() => setDialog({ kind: "reactivate", user: u })}>
+                            <DropdownMenuItem onSelect={() => openDialog({ kind: "reactivate", user: u })}>
                               <UserCheck aria-hidden /> Reactivate…
                             </DropdownMenuItem>
                           )}
@@ -144,7 +151,7 @@ export function UsersTable({ users, now, timezone }: { users: UserRow[]; now: Da
         </table>
       </div>
 
-      <Dialog open={dialog?.kind === "role"} onOpenChange={(o) => !o && close()}>
+      <Dialog open={dialogOpen && dialog?.kind === "role"} onOpenChange={(o) => !o && close()}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
             <DialogTitle>Change role</DialogTitle>
@@ -176,7 +183,7 @@ export function UsersTable({ users, now, timezone }: { users: UserRow[]; now: Da
         </DialogContent>
       </Dialog>
 
-      <AlertDialog open={dialog?.kind === "deactivate" || dialog?.kind === "reactivate" || dialog?.kind === "reset"} onOpenChange={(o) => !o && close()}>
+      <AlertDialog open={dialogOpen && (dialog?.kind === "deactivate" || dialog?.kind === "reactivate" || dialog?.kind === "reset")} onOpenChange={(o) => !o && close()}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>

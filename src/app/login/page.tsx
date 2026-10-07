@@ -2,15 +2,15 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { CytoHubMark } from "@/components/shell/sidebar";
 import { homePathFor } from "@/server/security/rbac";
-import { getViewer } from "@/server/security/session";
+import { PASSWORD_CHANGE_PATH, getSessionViewer } from "@/server/security/session";
 import { LoginForm } from "./login-form";
 
 export const metadata: Metadata = { title: "Sign in · CytoHub" };
 export const dynamic = "force-dynamic";
 
 export default async function LoginPage({ searchParams }: { searchParams: Promise<{ next?: string }> }) {
-  const viewer = await getViewer();
-  if (viewer) redirect(homePathFor(viewer.role));
+  const viewer = await getSessionViewer();
+  if (viewer) redirect(viewer.mustChangePassword ? PASSWORD_CHANGE_PATH : homePathFor(viewer.role));
   const { next } = await searchParams;
 
   return (

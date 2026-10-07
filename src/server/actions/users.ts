@@ -63,7 +63,8 @@ export async function createUser(input: z.input<typeof createSchema>): Promise<A
     // Link the account to the matching person in the execution graph when there is an unclaimed one.
     const person = await db.person.findFirst({ where: { email: { equals: data.email, mode: "insensitive" }, user: { is: null } }, select: { id: true } });
     const user = await db.user.create({
-      data: { name: data.name, email: data.email, role: data.role, passwordHash, active: true, personId: person?.id ?? null, title: USER_ROLES[data.role].label },
+      // Whoever created the account knows this password, so the user replaces it at first sign-in.
+      data: { name: data.name, email: data.email, role: data.role, passwordHash, mustChangePassword: true, active: true, personId: person?.id ?? null, title: USER_ROLES[data.role].label },
     });
     await audit({ action: "user.create", viewer, targetType: "User", targetId: user.id, metadata: { email: user.email, role: user.role, password: oneTimePassword ? "generated" : "set by admin", linkedPerson: Boolean(person) } });
     revalidateUsers();
@@ -109,11 +110,11 @@ export async function resetUserPassword(userId: string): Promise<ActionResult<{ 
     const { target, problem } = await checkChange(viewer, userId, { kind: "reset_password" });
     if (problem || !target) return denied(viewer, "user.password_reset", userId, problem ?? "User not found");
     const oneTimePassword = generatePassword();
-    await db.user.update({ where: { id: userId }, data: { passwordHash: await hashPassword(oneTimePassword), failedLogins: 0, lockedUntil: null } });
+    await db.user.update({ where: { id: userId }, data: { passwordHash: await hashPassword(oneTimePassword), mustChangePassword: true, failedLogins: 0, lockedUntil: null } });
     await revokeUserSessions(userId);
     await audit({ action: "user.password_reset", viewer, targetType: "User", targetId: userId, metadata: { email: target.email, sessionsRevoked: true } });
     revalidateUsers();
-    return ok({ oneTimePassword }, `Password reset for ${target.name}`);
+    return ok({ oneTimePassword }, `Password reset for ${target.name} — they’ll choose a new one at next sign-in`);
   });
 }
 

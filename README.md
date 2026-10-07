@@ -182,8 +182,13 @@ capability on the server; navigation only hides what a role cannot open.
 Source content is also limited by connection ownership and explicit access
 grants. Search, View Source, Prepare Me, summaries and the Chief of Staff all go
 through the same filter, so restricted information never leaks through AI
-answers. Sign-ins, connection changes, source views, review decisions and
-permission and retention changes are written to the audit log.
+answers. Sign-ins, password changes, connection changes, source views, review
+decisions and permission and retention changes are written to the audit log.
+
+Passwords an administrator sets or resets (Settings → Users) are temporary: the
+user must choose their own at the next sign-in before they can open anything
+else. Anyone can change their password from the account menu; doing so signs
+out every other device.
 
 ## CEO Priority Score
 

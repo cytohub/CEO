@@ -2,6 +2,12 @@
  * Sessions: opaque 256-bit tokens in an httpOnly cookie; only the SHA-256
  * hash is stored. Idle timeout slides with activity; absolute lifetime caps
  * every session. Revocation is immediate (sign-out, deactivation, password change).
+ *
+ * A user whose password someone else chose (admin create or reset) must
+ * replace it first: until then getViewer() treats them as signed out, so
+ * every page, action and route fails closed, and requirePage() sends them to
+ * PASSWORD_CHANGE_PATH. Only that page, its action and sign-out read the
+ * pending session (getSessionViewer).
  */
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
@@ -20,6 +26,8 @@ const IDLE_TIMEOUT_MS = 12 * 3_600_000;
 const ABSOLUTE_LIFETIME_MS = 7 * 24 * 3_600_000;
 const TOUCH_INTERVAL_MS = 5 * 60_000;
 
+export const PASSWORD_CHANGE_PATH = "/account/password";
+
 export interface Viewer {
   userId: string;
   sessionId: string;
@@ -30,12 +38,21 @@ export interface Viewer {
   timezone: string;
   capabilities: readonly Capability[];
   clearance: Sensitivity | null;
+  /** Signed in with a password someone else chose; nothing else is allowed until it is changed. */
+  mustChangePassword: boolean;
 }
 
 export class AuthError extends Error {
   constructor(message = "Please sign in again.") {
     super(message);
     this.name = "AuthError";
+  }
+}
+
+export class PasswordChangeRequiredError extends AuthError {
+  constructor() {
+    super("Choose a new password to continue.");
+    this.name = "PasswordChangeRequiredError";
   }
 }
 
@@ -82,7 +99,7 @@ async function loadViewer(): Promise<Viewer | null> {
   if (!token || token.length > 200) return null;
   const session = await db.session.findUnique({
     where: { tokenHash: sha256(token) },
-    include: { user: { select: { id: true, email: true, name: true, role: true, personId: true, timezone: true, active: true } } },
+    include: { user: { select: { id: true, email: true, name: true, role: true, personId: true, timezone: true, active: true, mustChangePassword: true } } },
   });
   const now = Date.now();
   if (!session || session.revokedAt || !session.user.active) return null;
@@ -104,11 +121,21 @@ async function loadViewer(): Promise<Viewer | null> {
     timezone: u.timezone,
     capabilities: ROLE_CAPABILITIES[u.role],
     clearance: ROLE_CLEARANCE[u.role],
+    mustChangePassword: u.mustChangePassword,
   };
 }
 
-/** The signed-in user for this request, or null. Cached per request. */
-export const getViewer = cache(loadViewer);
+/**
+ * The session's user even while a password change is pending. Only for the
+ * password change page and action, sign-in and sign-out. Cached per request.
+ */
+export const getSessionViewer = cache(loadViewer);
+
+/** The signed-in user for this request, or null (also null while a password change is pending). */
+export const getViewer = cache(async (): Promise<Viewer | null> => {
+  const viewer = await getSessionViewer();
+  return viewer && !viewer.mustChangePassword ? viewer : null;
+});
 
 export function can(viewer: Pick<Viewer, "capabilities"> | null | undefined, capability: Capability): boolean {
   return Boolean(viewer?.capabilities.includes(capability));
@@ -116,8 +143,9 @@ export function can(viewer: Pick<Viewer, "capabilities"> | null | undefined, cap
 
 /** For server actions and route handlers: throws AuthError / ForbiddenError. */
 export async function requireViewer(): Promise<Viewer> {
-  const viewer = await getViewer();
+  const viewer = await getSessionViewer();
   if (!viewer) throw new AuthError();
+  if (viewer.mustChangePassword) throw new PasswordChangeRequiredError();
   return viewer;
 }
 
@@ -129,8 +157,9 @@ export async function requireCapability(capability: Capability): Promise<Viewer>
 
 /** For pages: redirects to sign-in, or to the viewer's home when not permitted. */
 export async function requirePage(capability?: Capability, path = "/"): Promise<Viewer> {
-  const viewer = await getViewer();
+  const viewer = await getSessionViewer();
   if (!viewer) redirect(`/login?next=${encodeURIComponent(path)}`);
+  if (viewer.mustChangePassword) redirect(`${PASSWORD_CHANGE_PATH}?next=${encodeURIComponent(path)}`);
   if (capability && !can(viewer, capability)) {
     const home = homePathFor(viewer.role);
     redirect(home === path ? "/forbidden" : `${home}${home.includes("?") ? "&" : "?"}denied=1`);

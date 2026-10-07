@@ -190,7 +190,11 @@ can take action, delegate, snooze, ignore or open the source.
   12-hour idle expiry and a 7-day absolute lifetime. Changing a user's role,
   deactivating them or resetting their password revokes their sessions.
 * Passwords: scrypt with per-user salt; login rate-limited and lockout after
-  repeated failures.
+  repeated failures. A password an administrator sets or resets is temporary
+  (`User.mustChangePassword`): until the user replaces it, `getViewer()`
+  treats the session as signed out, so every page, action and API route fails
+  closed and pages redirect to `/account/password`. Changing a password
+  (required or from the account menu) revokes every session and issues a new one.
 * Authorization: role → capabilities; source content additionally filtered by
   **clearance** (`INTERNAL` < `CONFIDENTIAL` < `RESTRICTED`), connection
   ownership and explicit `AccessGrant`s. Search, View Source, Prepare Me and the

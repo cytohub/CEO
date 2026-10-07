@@ -1,6 +1,6 @@
 "use client";
 
-import { Keyboard, LogOut } from "lucide-react";
+import { KeyRound, Keyboard, LogOut } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -92,6 +92,11 @@ export function SidebarNav({
             <DropdownMenuSeparator />
             <DropdownMenuItem onSelect={() => setShortcutsOpen(true)}>
               <Keyboard /> Keyboard shortcuts <Kbd className="ml-auto">?</Kbd>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link href="/account/password">
+                <KeyRound /> Change password
+              </Link>
             </DropdownMenuItem>
             <DropdownMenuItem onSelect={() => void logout()}>
               <LogOut /> Sign out

@@ -4,6 +4,7 @@ import { emailThreadWhere, sourceItemWhere, SYSTEM_SCOPE, type AccessScope } fro
 import { decryptJson, decryptString, encryptJson, encryptString, safeEqual, sha256 } from "./crypto";
 import { hashPassword, passwordProblem, verifyPassword } from "./passwords";
 import { clearanceAllows, homePathFor, roleCan, ROLE_CAPABILITIES, sensitivityLevelsFor } from "./rbac";
+import { safeNext } from "./next-path";
 import { hasBearer, isSameOrigin } from "./request";
 
 describe("roles and clearance", () => {
@@ -110,5 +111,17 @@ describe("request checks", () => {
     assert.ok(hasBearer(req({ authorization: "Bearer s3cret" }), "s3cret"));
     assert.ok(!hasBearer(req({ authorization: "Bearer nope" }), "s3cret"));
     assert.ok(!hasBearer(req({ authorization: "Bearer s3cret" }), undefined));
+  });
+});
+
+describe("post-sign-in destinations", () => {
+  it("keeps same-site paths", () => {
+    assert.equal(safeNext("/tasks?task=abc"), "/tasks?task=abc");
+    assert.equal(safeNext("/accounting"), "/accounting");
+  });
+
+  it("refuses other origins and pages that would loop", () => {
+    for (const next of ["https://evil.example", "//evil.example", "/\\evil.example", "tasks", "", null, undefined]) assert.equal(safeNext(next), null, String(next));
+    for (const next of ["/login", "/login?next=/", "/account/password", "/account/password?next=/tasks"]) assert.equal(safeNext(next), null, next);
   });
 });
