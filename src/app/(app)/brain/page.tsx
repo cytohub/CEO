@@ -12,6 +12,7 @@ import { INSIGHT_TYPES } from "@/lib/domain";
 import { BRIEF_SECTIONS, type SyncResult } from "@/server/brain/types";
 import { getBrainOverview, getInsightFeed, getRecentSignals } from "@/server/queries/brain";
 import { requirePage } from "@/server/security/session";
+import { briefItemTitle } from "@/lib/format";
 
 export const metadata: Metadata = { title: "CytoHub Brain" };
 
@@ -168,10 +169,10 @@ function BriefTab({ brief, timezone }: { brief: Awaited<ReturnType<typeof getBra
                         <div className="min-w-0">
                           {item.href ? (
                             <Link href={item.href} className="text-[13px] leading-snug text-foreground hover:underline">
-                              {item.title}
+                              {briefItemTitle(item.title)}
                             </Link>
                           ) : (
-                            <span className="text-[13px] leading-snug">{item.title}</span>
+                            <span className="text-[13px] leading-snug">{briefItemTitle(item.title)}</span>
                           )}
                           {item.detail && <p className="text-xs text-muted-foreground">{item.detail}</p>}
                         </div>

@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { formatDayLong } from "@/lib/dates";
 import { markBriefReviewed } from "@/server/actions/brain";
 import { BRIEF_SECTIONS, type BriefItem, type BriefSections } from "@/server/brain/types";
+import { briefItemTitle } from "@/lib/format";
 
 const PRIMARY: (typeof BRIEF_SECTIONS)[number]["key"][] = ["changes", "decisionsNeeded", "risks", "milestonesAtRisk", "dealsProgressing", "dealsSlowing", "opportunities"];
 
@@ -94,7 +95,7 @@ function BriefSection({ label, items }: { label: string; items: BriefItem[] }) {
                 className={cn("mt-[7px] size-1.5 shrink-0 rounded-full", i.isNew === false ? "border border-ink-3" : i.importance >= 4 ? "bg-brand" : "bg-ink-3")}
               />
               <span className="min-w-0">
-                <span className="line-clamp-2 text-[12.5px] leading-snug text-foreground">{i.title}</span>
+                <span className="line-clamp-2 text-[12.5px] leading-snug text-foreground">{briefItemTitle(i.title)}</span>
                 {i.detail && <span className="line-clamp-1 text-2xs text-muted-foreground">{i.detail}</span>}
               </span>
             </>

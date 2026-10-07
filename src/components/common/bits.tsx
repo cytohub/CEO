@@ -56,17 +56,17 @@ export function Panel({
 }) {
   return (
     <section id={id} className={cn("panel flex min-w-0 flex-col", className)} aria-labelledby={id ? `${id}-title` : undefined}>
-      <div className="flex h-10 shrink-0 items-center gap-2 border-b border-hairline px-3.5">
-        {Icon && <Icon className="size-3.5 text-ink-3" aria-hidden />}
-        <h2 id={id ? `${id}-title` : undefined} className="text-[12.5px] font-semibold tracking-tight text-foreground">
+      <div className="flex min-h-10 shrink-0 items-center gap-2 border-b border-hairline px-3.5 py-1">
+        {Icon && <Icon className="size-3.5 shrink-0 text-ink-3" aria-hidden />}
+        <h2 id={id ? `${id}-title` : undefined} className="min-w-0 truncate text-[12.5px] font-semibold tracking-tight text-foreground">
           {title}
         </h2>
-        {count !== undefined && <span className="rounded bg-muted px-1.5 text-2xs font-medium text-muted-foreground tabular">{count}</span>}
-        <div className="ml-auto flex items-center gap-1">
+        {count !== undefined && <span className="shrink-0 rounded bg-muted px-1.5 text-2xs font-medium text-muted-foreground tabular">{count}</span>}
+        <div className="ml-auto flex shrink-0 items-center gap-1">
           {actions}
           {href && (
-            <Link href={href} className="inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-2xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground">
-              {hrefLabel}
+            <Link href={href} className="inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-2xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground" aria-label={hrefLabel}>
+              <span className="max-sm:hidden">{hrefLabel}</span>
               <ArrowUpRight className="size-3" aria-hidden />
             </Link>
           )}

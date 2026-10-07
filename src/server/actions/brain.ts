@@ -7,6 +7,7 @@ import { runBrainRefresh, type RefreshOutcome } from "@/server/brain/refresh";
 import { flattenForCommandBar, searchForViewer } from "@/server/ingestion/search";
 import { RESULT_TYPES, type SearchResultType } from "@/server/ingestion/search/types";
 import { getCeoContext } from "@/server/context";
+import { SETUP_DISMISSED_KEY } from "@/server/queries/setup";
 import { logActivity, revalidateAll } from "@/server/mutations";
 import { requireCapability } from "@/server/security/session";
 import { attemptAs, fail, ok, type ActionResult } from "./result";
@@ -19,6 +20,19 @@ export async function runDailyRefresh(): Promise<ActionResult<RefreshOutcome>> {
     revalidateAll();
     if (outcome.status === "FAILED") return fail(`Refresh failed: ${outcome.error ?? "unknown error"}`);
     return ok(outcome, `Brain refreshed · ${outcome.insightsCreated} new insights`);
+  });
+}
+
+/** Hide the first-run setup checklist on Today (it also disappears once every step is done). */
+export async function dismissSetupChecklist(): Promise<ActionResult> {
+  return attemptAs("cockpit.view", async () => {
+    await db.appSetting.upsert({
+      where: { key: SETUP_DISMISSED_KEY },
+      create: { key: SETUP_DISMISSED_KEY, value: new Date().toISOString() },
+      update: { value: new Date().toISOString() },
+    });
+    revalidateAll();
+    return ok(undefined, "Setup checklist hidden");
   });
 }
 

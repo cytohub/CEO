@@ -266,4 +266,17 @@
   .eyebrow {
     @apply text-2xs font-medium tracking-[0.06em] text-ink-3 uppercase;
   }
+  /* Sign-in brand panel: a soft brand / Brain glow over a fading grid. */
+  .auth-glow {
+    background-image:
+      radial-gradient(60% 55% at 12% 0%, color-mix(in oklch, var(--brand) 32%, transparent), transparent 72%),
+      radial-gradient(55% 50% at 100% 100%, color-mix(in oklch, var(--brain) 26%, transparent), transparent 72%);
+  }
+  .auth-grid {
+    background-image:
+      linear-gradient(to right, color-mix(in oklch, var(--foreground) 7%, transparent) 1px, transparent 1px),
+      linear-gradient(to bottom, color-mix(in oklch, var(--foreground) 7%, transparent) 1px, transparent 1px);
+    background-size: 36px 36px;
+    mask-image: radial-gradient(ellipse 70% 60% at 30% 45%, black 15%, transparent 75%);
+  }
 }

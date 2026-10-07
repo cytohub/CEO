@@ -28,10 +28,11 @@ export function Greeting({ name, timezone, dateLabel }: { name: string; timezone
 
 const noopSubscribe = () => () => {};
 
-export function RefreshButton({ refreshedToday }: { refreshedToday: boolean }) {
+/** `quiet`: secondary style, when something else on the page is the next step (the setup checklist). */
+export function RefreshButton({ refreshedToday, quiet = false }: { refreshedToday: boolean; quiet?: boolean }) {
   const { pending, run } = useAction();
   return (
-    <Button variant={refreshedToday ? "outline" : "default"} size="sm" disabled={pending} onClick={() => run(() => runDailyRefresh())}>
+    <Button variant={refreshedToday || quiet ? "outline" : "default"} size="sm" disabled={pending} onClick={() => run(() => runDailyRefresh())}>
       {pending ? <Loader2 className="animate-spin" /> : <RefreshCcw />}
       {pending ? "Refreshing Brain…" : refreshedToday ? "Refresh Brain" : "Run morning refresh"}
     </Button>
@@ -60,6 +61,7 @@ export function BrainStrip({
   sources,
   headline,
   narrativeEngine,
+  embedded = false,
 }: {
   lastRefreshAt: Date | null;
   status: string | null;
@@ -69,10 +71,12 @@ export function BrainStrip({
   sources: { connected: number; total: number };
   headline: string | null;
   narrativeEngine?: string;
+  /** Inside another panel: no frame of its own. */
+  embedded?: boolean;
 }) {
   const healthy = status === "SUCCEEDED" || status === "PARTIAL";
   return (
-    <div className="panel flex flex-col gap-3 px-4 py-3 md:flex-row md:items-center md:gap-5">
+    <div className={cn("flex flex-col gap-3 px-4 py-3 md:flex-row md:items-center md:gap-5", !embedded && "panel")}>
       <div className="flex items-center gap-2.5">
         <div className="flex size-8 items-center justify-center rounded-lg bg-brain-soft">
           <Sparkles className="size-4 text-brain" aria-hidden />

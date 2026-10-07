@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { CytoHubMark } from "@/components/shell/sidebar";
+import { AuthShell } from "@/components/shell/auth-shell";
 import { homePathFor } from "@/server/security/rbac";
 import { PASSWORD_CHANGE_PATH, getSessionViewer } from "@/server/security/session";
 import { LoginForm } from "./login-form";
@@ -14,22 +14,10 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
   const { next } = await searchParams;
 
   return (
-    <main className="flex min-h-dvh items-center justify-center bg-background px-4">
-      <div className="w-full max-w-[360px]">
-        <div className="mb-6 flex items-center gap-2.5">
-          <CytoHubMark className="size-8" />
-          <div className="leading-tight">
-            <div className="text-[15px] font-semibold tracking-tight">CytoHub</div>
-            <div className="text-xs text-muted-foreground">CEO Command Center</div>
-          </div>
-        </div>
-        <div className="panel p-5">
-          <h1 className="text-base font-semibold tracking-tight">Sign in</h1>
-          <p className="mt-1 text-[13px] text-muted-foreground">Company intelligence is confidential. Access is logged.</p>
-          <LoginForm next={typeof next === "string" ? next : undefined} />
-        </div>
-        <p className="mt-4 text-center text-2xs text-muted-foreground">Accounts are created by your CytoHub administrator.</p>
-      </div>
-    </main>
+    <AuthShell footer={<p className="mt-6 text-xs text-muted-foreground">Accounts are created by your CytoHub administrator. Every sign-in is logged.</p>}>
+      <h1 className="text-[22px] font-semibold tracking-tight">Sign in</h1>
+      <p className="mt-1 text-[13px] text-muted-foreground">Welcome back. Use your work email and password.</p>
+      <LoginForm next={typeof next === "string" ? next : undefined} />
+    </AuthShell>
   );
 }

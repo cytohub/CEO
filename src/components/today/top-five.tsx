@@ -97,7 +97,7 @@ export function TopFive({ items, confirmedAt, today }: { items: Item[]; confirme
             </>
           )}
         </p>
-        <div className="ml-auto flex items-center gap-1.5">
+        <div className="flex items-center gap-1.5 max-sm:w-full max-sm:justify-end sm:ml-auto">
           <AddPriority disabled={items.length >= 5 && !!confirmedAt} />
           {!confirmedAt ? (
             <>

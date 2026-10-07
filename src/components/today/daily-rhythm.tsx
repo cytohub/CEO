@@ -7,12 +7,26 @@ export interface RhythmStep {
   state: "done" | "current" | "upcoming";
 }
 
-/** The CEO operating rhythm: refresh → review → prioritize → execute → close. */
-export function DailyRhythm({ steps }: { steps: RhythmStep[] }) {
+/**
+ * The CEO operating rhythm: refresh → review → prioritize → execute → close.
+ * A swipeable row on phones, five columns from `sm` up. `embedded` drops the
+ * outer frame so it can sit inside another panel.
+ */
+export function DailyRhythm({ steps, embedded = false }: { steps: RhythmStep[]; embedded?: boolean }) {
   return (
-    <ol className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-border bg-border sm:grid-cols-5" aria-label="Daily CEO workflow">
+    <ol
+      className={cn(
+        "flex snap-x gap-px overflow-x-auto [scrollbar-width:none] sm:grid sm:grid-cols-5 sm:overflow-visible",
+        embedded ? "border-t border-hairline bg-hairline" : "rounded-lg border border-border bg-border sm:overflow-hidden",
+      )}
+      aria-label="Daily CEO workflow"
+    >
       {steps.map((s, i) => (
-        <li key={s.label} className={cn("flex items-center gap-2.5 bg-surface px-3 py-2", s.state === "current" && "bg-brand-soft/60")} aria-current={s.state === "current" ? "step" : undefined}>
+        <li
+          key={s.label}
+          className={cn("flex min-w-[46%] shrink-0 snap-start items-center gap-2.5 bg-surface px-3 py-2 sm:min-w-0", s.state === "current" && "bg-brand-soft/60")}
+          aria-current={s.state === "current" ? "step" : undefined}
+        >
           <span
             className={cn(
               "flex size-5 shrink-0 items-center justify-center rounded-full text-2xs font-semibold tabular",

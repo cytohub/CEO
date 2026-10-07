@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { BrainStrip, EndOfDayButton, Greeting, RefreshButton } from "@/components/today/today-header";
 import { DailyRhythm, type RhythmStep } from "@/components/today/daily-rhythm";
+import { SetupChecklist } from "@/components/today/setup-checklist";
 import { CommitmentsPanel } from "@/components/today/commitments-panel";
 import { AtRiskPanel, AttentionPanel, DecisionsPanel, GoalsPanel } from "@/components/today/panels";
 import { SinceYesterday } from "@/components/today/since-yesterday";
@@ -11,6 +12,7 @@ import { UpcomingPanel } from "@/components/today/upcoming-panel";
 import { INBOX_TYPES } from "@/lib/domain";
 import { formatDayFull, formatTime } from "@/lib/dates";
 import { getCockpitCommitments } from "@/server/queries/commitments";
+import { getSetupProgress } from "@/server/queries/setup";
 import { getTodayData } from "@/server/queries/today";
 import { requirePage } from "@/server/security/session";
 
@@ -18,7 +20,10 @@ export const metadata: Metadata = { title: "Today" };
 
 export default async function TodayPage() {
   await requirePage("cockpit.view", "/");
-  const [d, commitments] = await Promise.all([getTodayData(), getCockpitCommitments()]);
+  const [d, commitments, setup] = await Promise.all([getTodayData(), getCockpitCommitments(), getSetupProgress()]);
+  const showSetup = !setup.complete && !setup.dismissed;
+  // A brand-new workspace has nothing to report yet: the checklist leads instead of a row of zeros.
+  const showBrain = Boolean(d.lastRefresh) || !showSetup;
   const { ceo, plan, brief } = d;
   const priorities = plan?.priorities ?? [];
   const done = priorities.filter((p) => p.task.status === "DONE").length;
@@ -57,7 +62,7 @@ export default async function TodayPage() {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <Greeting name={ceo.firstName} timezone={ceo.timezone} dateLabel={formatDayFull(ceo.today)} />
         <div className="flex items-center gap-2">
-          <RefreshButton refreshedToday={refreshedToday} />
+          <RefreshButton refreshedToday={refreshedToday} quiet={showSetup} />
           <EndOfDayButton
             done={Boolean(plan?.endOfDayAt)}
             notes={plan?.endOfDayNotes ?? null}
@@ -66,18 +71,24 @@ export default async function TodayPage() {
         </div>
       </div>
 
-      <BrainStrip
-        lastRefreshAt={d.lastRefresh?.completedAt ?? d.lastRefresh?.startedAt ?? null}
-        status={d.lastRefresh?.status ?? null}
-        timezone={ceo.timezone}
-        newInsights={brief?.payload.stats.newInsights ?? 0}
-        needsYou={d.inbox.count}
-        sources={d.sources}
-        headline={brief?.headline ?? null}
-        narrativeEngine={brief?.payload.narrativeEngine}
-      />
+      {showSetup && <SetupChecklist progress={setup} />}
 
-      <DailyRhythm steps={steps} />
+      {showBrain && (
+        <section className="panel overflow-hidden" aria-label="CytoHub Brain and today’s rhythm">
+          <BrainStrip
+            embedded
+            lastRefreshAt={d.lastRefresh?.completedAt ?? d.lastRefresh?.startedAt ?? null}
+            status={d.lastRefresh?.status ?? null}
+            timezone={ceo.timezone}
+            newInsights={brief?.payload.stats.newInsights ?? 0}
+            needsYou={d.inbox.count}
+            sources={d.sources}
+            headline={brief?.headline ?? null}
+            narrativeEngine={brief?.payload.narrativeEngine}
+          />
+          <DailyRhythm steps={steps} embedded />
+        </section>
+      )}
 
       <div className="grid gap-4 xl:grid-cols-12">
         <div className="min-w-0 space-y-4 xl:col-span-8">

@@ -91,3 +91,8 @@ export function truncate(text: string, max: number): string {
 export function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
+
+/** A brief item's title under its section heading: "Important change: X" reads as "X" under "Important changes". */
+export function briefItemTitle(title: string): string {
+  return title.replace(/^Important change:\s*/i, "");
+}
