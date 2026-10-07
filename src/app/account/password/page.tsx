@@ -45,7 +45,7 @@ export default async function ChangePasswordPage({ searchParams }: { searchParam
       }
     >
       <h1 className="text-[22px] font-semibold tracking-tight">{required ? "Choose your own password" : "Change password"}</h1>
-      <p className="mt-1 text-[13px] text-muted-foreground">
+      <p className="mt-1 text-[14px] text-muted-foreground">
         {required
           ? "You signed in with a temporary password from your administrator. Replace it to continue."
           : "You’ll stay signed in here; every other device is signed out."}

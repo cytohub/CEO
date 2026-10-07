@@ -18,7 +18,7 @@ export function JobsTable({ jobs, now, timezone, canRetry }: { jobs: HealthJobRo
   if (!jobs.length) return <EmptyState compact icon={CheckCircle2} title="No failing jobs" description="Every job succeeded or is waiting its turn." />;
   return (
     <div className="relative overflow-x-auto scrollbar-thin">
-      <table className="w-full min-w-[820px] text-[13px]">
+      <table className="w-full min-w-[820px] text-[14px]">
         <caption className="sr-only">Failing and failed ingestion jobs</caption>
         <thead>
           <tr className="border-b border-hairline text-left text-2xs font-medium text-muted-foreground">

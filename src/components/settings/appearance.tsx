@@ -53,7 +53,7 @@ export function AppearanceForm() {
                 <Icon className="size-3.5" aria-hidden />
               </span>
               <span className="min-w-0">
-                <span className="block text-[13px] font-medium text-foreground">{o.label}</span>
+                <span className="block text-[14px] font-medium text-foreground">{o.label}</span>
                 <span className="block text-2xs text-muted-foreground">{o.hint}</span>
               </span>
               <span

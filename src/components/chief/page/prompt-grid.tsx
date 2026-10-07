@@ -40,7 +40,7 @@ export function PromptGrid({ onPick, disabled }: { onPick: (q: string) => void; 
                     type="button"
                     disabled={disabled}
                     onClick={() => onPick(p)}
-                    className="group flex w-full items-center gap-2 rounded-lg border border-border bg-surface px-3 py-2 text-left text-[13px] text-ink-2 transition-colors outline-none hover:border-input hover:bg-muted/60 hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-50"
+                    className="group flex w-full items-center gap-2 rounded-lg border border-border bg-surface px-3 py-2 text-left text-[14px] text-ink-2 transition-colors outline-none hover:border-input hover:bg-muted/60 hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-50"
                   >
                     <span className="min-w-0 flex-1">{p}</span>
                     <ArrowUpRight className="size-3.5 shrink-0 text-ink-3 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100" aria-hidden />

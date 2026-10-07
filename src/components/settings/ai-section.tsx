@@ -2,12 +2,12 @@ import { Clock, Sparkles } from "lucide-react";
 import { StatusPill } from "@/components/common/status";
 
 function Code({ children }: { children: React.ReactNode }) {
-  return <code className="rounded bg-muted px-1 font-mono text-[11px] text-ink-2">{children}</code>;
+  return <code className="rounded bg-muted px-1 font-mono text-[12px] text-ink-2">{children}</code>;
 }
 
 function Block({ children, label }: { children: string; label: string }) {
   return (
-    <pre aria-label={label} className="scrollbar-thin overflow-x-auto rounded-md border border-hairline bg-surface-2 px-3 py-2 font-mono text-[11px] leading-relaxed text-ink-2">
+    <pre aria-label={label} className="scrollbar-thin overflow-x-auto rounded-md border border-hairline bg-surface-2 px-3 py-2 font-mono text-[12px] leading-relaxed text-ink-2">
       {children}
     </pre>
   );
@@ -22,7 +22,7 @@ export function AiSection({ ai }: { ai: { claudeEnabled: boolean; model: string;
             <div className="flex size-7 items-center justify-center rounded-lg bg-brain-soft">
               <Sparkles className="size-3.5 text-brain" aria-hidden />
             </div>
-            <h3 className="text-[13px] font-semibold">Claude</h3>
+            <h3 className="text-[14px] font-semibold">Claude</h3>
             <StatusPill
               tone={ai.claudeEnabled ? "good" : "neutral"}
               label={ai.claudeEnabled ? "Configured" : ai.disabledByFlag ? "Disabled by flag" : "Not configured"}
@@ -63,7 +63,7 @@ export function AiSection({ ai }: { ai: { claudeEnabled: boolean; model: string;
             <div className="flex size-7 items-center justify-center rounded-lg bg-surface-2 ring-1 ring-border">
               <Clock className="size-3.5 text-ink-3" aria-hidden />
             </div>
-            <h3 className="text-[13px] font-semibold">Scheduled Daily Brain Refresh</h3>
+            <h3 className="text-[14px] font-semibold">Scheduled Daily Brain Refresh</h3>
             <StatusPill tone={ai.cronSecretSet ? "good" : "warning"} label={ai.cronSecretSet ? "CRON_SECRET set" : "CRON_SECRET missing"} />
           </div>
           <p className="text-xs text-muted-foreground">

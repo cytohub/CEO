@@ -68,7 +68,7 @@ export function DisconnectDialog({
             >
               <input type="radio" name={name} value={o.value} checked={choice === o.value} onChange={() => setChoice(o.value)} className="mt-0.5 accent-[var(--brand)]" />
               <span className="min-w-0">
-                <span className="block text-[13px] font-medium text-foreground">
+                <span className="block text-[14px] font-medium text-foreground">
                   {o.label}
                   {o.value === "keep" && <span className="ml-1.5 text-2xs font-normal text-muted-foreground">Recommended</span>}
                 </span>

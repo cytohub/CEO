@@ -131,7 +131,7 @@ function RowBody({ item, tagWidth }: { item: RowItem; tagWidth?: string }) {
         </span>
       )}
       <span className="min-w-0 flex-1">
-        <span className={cn("block truncate text-[13px]", item.muted ? "text-muted-foreground" : "text-foreground")} title={item.title}>
+        <span className={cn("block truncate text-[14px]", item.muted ? "text-muted-foreground" : "text-foreground")} title={item.title}>
           {item.title}
         </span>
         {item.detail && <span className="block truncate text-2xs text-muted-foreground">{item.detail}</span>}

@@ -76,7 +76,7 @@ export default async function SearchPage(props: { searchParams: Promise<{ q?: st
             maxLength={200}
             placeholder="Ask a question — “What did we promise Karen?” — or search…"
             aria-label="Search or ask CytoHub Brain"
-            className="h-10 w-full rounded-lg border border-input bg-surface pr-3 pl-9 text-[14px] text-foreground outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30 [&::-webkit-search-cancel-button]:appearance-none"
+            className="h-10 w-full rounded-lg border border-input bg-surface pr-3 pl-9 text-[15px] text-foreground outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30 [&::-webkit-search-cancel-button]:appearance-none"
           />
         </div>
         {when && <input type="hidden" name="when" value={when} />}
@@ -221,7 +221,7 @@ async function Suggestions({ viewer }: { viewer: Viewer }) {
                     <Link href={`/brain?insight=${i.id}`} className="flex items-start gap-2.5 px-3.5 py-2 hover:bg-muted/50">
                       <Icon className={cn("mt-0.5 size-3.5 shrink-0", TONE_TEXT[meta.tone])} aria-hidden />
                       <span className="min-w-0 flex-1">
-                        <span className="block truncate text-[13px] text-foreground">{i.title}</span>
+                        <span className="block truncate text-[14px] text-foreground">{i.title}</span>
                         <span className="block text-2xs text-muted-foreground">
                           {meta.label} · {timeAgo(i.createdAt, ceo.now)}
                         </span>
@@ -245,7 +245,7 @@ async function Suggestions({ viewer }: { viewer: Viewer }) {
                 return (
                   <li key={g.id}>
                     <Link href={`/goals/${g.id}`} className="flex items-center gap-3 px-3.5 py-2 hover:bg-muted/50">
-                      <span className="min-w-0 flex-1 truncate text-[13px] text-foreground">{g.title}</span>
+                      <span className="min-w-0 flex-1 truncate text-[14px] text-foreground">{g.title}</span>
                       <StatusPill tone={status.tone} label={status.label} />
                       <span className="w-9 shrink-0 text-right text-xs font-medium tabular">{g.progress}%</span>
                     </Link>

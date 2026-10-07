@@ -7,7 +7,7 @@ function Brand({ className }: { className?: string }) {
       <div className="flex items-center gap-2.5">
         <CytoHubMark className="size-8" />
         <div className="leading-tight">
-          <div className="text-[15px] font-semibold tracking-tight">CytoHub</div>
+          <div className="text-[16px] font-semibold tracking-tight">CytoHub</div>
           <div className="text-xs text-muted-foreground">CEO Command Center</div>
         </div>
       </div>
@@ -22,8 +22,8 @@ function Feature({ icon: Icon, title, text }: { icon: LucideIcon; title: string;
         <Icon className="size-3.5 text-foreground" aria-hidden />
       </span>
       <div>
-        <div className="text-[13px] font-medium text-foreground">{title}</div>
-        <div className="text-[13px] leading-relaxed text-ink-2">{text}</div>
+        <div className="text-[14px] font-medium text-foreground">{title}</div>
+        <div className="text-[14px] leading-relaxed text-ink-2">{text}</div>
       </div>
     </li>
   );
@@ -42,7 +42,7 @@ export function AuthShell({ children, footer }: { children: React.ReactNode; foo
         <Brand className="relative" />
         <div className="relative max-w-md">
           <p className="text-[30px] leading-[1.15] font-semibold tracking-tight text-foreground">Know what needs you before the day starts.</p>
-          <p className="mt-4 text-[14px] leading-relaxed text-ink-2">
+          <p className="mt-4 text-[15px] leading-relaxed text-ink-2">
             CytoHub Brain reads your email, calendar and documents and turns them into one morning brief, a ranked Top 5 and a record of every commitment.
           </p>
           <ul className="mt-10 space-y-5">

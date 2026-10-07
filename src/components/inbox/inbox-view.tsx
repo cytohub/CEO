@@ -78,7 +78,7 @@ export function InboxView({ items, today, now, timezone, status }: { items: Inbo
                     {i.attention && <AttentionBadge level={i.attention} className="h-4 px-1.5" />}
                     <span className="ml-auto shrink-0 text-2xs text-muted-foreground tabular">{timeAgo(i.createdAt, now)}</span>
                   </span>
-                  <span className="mt-0.5 line-clamp-2 text-[13px] leading-snug font-medium text-foreground">{i.title}</span>
+                  <span className="mt-0.5 line-clamp-2 text-[14px] leading-snug font-medium text-foreground">{i.title}</span>
                   <span className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">{i.recommendedAction}</span>
                 </span>
               </button>
@@ -153,7 +153,7 @@ function InboxDetail({ item: i, today, now, timezone }: { item: InboxEntry; toda
         <h2 id="inbox-detail-title" className="mt-2 text-lg leading-snug font-semibold tracking-tight">
           {i.title}
         </h2>
-        {i.summary && <p className="mt-1.5 text-[13px] leading-relaxed text-ink-2">{i.summary}</p>}
+        {i.summary && <p className="mt-1.5 text-[14px] leading-relaxed text-ink-2">{i.summary}</p>}
         {ingested && (
           <div className="mt-2.5 flex flex-wrap items-center gap-x-2.5 gap-y-1.5 text-2xs text-muted-foreground">
             {i.attention && <AttentionBadge level={i.attention} />}
@@ -189,13 +189,13 @@ function InboxDetail({ item: i, today, now, timezone }: { item: InboxEntry; toda
       <div className="space-y-4 px-5 py-4">
         <section className="rounded-lg border border-border bg-surface-2/60 p-3.5">
           <h3 className="text-2xs font-semibold tracking-wide text-ink-3 uppercase">Why this needs CEO attention</h3>
-          <p className="mt-1 text-[13px] leading-relaxed">{i.whyCeo}</p>
+          <p className="mt-1 text-[14px] leading-relaxed">{i.whyCeo}</p>
         </section>
         <section className="rounded-lg border border-brain/25 bg-brain-soft/60 p-3.5">
           <h3 className="flex items-center gap-1.5 text-2xs font-semibold tracking-wide text-brain uppercase">
             <Sparkles className="size-3" aria-hidden /> Recommended action
           </h3>
-          <p className="mt-1 text-[13px] leading-relaxed font-medium">{i.recommendedAction}</p>
+          <p className="mt-1 text-[14px] leading-relaxed font-medium">{i.recommendedAction}</p>
         </section>
 
         {related.length > 0 && (
@@ -205,13 +205,13 @@ function InboxDetail({ item: i, today, now, timezone }: { item: InboxEntry; toda
               {related.map((r) => (
                 <li key={r.kind + r.label}>
                   {r.href ? (
-                    <Link href={r.href} className="flex items-center gap-3 px-3 py-2 text-[13px] hover:bg-muted/50">
+                    <Link href={r.href} className="flex items-center gap-3 px-3 py-2 text-[14px] hover:bg-muted/50">
                       <span className="w-16 shrink-0 text-2xs text-muted-foreground">{r.kind}</span>
                       <span className="min-w-0 flex-1 truncate">{r.label}</span>
                       <ExternalLink className="size-3.5 text-ink-3" aria-hidden />
                     </Link>
                   ) : (
-                    <button type="button" onClick={r.onClick} className="flex w-full items-center gap-3 px-3 py-2 text-left text-[13px] hover:bg-muted/50">
+                    <button type="button" onClick={r.onClick} className="flex w-full items-center gap-3 px-3 py-2 text-left text-[14px] hover:bg-muted/50">
                       <span className="w-16 shrink-0 text-2xs text-muted-foreground">{r.kind}</span>
                       <span className="min-w-0 flex-1 truncate">{r.label}</span>
                       <ArrowRight className="size-3.5 text-ink-3" aria-hidden />
@@ -296,7 +296,7 @@ function InboxDetail({ item: i, today, now, timezone }: { item: InboxEntry; toda
                     ["In 3 days", addDays(today, 3)],
                     ["Next week", nextMonday],
                   ].map(([label, d]) => (
-                    <button key={label as string} type="button" onClick={() => run(() => snoozeInboxItem(i.id, dayKey(d as Date)))} className="flex w-full justify-between rounded px-2 py-1.5 text-left text-[13px] hover:bg-muted">
+                    <button key={label as string} type="button" onClick={() => run(() => snoozeInboxItem(i.id, dayKey(d as Date)))} className="flex w-full justify-between rounded px-2 py-1.5 text-left text-[14px] hover:bg-muted">
                       {label as string}
                       <span className="text-2xs text-muted-foreground">{formatDay(d as Date)}</span>
                     </button>
@@ -361,7 +361,7 @@ function SnoozeButton({ disabled, today, nextMonday, onSnooze }: { disabled: boo
             ["Next week", nextMonday],
           ] as const
         ).map(([label, d]) => (
-          <button key={label} type="button" onClick={() => onSnooze(d)} className="flex w-full justify-between rounded px-2 py-1.5 text-left text-[13px] hover:bg-muted">
+          <button key={label} type="button" onClick={() => onSnooze(d)} className="flex w-full justify-between rounded px-2 py-1.5 text-left text-[14px] hover:bg-muted">
             {label}
             <span className="text-2xs text-muted-foreground">{formatDay(d)}</span>
           </button>

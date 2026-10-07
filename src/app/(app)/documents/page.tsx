@@ -64,7 +64,7 @@ export default async function DocumentsPage(props: { searchParams: Promise<{ typ
                   <DocFormatIcon format={d.format} />
                   <span className="min-w-0">
                     <span className="flex flex-wrap items-center gap-2">
-                      <span className="truncate text-[13px] font-medium text-foreground">{d.title}</span>
+                      <span className="truncate text-[14px] font-medium text-foreground">{d.title}</span>
                       {latest?.isSignificant && <span className="rounded bg-serious-soft px-1.5 py-0.5 text-2xs font-medium text-serious-ink">Significant change</span>}
                     </span>
                     <span className="mt-0.5 flex flex-wrap items-center gap-x-2 text-2xs text-muted-foreground">

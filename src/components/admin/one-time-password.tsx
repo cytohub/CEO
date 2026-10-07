@@ -38,7 +38,7 @@ export function OneTimePasswordDialog({ value, who, onClose }: { value: { passwo
               Sign-in email <span className="font-medium text-foreground">{value.email}</span>
             </div>
             <div className="flex items-center gap-2 rounded-lg border border-border bg-surface-2 px-3 py-2">
-              <code data-testid="one-time-password" className="min-w-0 flex-1 font-mono text-[13px] break-all text-foreground select-all">
+              <code data-testid="one-time-password" className="min-w-0 flex-1 font-mono text-[14px] break-all text-foreground select-all">
                 {value.password}
               </code>
               <Button

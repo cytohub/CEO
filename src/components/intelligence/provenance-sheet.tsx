@@ -123,7 +123,7 @@ function SourceCard({ r, timezone }: { r: ProvenanceRef; timezone: string }) {
           <span className="rounded bg-muted px-1.5 py-0.5 font-medium">{REFERENCE_ROLE[r.role]}</span>
         </span>
       </div>
-      <p className="mt-1.5 text-[13px] leading-snug font-medium text-foreground">{r.title}</p>
+      <p className="mt-1.5 text-[14px] leading-snug font-medium text-foreground">{r.title}</p>
       <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-2xs text-muted-foreground">
         <time dateTime={new Date(r.occurredAt).toISOString()}>{formatDateTime(new Date(r.occurredAt), timezone)}</time>
         <span>·</span>

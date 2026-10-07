@@ -45,7 +45,7 @@ export function SearchResults({ groups, terms, limitPerType }: { groups: SearchG
           <section key={g.type} className="panel" aria-labelledby={`group-${g.type}`}>
             <div className="flex h-10 items-center gap-2 border-b border-hairline px-3.5">
               <Icon className="size-3.5 text-ink-3" aria-hidden />
-              <h2 id={`group-${g.type}`} className="text-[12.5px] font-semibold tracking-tight">
+              <h2 id={`group-${g.type}`} className="text-[13.5px] font-semibold tracking-tight">
                 {g.label}
               </h2>
               <span className="rounded bg-muted px-1.5 text-2xs font-medium text-muted-foreground tabular">{g.results.length}</span>
@@ -57,7 +57,7 @@ export function SearchResults({ groups, terms, limitPerType }: { groups: SearchG
                   <Link href={r.href} className="group flex items-start gap-3 px-3.5 py-2.5 hover:bg-muted/50 focus-visible:bg-muted/50 focus-visible:outline-none">
                     <span className="min-w-0 flex-1">
                       <span className="flex min-w-0 items-center gap-2">
-                        <span className="truncate text-[13px] font-medium text-foreground">
+                        <span className="truncate text-[14px] font-medium text-foreground">
                           <Highlight text={r.title} query={terms} />
                         </span>
                         {r.badges?.map((b) => (

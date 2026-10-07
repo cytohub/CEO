@@ -36,7 +36,7 @@ export default async function UsersPage() {
         <dl className="panel grid divide-y divide-hairline sm:grid-cols-2 sm:divide-y-0">
           {(Object.keys(USER_ROLES) as (keyof typeof USER_ROLES)[]).map((r, i) => (
             <div key={r} className={`px-4 py-2.5 ${i >= 2 ? "sm:border-t sm:border-hairline" : ""} ${i % 2 === 1 ? "sm:border-l sm:border-hairline" : ""}`}>
-              <dt className="text-[13px] font-medium text-foreground">{USER_ROLES[r].label}</dt>
+              <dt className="text-[14px] font-medium text-foreground">{USER_ROLES[r].label}</dt>
               <dd className="mt-0.5 text-2xs text-muted-foreground">{USER_ROLES[r].description}</dd>
             </div>
           ))}

@@ -43,7 +43,7 @@ export function UsersTable({ users, now, timezone }: { users: UserRow[]; now: Da
   return (
     <div className="panel">
       <div className="relative overflow-x-auto scrollbar-thin">
-        <table className="w-full min-w-[820px] text-[13px]">
+        <table className="w-full min-w-[820px] text-[14px]">
           <caption className="sr-only">Users and their roles</caption>
           <thead>
             <tr className="border-b border-hairline text-left text-2xs font-medium text-muted-foreground">

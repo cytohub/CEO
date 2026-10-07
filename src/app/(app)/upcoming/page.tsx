@@ -77,7 +77,7 @@ export default async function UpcomingPage(props: { searchParams: Promise<{ h?: 
                   <li key={m.id} className="flex items-center gap-3 px-4 py-2.5">
                     <CalendarClock className="size-3.5 shrink-0 text-ink-3" aria-hidden />
                     <div className="min-w-0 flex-1">
-                      <MeetingLink id={m.id} title={m.title} className="block w-full truncate text-[13px] font-medium" />
+                      <MeetingLink id={m.id} title={m.title} className="block w-full truncate text-[14px] font-medium" />
                       <span className="text-2xs text-muted-foreground">{formatDateTime(m.at, ceo.timezone)}</span>
                     </div>
                     <span className={cn("shrink-0 text-2xs font-medium", m.prepared ? "text-good-ink" : "text-serious-ink")}>{m.prepared ? "Brief ready" : "Not prepared"}</span>

@@ -94,7 +94,7 @@ export function DeletionWorkflow({ timezone }: { timezone: string }) {
           </label>
           <div className="relative mt-1">
             <Search className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-ink-3" aria-hidden />
-            <Input id="deletion-search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Title or exact item id" className="h-8 pl-8 text-[13px]" autoComplete="off" />
+            <Input id="deletion-search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Title or exact item id" className="h-8 pl-8 text-[14px]" autoComplete="off" />
             {searching && <Loader2 className="absolute top-1/2 right-2.5 size-3.5 -translate-y-1/2 animate-spin text-ink-3" aria-hidden />}
           </div>
           <p className="mt-1 text-2xs text-muted-foreground">Titles you can’t read are hidden; find those by exact id.</p>
@@ -113,7 +113,7 @@ export function DeletionWorkflow({ timezone }: { timezone: string }) {
                   onClick={() => choose(r)}
                   className={cn("block w-full px-3 py-2 text-left hover:bg-muted/60 focus-visible:bg-muted focus-visible:outline-none", selected?.id === r.id && "bg-brand-soft")}
                 >
-                  <span className={cn("flex items-center gap-1 truncate text-[13px]", r.restricted ? "text-muted-foreground italic" : "text-foreground")}>
+                  <span className={cn("flex items-center gap-1 truncate text-[14px]", r.restricted ? "text-muted-foreground italic" : "text-foreground")}>
                     {r.restricted && <Lock className="size-3 shrink-0" aria-hidden />}
                     <span className="truncate">{r.title}</span>
                   </span>
@@ -139,7 +139,7 @@ export function DeletionWorkflow({ timezone }: { timezone: string }) {
         ) : (
           <div className="space-y-4">
             <div>
-              <h3 className={cn("text-[13px] font-semibold", plan.restricted ? "text-muted-foreground italic" : "text-foreground")}>{plan.item.title}</h3>
+              <h3 className={cn("text-[14px] font-semibold", plan.restricted ? "text-muted-foreground italic" : "text-foreground")}>{plan.item.title}</h3>
               <p className="mt-0.5 text-2xs text-muted-foreground">
                 {SOURCE_ITEM_KINDS[plan.item.kind].label} from {SOURCE_PROVIDERS[plan.item.provider].label} ({plan.item.connectionLabel}) · {formatDateTime(plan.item.occurredAt, timezone)} ·{" "}
                 {SENSITIVITY[selected.sensitivity].label} · <span className="font-mono">{plan.item.id}</span>
@@ -208,7 +208,7 @@ export function DeletionWorkflow({ timezone }: { timezone: string }) {
                 >
                   <input type="radio" name="deletion-mode" value={m.value} checked={mode === m.value} onChange={() => setMode(m.value)} className="mt-0.5 accent-[var(--destructive)]" />
                   <span className="min-w-0">
-                    <span className="flex items-center gap-1.5 text-[13px] font-medium text-foreground">
+                    <span className="flex items-center gap-1.5 text-[14px] font-medium text-foreground">
                       <m.icon className="size-3.5 text-ink-3" aria-hidden /> {m.label}
                     </span>
                     <span className="mt-0.5 block text-2xs text-muted-foreground">
@@ -237,7 +237,7 @@ export function DeletionWorkflow({ timezone }: { timezone: string }) {
                 <label htmlFor="deletion-confirm" className="text-2xs font-medium text-muted-foreground">
                   Type <span className="font-mono font-semibold text-foreground">DELETE</span> to confirm
                 </label>
-                <Input id="deletion-confirm" value={confirm} onChange={(e) => setConfirm(e.target.value)} autoComplete="off" spellCheck={false} className="h-8 w-40 font-mono text-[13px]" />
+                <Input id="deletion-confirm" value={confirm} onChange={(e) => setConfirm(e.target.value)} autoComplete="off" spellCheck={false} className="h-8 w-40 font-mono text-[14px]" />
               </div>
               <Button type="submit" variant="destructive" size="sm" className="h-8" disabled={confirm !== "DELETE" || apply.pending}>
                 {apply.pending && <Loader2 className="animate-spin" aria-hidden />}

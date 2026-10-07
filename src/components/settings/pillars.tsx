@@ -147,7 +147,7 @@ function PillarRowView({ pillar: p, first, last, onEdit }: { pillar: PillarRow; 
         </Popover>
         <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <span className={cn("truncate text-[13px] font-medium", p.active ? "text-foreground" : "text-muted-foreground")}>{p.name}</span>
+            <span className={cn("truncate text-[14px] font-medium", p.active ? "text-foreground" : "text-muted-foreground")}>{p.name}</span>
             {!p.active && <span className="shrink-0 rounded bg-muted px-1.5 text-2xs font-medium text-muted-foreground">Inactive</span>}
           </div>
           {p.description && <p className="line-clamp-1 text-2xs text-muted-foreground">{p.description}</p>}

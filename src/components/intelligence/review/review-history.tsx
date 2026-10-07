@@ -30,7 +30,7 @@ export function ReviewHistory({ items, timezone }: { items: ReviewEntry[]; timez
                 <Icon className="size-3.5 text-ink-3" aria-hidden />
                 {REVIEW_KINDS[i.kind].label}
               </div>
-              <div className="mt-0.5 text-[13px] font-medium">{i.title}</div>
+              <div className="mt-0.5 text-[14px] font-medium">{i.title}</div>
               {i.resolutionNote && <p className="mt-1 text-xs text-ink-2">“{i.resolutionNote}”</p>}
               {i.result && (
                 <div className="mt-1 flex items-center gap-1.5 text-2xs text-muted-foreground">

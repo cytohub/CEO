@@ -38,7 +38,7 @@ export function DailyRhythm({ steps, embedded = false }: { steps: RhythmStep[]; 
             {s.state === "done" ? <Check className="size-3" aria-hidden /> : i + 1}
           </span>
           <div className="min-w-0 leading-tight">
-            <div className={cn("truncate text-xs font-medium", s.state === "upcoming" ? "text-muted-foreground" : "text-foreground")}>{s.label}</div>
+            <div className={cn("line-clamp-2 text-xs font-medium", s.state === "upcoming" ? "text-muted-foreground" : "text-foreground")}>{s.label}</div>
             <div className="truncate text-2xs text-muted-foreground">{s.detail}</div>
           </div>
         </li>

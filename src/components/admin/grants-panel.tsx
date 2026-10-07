@@ -50,7 +50,7 @@ export function GrantsPanel({ grants, grantees, selfId, now, timezone }: { grant
         <EmptyState compact icon={KeySquare} title="No explicit grants" description="Everyone reads sources according to their role. Grant access to share a connection, thread, document or item beyond that." />
       ) : (
         <div className="relative overflow-x-auto scrollbar-thin">
-          <table className="w-full min-w-[780px] text-[13px]">
+          <table className="w-full min-w-[780px] text-[14px]">
             <caption className="sr-only">Explicit access grants</caption>
             <thead>
               <tr className="border-b border-hairline text-left text-2xs font-medium text-muted-foreground">
@@ -217,7 +217,7 @@ function AddGrantDialog({ open, onOpenChange, grantees }: { open: boolean; onOpe
                       >
                         <Check className={cn("mt-0.5 size-3.5 shrink-0", selected ? "text-brand" : "invisible")} aria-hidden />
                         <span className="min-w-0">
-                          <span className="block truncate text-[13px] text-foreground">{r.label}</span>
+                          <span className="block truncate text-[14px] text-foreground">{r.label}</span>
                           {r.detail && <span className="block truncate text-2xs text-muted-foreground">{r.detail}</span>}
                         </span>
                       </button>

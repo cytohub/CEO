@@ -64,7 +64,7 @@ export function PriorityWeightsForm({ weights, openTaskCount }: { weights: Prior
             <li key={k} className="grid grid-cols-[minmax(0,1fr)_40px_112px] items-center gap-x-4 gap-y-2 px-4 py-2.5 @2xl:grid-cols-[minmax(0,1fr)_minmax(140px,240px)_40px_112px]">
               <div className="col-span-3 min-w-0 @2xl:col-span-1">
                 <div className="flex items-center gap-2">
-                  <span id={`weight-${k}-label`} className="text-[13px] font-medium text-foreground">
+                  <span id={`weight-${k}-label`} className="text-[14px] font-medium text-foreground">
                     {meta.label}
                   </span>
                   {meta.derived && (

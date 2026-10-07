@@ -11,7 +11,7 @@ import { displayValue, fieldChangeLabel, fieldChangeSpec, getIn } from "../model
 /** Link to a record: opens the global sheet for tasks/meetings/milestones, navigates otherwise. */
 export function RecordLink({ record, className }: { record: DerivedRecord; className?: string }) {
   const { openEntity } = useUI();
-  const cls = cn("inline-flex max-w-full items-center gap-1 text-[13px] text-foreground hover:underline", className);
+  const cls = cn("inline-flex max-w-full items-center gap-1 text-[14px] text-foreground hover:underline", className);
   if (record.sheet)
     return (
       <button type="button" onClick={() => openEntity(record.sheet!, record.id)} className={cls}>
@@ -72,7 +72,7 @@ export function MergeCompare({ merge, keepId, onKeep, disabled }: { merge: NonNu
                 </span>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1.5">
-                    <span className="truncate text-[13px] font-semibold">{s.label}</span>
+                    <span className="truncate text-[14px] font-semibold">{s.label}</span>
                     <Link href={s.href} onClick={(e) => e.stopPropagation()} className="shrink-0 text-ink-3 hover:text-foreground" aria-label={`Open ${s.label}`}>
                       <ArrowUpRight className="size-3" />
                     </Link>
@@ -129,13 +129,13 @@ export function FieldChangeView({ item, draftTo, names }: { item: ReviewEntry; d
     <div className="space-y-2">
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
         <span>{typeof p.targetType === "string" ? p.targetType.charAt(0) + p.targetType.slice(1).toLowerCase().replace("_", " ") : "Record"}</span>
-        {item.target ? <RecordLink record={item.target} /> : <span className="text-[13px] text-foreground">{typeof p.targetLabel === "string" ? p.targetLabel : "Unknown record"}</span>}
+        {item.target ? <RecordLink record={item.target} /> : <span className="text-[14px] text-foreground">{typeof p.targetLabel === "string" ? p.targetLabel : "Unknown record"}</span>}
       </div>
       <div className="flex flex-wrap items-center gap-2 rounded-md border border-border bg-surface-2/50 px-3 py-2">
         <span className="text-2xs font-medium text-muted-foreground">{fieldChangeLabel(p.field)}</span>
-        <span className="text-[13px] text-muted-foreground line-through decoration-ink-3/60">{fmt(p.from, p.fromLabel)}</span>
+        <span className="text-[14px] text-muted-foreground line-through decoration-ink-3/60">{fmt(p.from, p.fromLabel)}</span>
         <ArrowRight className="size-3.5 text-ink-3" aria-label="changes to" />
-        <span className="text-[13px] font-semibold text-foreground">{fmt(to, draftTo !== undefined ? null : p.toLabel)}</span>
+        <span className="text-[14px] font-semibold text-foreground">{fmt(to, draftTo !== undefined ? null : p.toLabel)}</span>
       </div>
       {typeof getIn(p, ["changeKind"]) === "string" && <p className="text-2xs text-muted-foreground">Detected: {String(p.changeKind).replace(/_/g, " ")}</p>}
     </div>
@@ -149,7 +149,7 @@ export function DocumentChangeView({ item }: { item: ReviewEntry }) {
       <div className="flex items-center gap-2 text-xs">
         <FileText className="size-3.5 text-ink-3" aria-hidden />
         {item.document ? (
-          <Link href={`/documents/${item.document.id}`} className="inline-flex items-center gap-1 text-[13px] hover:underline">
+          <Link href={`/documents/${item.document.id}`} className="inline-flex items-center gap-1 text-[14px] hover:underline">
             {item.document.title} <span className="text-2xs text-muted-foreground">v{item.document.currentVersion}</span>
             <ArrowUpRight className="size-3 text-ink-3" aria-hidden />
           </Link>
@@ -158,7 +158,7 @@ export function DocumentChangeView({ item }: { item: ReviewEntry }) {
             <Lock className="size-3" aria-hidden /> Document hidden by your access level
           </span>
         ) : (
-          <span className="text-[13px]">{typeof item.proposal.title === "string" ? item.proposal.title : "Document"}</span>
+          <span className="text-[14px]">{typeof item.proposal.title === "string" ? item.proposal.title : "Document"}</span>
         )}
       </div>
       {item.changes.length === 0 ? (
@@ -166,7 +166,7 @@ export function DocumentChangeView({ item }: { item: ReviewEntry }) {
       ) : (
         <ul className="divide-y divide-hairline rounded-md border border-border">
           {item.changes.map((c, i) => (
-            <li key={i} className="flex flex-wrap items-center gap-x-2 gap-y-1 px-3 py-2 text-[13px]">
+            <li key={i} className="flex flex-wrap items-center gap-x-2 gap-y-1 px-3 py-2 text-[14px]">
               <span className="min-w-0 flex-1 text-ink-2">{c.label}</span>
               <span className="text-muted-foreground line-through decoration-ink-3/60">{c.from ?? "—"}</span>
               <ArrowRight className="size-3.5 text-ink-3" aria-label="changed to" />

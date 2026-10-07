@@ -18,7 +18,7 @@ export function DerivedList({ records, hidden, emptyTitle = "Nothing derived yet
               <>
                 <span className="w-[84px] shrink-0 text-2xs text-muted-foreground">{r.kindLabel}</span>
                 <span className="min-w-0 flex-1">
-                  <span className="line-clamp-2 text-[13px] leading-snug text-foreground">{r.title}</span>
+                  <span className="line-clamp-2 text-[14px] leading-snug text-foreground">{r.title}</span>
                   {r.role && r.role !== "CREATED_FROM" && <span className="block text-2xs text-muted-foreground">{REFERENCE_ROLE[r.role]} this source</span>}
                 </span>
                 {r.status && <StatusPill tone={r.status.tone} label={r.status.label} className="hidden sm:inline-flex" />}

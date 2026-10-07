@@ -45,7 +45,7 @@ export function ChiefOfStaffPanel() {
         <div className="scrollbar-thin flex-1 overflow-y-auto px-4 py-4">
           {messages.length === 0 ? (
             <div className="space-y-4">
-              <p className="text-[13px] text-muted-foreground">Ask anything about the company. Answers draw on priorities, goals, decisions, pipeline, calendar and recent intelligence.</p>
+              <p className="text-[14px] text-muted-foreground">Ask anything about the company. Answers draw on priorities, goals, decisions, pipeline, calendar and recent intelligence.</p>
               <SuggestedPrompts onPick={ask} />
             </div>
           ) : (

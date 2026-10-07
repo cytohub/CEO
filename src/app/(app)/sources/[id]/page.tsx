@@ -78,7 +78,7 @@ export default async function SourcePage(props: { params: Promise<{ id: string }
       />
 
       {item.contentPurgedAt && (
-        <p className="panel flex items-start gap-2 px-4 py-3 text-[13px] text-ink-2">
+        <p className="panel flex items-start gap-2 px-4 py-3 text-[14px] text-ink-2">
           <Trash2 className="mt-0.5 size-4 shrink-0 text-ink-3" aria-hidden />
           <span>
             The content of this item was purged on {formatDateTime(item.contentPurgedAt, timezone)} by the retention policy. Metadata, provenance and everything derived from it are kept.
@@ -205,7 +205,7 @@ export default async function SourcePage(props: { params: Promise<{ id: string }
 
 function BodyText({ text, purged }: { text: string | null; purged: boolean }) {
   if (purged || !text) return <p className="text-xs text-muted-foreground">{purged ? "Content purged by retention." : "No text extracted."}</p>;
-  return <div className="max-w-[72ch] text-[13px] leading-relaxed whitespace-pre-wrap text-foreground">{text}</div>;
+  return <div className="max-w-[72ch] text-[14px] leading-relaxed whitespace-pre-wrap text-foreground">{text}</div>;
 }
 
 function Recipients({ label, value }: { label: string; value: unknown }) {
@@ -256,7 +256,7 @@ function EmailContent({ data, timezone }: { data: SourceDetail; timezone: string
           <h3 className="eyebrow mb-2">Attachments</h3>
           <ul className="space-y-1">
             {data.attachments.map((a) => (
-              <li key={a.id} className="flex items-center gap-2 text-[13px]">
+              <li key={a.id} className="flex items-center gap-2 text-[14px]">
                 <Paperclip className="size-3.5 text-ink-3" aria-hidden />
                 {a.documentId ? (
                   <Link href={`/documents/${a.documentId}`} className="truncate hover:underline">
@@ -313,7 +313,7 @@ function CalendarContent({ event: e, timezone }: { event: NonNullable<SourceDeta
             {attendees.map((a, i) => {
               const r = RESPONSE_STATUS[a.response as ResponseStatus] ?? RESPONSE_STATUS.NEEDS_ACTION;
               return (
-                <li key={`${a.email}-${i}`} className="flex items-center gap-2 text-[13px]">
+                <li key={`${a.email}-${i}`} className="flex items-center gap-2 text-[14px]">
                   <Avatar name={personLabel(a)} />
                   <span className="min-w-0 flex-1 truncate" title={a.email ?? undefined}>
                     {personLabel(a)}
@@ -328,7 +328,7 @@ function CalendarContent({ event: e, timezone }: { event: NonNullable<SourceDeta
       {e.description && (
         <div className="border-t border-hairline px-4 py-3">
           <h3 className="eyebrow mb-2">Description</h3>
-          <p className="text-[13px] whitespace-pre-wrap text-ink-2">{e.description}</p>
+          <p className="text-[14px] whitespace-pre-wrap text-ink-2">{e.description}</p>
         </div>
       )}
     </Panel>

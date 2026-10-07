@@ -35,7 +35,7 @@ export function MakeDecision({ decision }: { decision: DecisionDetail }) {
           <legend className="mb-1.5 text-xs font-medium text-ink-2">Choose an option</legend>
           <div className="grid gap-1.5">
             {decision.options.map((o) => (
-              <label key={o.id} className={cn("flex cursor-pointer items-center gap-2.5 rounded-md border px-3 py-2 text-[13px] transition-colors", choice === o.id ? "border-foreground bg-muted" : "border-border hover:bg-muted/50")}>
+              <label key={o.id} className={cn("flex cursor-pointer items-center gap-2.5 rounded-md border px-3 py-2 text-[14px] transition-colors", choice === o.id ? "border-foreground bg-muted" : "border-border hover:bg-muted/50")}>
                 <input
                   type="radio"
                   name="option"

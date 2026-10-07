@@ -46,7 +46,7 @@ export function SourcesList({ sources, now, timezone }: { sources: SourceRow[]; 
               </div>
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                  <h3 className="text-[13px] font-medium text-foreground">{s.name}</h3>
+                  <h3 className="text-[14px] font-medium text-foreground">{s.name}</h3>
                   <span className="text-2xs text-muted-foreground">
                     {s.provider} · {cat.label}
                   </span>
@@ -68,7 +68,7 @@ export function SourcesList({ sources, now, timezone }: { sources: SourceRow[]; 
                     <>
                       <span className="mr-0.5 text-ink-3">To connect, set</span>
                       {s.credentialEnv.map((v) => (
-                        <code key={v} className="rounded bg-muted px-1 font-mono text-[10.5px] text-ink-2">
+                        <code key={v} className="rounded bg-muted px-1 font-mono text-[11.5px] text-ink-2">
                           {v}
                         </code>
                       ))}

@@ -51,7 +51,7 @@ export default async function DelegationPage() {
             {team.map((p) => {
               const load = p._count.ownedTasks;
               return (
-                <li key={p.id} className="flex items-center gap-3 px-4 py-2 text-[13px]">
+                <li key={p.id} className="flex items-center gap-3 px-4 py-2 text-[14px]">
                   <Avatar name={p.name} />
                   <div className="min-w-0 flex-1">
                     <div className="truncate">{p.name}</div>
@@ -76,7 +76,7 @@ export default async function DelegationPage() {
           ) : (
             <ul className="divide-y divide-hairline">
               {completed.map((d) => (
-                <li key={d.id} className="flex items-center gap-3 px-4 py-2 text-[13px]">
+                <li key={d.id} className="flex items-center gap-3 px-4 py-2 text-[14px]">
                   <CheckCircle2 className="size-3.5 shrink-0 text-good" aria-hidden />
                   <TaskLink id={d.task.id} title={d.task.title} className="min-w-0 flex-1 truncate" />
                   <span className="shrink-0 text-2xs text-muted-foreground">

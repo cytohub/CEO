@@ -89,7 +89,7 @@ export function UrlSearch({ placeholder, label, className }: { placeholder: stri
         }}
         aria-label={label}
         placeholder={placeholder}
-        className="h-7 pr-7 pl-8 text-[13px] [&::-webkit-search-cancel-button]:hidden"
+        className="h-7 pr-7 pl-8 text-[14px] [&::-webkit-search-cancel-button]:hidden"
       />
       {value && (
         <button type="button" onClick={() => update("")} className="absolute top-1/2 right-1.5 flex size-5 -translate-y-1/2 items-center justify-center rounded text-ink-3 hover:bg-muted hover:text-foreground" aria-label="Clear search">

@@ -31,7 +31,7 @@ export function PasswordForm({ next, email }: { next?: string; email: string }) 
         <Input className="h-10" id="confirm" name="confirm" type="password" autoComplete="new-password" required aria-invalid={invalid("confirm")} />
       </div>
       {state?.error && (
-        <p role="alert" className="flex items-start gap-1.5 rounded-md bg-critical-soft px-2.5 py-2 text-[13px] text-critical-ink">
+        <p role="alert" className="flex items-start gap-1.5 rounded-md bg-critical-soft px-2.5 py-2 text-[14px] text-critical-ink">
           <AlertCircle className="mt-0.5 size-3.5 shrink-0" aria-hidden />
           {state.error}
         </p>

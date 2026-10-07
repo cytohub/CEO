@@ -52,7 +52,7 @@ export default async function AuditPage(props: { searchParams: Promise<Record<st
             <EmptyState icon={ScrollText} title="No audit entries match" description="Try a wider date range or clear a filter." />
           ) : (
             <div className="relative overflow-x-auto scrollbar-thin">
-              <table className="w-full min-w-[860px] text-[13px]">
+              <table className="w-full min-w-[860px] text-[14px]">
                 <caption className="sr-only">Audit log entries, newest first</caption>
                 <thead>
                   <tr className="border-b border-hairline text-left text-2xs font-medium text-muted-foreground">
@@ -74,7 +74,7 @@ export default async function AuditPage(props: { searchParams: Promise<Record<st
                           <time dateTime={r.at.toISOString()}>{formatDateTime(r.at, ceo.timezone)}</time>
                         </td>
                         <td className="px-2 py-2">
-                          <code className="rounded bg-muted px-1 font-mono text-[11.5px] text-foreground">{r.action}</code>
+                          <code className="rounded bg-muted px-1 font-mono text-[12.5px] text-foreground">{r.action}</code>
                         </td>
                         <td className="px-2 py-2">
                           <StatusPill tone={o.tone} label={o.label} />
@@ -89,7 +89,7 @@ export default async function AuditPage(props: { searchParams: Promise<Record<st
                           {r.targetType ? (
                             <>
                               <div className="text-ink-2">{r.targetType}</div>
-                              <div className="truncate font-mono text-[10.5px] text-muted-foreground" title={r.targetId ?? undefined}>
+                              <div className="truncate font-mono text-[11.5px] text-muted-foreground" title={r.targetId ?? undefined}>
                                 {r.targetId}
                               </div>
                             </>
@@ -104,7 +104,7 @@ export default async function AuditPage(props: { searchParams: Promise<Record<st
                                 {r.ip ? `IP ${r.ip}` : "Metadata"}
                                 <span className="ml-1 text-ink-3 group-open:hidden">· show</span>
                               </summary>
-                              <pre className="mt-1.5 max-h-64 max-w-[420px] overflow-auto rounded-md bg-surface-2 p-2 font-mono text-[11px] leading-4 whitespace-pre-wrap break-all text-ink-2 scrollbar-thin">
+                              <pre className="mt-1.5 max-h-64 max-w-[420px] overflow-auto rounded-md bg-surface-2 p-2 font-mono text-[12px] leading-4 whitespace-pre-wrap break-all text-ink-2 scrollbar-thin">
                                 {JSON.stringify({ ...(hasMeta ? { metadata: r.metadata } : {}), ...(r.userAgent ? { userAgent: r.userAgent } : {}) }, null, 2)}
                               </pre>
                             </details>

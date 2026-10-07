@@ -29,7 +29,7 @@ export function Recommendations({ items, today }: { items: DelegationCenter["rec
       {items.map((t) => (
         <li key={t.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3">
           <div className="min-w-[240px] flex-1">
-            <button type="button" onClick={() => openEntity("task", t.id)} className="text-left text-[13px] font-medium hover:underline">
+            <button type="button" onClick={() => openEntity("task", t.id)} className="text-left text-[14px] font-medium hover:underline">
               {t.title}
             </button>
             <div className="mt-0.5 flex flex-wrap gap-x-3 text-2xs text-muted-foreground">
@@ -76,7 +76,7 @@ export function DelegatedTable({ items, today, now }: { items: DelegationCenter[
   if (items.length === 0) return <EmptyState compact title="Nothing delegated right now" />;
   return (
     <div className="overflow-x-auto">
-      <table className="w-full min-w-[900px] text-[13px]">
+      <table className="w-full min-w-[900px] text-[14px]">
         <thead>
           <tr className="border-b border-hairline text-left text-2xs text-muted-foreground">
             <th className="py-2 pr-3 pl-4 font-medium">Task</th>

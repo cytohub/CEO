@@ -48,7 +48,7 @@ export function SidebarNav({
       <div className="flex h-12 items-center gap-2.5 px-4">
         <CytoHubMark className="size-6" />
         <div className="leading-tight">
-          <div className="text-[13px] font-semibold tracking-tight text-foreground">CytoHub</div>
+          <div className="text-[14px] font-semibold tracking-tight text-foreground">CytoHub</div>
           <div className="text-2xs text-muted-foreground">CEO Command Center</div>
         </div>
       </div>
@@ -76,7 +76,7 @@ export function SidebarNav({
           <DropdownMenuTrigger asChild>
             <button
               type="button"
-              className="mt-1 flex w-full items-center gap-2.5 rounded-md px-2.5 py-1.5 text-left text-[12.5px] text-sidebar-foreground/80 hover:bg-sidebar-accent"
+              className="mt-1 flex w-full items-center gap-2.5 rounded-md px-2.5 py-1.5 text-left text-[13.5px] text-sidebar-foreground/80 hover:bg-sidebar-accent"
               aria-label={`Account menu for ${viewer.name}`}
             >
               <Avatar name={viewer.name} ceo={viewer.isCeo} className="size-5" />
@@ -86,7 +86,7 @@ export function SidebarNav({
           </DropdownMenuTrigger>
           <DropdownMenuContent side="top" align="start" className="w-56">
             <DropdownMenuLabel className="font-normal">
-              <div className="truncate text-[13px] font-medium">{viewer.name}</div>
+              <div className="truncate text-[14px] font-medium">{viewer.name}</div>
               <div className="truncate text-2xs text-muted-foreground">{viewer.email}</div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
@@ -118,7 +118,7 @@ function NavLink({ item, active, count, onNavigate }: { item: NavItem; active: b
         onClick={onNavigate}
         aria-current={active ? "page" : undefined}
         className={cn(
-          "group flex h-8 items-center gap-2.5 rounded-md px-2.5 text-[13px] transition-colors",
+          "group flex h-8 items-center gap-2.5 rounded-md px-2.5 text-[14px] transition-colors",
           active
             ? "bg-sidebar-accent font-medium text-sidebar-accent-foreground"
             : "text-sidebar-foreground/85 hover:bg-sidebar-accent/70 hover:text-sidebar-accent-foreground",

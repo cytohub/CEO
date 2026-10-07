@@ -138,7 +138,7 @@ export function UploadButton({ documentId, label = "Upload", variant = "default"
             <div className="space-y-3">
               <div className={cn("flex items-start gap-2.5 rounded-lg border p-3", phase.result.error ? "border-warning/40 bg-warning-soft" : "border-good/30 bg-good-soft")}>
                 {phase.result.error ? <AlertCircle className="mt-0.5 size-4 shrink-0 text-warning-ink" aria-hidden /> : <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-good-ink" aria-hidden />}
-                <div className="min-w-0 text-[13px]">
+                <div className="min-w-0 text-[14px]">
                   <p className="font-medium">
                     {phase.result.outcome === "unchanged" ? "Already up to date — this exact file was uploaded before." : phase.result.outcome === "updated" ? `Saved as version ${phase.result.version ?? ""}` : "Uploaded"}
                   </p>
@@ -186,12 +186,12 @@ export function UploadButton({ documentId, label = "Upload", variant = "default"
                 <FileUp className="size-5 text-ink-3" aria-hidden />
                 {file ? (
                   <>
-                    <span className="max-w-full truncate text-[13px] font-medium">{file.name}</span>
+                    <span className="max-w-full truncate text-[14px] font-medium">{file.name}</span>
                     <span className="text-2xs text-muted-foreground">{formatBytes(file.size)} · choose another file</span>
                   </>
                 ) : (
                   <>
-                    <span className="text-[13px] font-medium">Drop a file here, or click to choose</span>
+                    <span className="text-[14px] font-medium">Drop a file here, or click to choose</span>
                     <span className="text-2xs text-muted-foreground">PDF, Word, PowerPoint, Excel, CSV, text, Markdown or images · up to {UPLOAD_MAX_LABEL}</span>
                   </>
                 )}

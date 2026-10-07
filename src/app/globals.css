@@ -81,8 +81,13 @@
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
 
-  --text-2xs: 0.6875rem;
+  /* One step above Tailwind's defaults: 12 / 13 / 15px, with 14px body text. */
+  --text-2xs: 0.75rem;
   --text-2xs--line-height: 1rem;
+  --text-xs: 0.8125rem;
+  --text-xs--line-height: 1.125rem;
+  --text-sm: 0.9375rem;
+  --text-sm--line-height: 1.375rem;
 }
 
 :root {
@@ -240,8 +245,8 @@
   }
   body {
     @apply bg-background text-foreground;
-    font-size: 0.8125rem;
-    line-height: 1.25rem;
+    font-size: 0.875rem;
+    line-height: 1.375rem;
   }
   button:not(:disabled),
   [role="button"]:not(:disabled) {

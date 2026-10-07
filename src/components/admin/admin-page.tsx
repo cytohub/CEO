@@ -55,7 +55,7 @@ export function AdminPage({
                       href={l.href}
                       aria-current={active ? "page" : undefined}
                       className={cn(
-                        "block rounded-md border px-2.5 py-1 text-xs transition-colors xl:border-transparent xl:py-1.5 xl:text-[13px]",
+                        "block rounded-md border px-2.5 py-1 text-xs transition-colors xl:border-transparent xl:py-1.5 xl:text-[14px]",
                         active
                           ? "border-border bg-surface font-medium text-foreground xl:bg-muted"
                           : "border-border bg-surface text-muted-foreground hover:bg-muted hover:text-foreground xl:bg-transparent",
@@ -95,7 +95,7 @@ export function AdminSection({
     <section id={id} aria-labelledby={`${id}-heading`} className={cn("scroll-mt-16", className)}>
       <div className="mb-2.5 flex flex-wrap items-end justify-between gap-x-4 gap-y-2">
         <div className="min-w-0">
-          <h2 id={`${id}-heading`} className="text-[15px] font-semibold tracking-tight text-foreground">
+          <h2 id={`${id}-heading`} className="text-[16px] font-semibold tracking-tight text-foreground">
             {title}
           </h2>
           {description && <p className="mt-0.5 max-w-2xl text-xs text-muted-foreground">{description}</p>}

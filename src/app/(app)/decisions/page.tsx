@@ -67,7 +67,7 @@ export default async function DecisionsPage() {
               <li key={d.id}>
                 <Link href={`/decisions/${d.id}`} className="grid gap-1 px-4 py-3 hover:bg-muted/40 md:grid-cols-[1fr_auto] md:gap-6">
                   <div className="min-w-0">
-                    <div className="text-[13px] font-medium">{d.title}</div>
+                    <div className="text-[14px] font-medium">{d.title}</div>
                     <div className="mt-0.5 text-xs text-ink-2">→ {d.finalDecision}</div>
                     {d.outcome ? <div className="mt-0.5 text-2xs text-muted-foreground">Outcome: {d.outcome}</div> : <div className="mt-0.5 text-2xs text-warning-ink">Outcome not yet recorded</div>}
                   </div>
@@ -82,7 +82,7 @@ export default async function DecisionsPage() {
       </Panel>
 
       <section aria-labelledby="history-title" className="space-y-2">
-        <h2 id="history-title" className="flex items-center gap-2 pt-2 text-[15px] font-semibold tracking-tight">
+        <h2 id="history-title" className="flex items-center gap-2 pt-2 text-[16px] font-semibold tracking-tight">
           <History className="size-4 text-ink-3" aria-hidden /> Decision history
         </h2>
         <DecisionHistory items={history} />
@@ -101,7 +101,7 @@ function DecisionCards({ items, today, now }: { items: DecisionListItem[]; today
           <li key={d.id}>
             <Link href={`/decisions/${d.id}`} className="block px-4 py-3 hover:bg-muted/40">
               <div className="flex items-start gap-3">
-                <span className="min-w-0 flex-1 text-[13px] leading-snug font-medium">{d.title}</span>
+                <span className="min-w-0 flex-1 text-[14px] leading-snug font-medium">{d.title}</span>
                 {days !== null && (
                   <span className={cn("shrink-0 rounded px-1.5 py-0.5 text-2xs font-medium tabular", days <= 1 ? "bg-critical-soft text-critical-ink" : days <= 3 ? "bg-serious-soft text-serious-ink" : "bg-muted text-muted-foreground")}>
                     {days < 0 ? `${-days}d late` : days === 0 ? "Due today" : `Due in ${days}d`}

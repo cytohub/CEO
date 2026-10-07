@@ -155,7 +155,7 @@ export function GoalMoveRow({ g, showType = true, compact = false }: { g: GoalMo
     return (
       <li>
         <Link href={`/goals/${g.id}`} className="grid items-center gap-x-3 gap-y-1 px-3.5 py-1.5 hover:bg-muted/50 sm:grid-cols-[minmax(0,1fr)_84px_240px]">
-          <span className="min-w-0 truncate text-[13px] text-foreground" title={g.title}>
+          <span className="min-w-0 truncate text-[14px] text-foreground" title={g.title}>
             {g.title}
             {changes && <span className="ml-2 text-2xs text-ink-2">{changes}</span>}
           </span>
@@ -180,7 +180,7 @@ export function GoalMoveRow({ g, showType = true, compact = false }: { g: GoalMo
     <li>
       <Link href={`/goals/${g.id}`} className="grid gap-x-4 gap-y-1.5 px-3.5 py-2.5 hover:bg-muted/50 sm:grid-cols-[minmax(0,1fr)_200px]">
         <div className="min-w-0">
-          <div className="truncate text-[13px] text-foreground" title={g.title}>
+          <div className="truncate text-[14px] text-foreground" title={g.title}>
             {g.title}
           </div>
           <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-2xs text-muted-foreground">
@@ -291,7 +291,7 @@ export function DecisionsReviewPanel({ decisions, title = "Decisions" }: { decis
                 <li key={d.id}>
                   <Link href={`/decisions/${d.id}`} className="block px-3.5 py-2 hover:bg-muted/50">
                     <div className="flex items-start gap-2">
-                      <span className="line-clamp-2 flex-1 text-[13px] leading-snug">{d.title}</span>
+                      <span className="line-clamp-2 flex-1 text-[14px] leading-snug">{d.title}</span>
                       <span className="shrink-0 text-2xs text-muted-foreground tabular">Impact {d.strategicImpact}/5</span>
                     </div>
                     {d.finalDecision && <p className="mt-0.5 line-clamp-2 text-xs text-ink-2">→ {d.finalDecision}</p>}
@@ -443,10 +443,10 @@ export function NextWeekPanel({ tasks, today, weekLabel, basedOnToday }: { tasks
             const overdue = t.dueDate ? daysBetween(today, t.dueDate) < 0 : false;
             return (
               <li key={t.id} className="flex items-start gap-3 px-3.5 py-2.5">
-                <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full border border-border font-mono text-[10px] font-semibold text-muted-foreground tabular">{i + 1}</span>
+                <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full border border-border font-mono text-[11px] font-semibold text-muted-foreground tabular">{i + 1}</span>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-start gap-2">
-                    <EntityLink kind="task" id={t.id} className="min-w-0 flex-1 text-[13px] leading-snug font-medium text-foreground hover:underline">
+                    <EntityLink kind="task" id={t.id} className="min-w-0 flex-1 text-[14px] leading-snug font-medium text-foreground hover:underline">
                       {t.title}
                     </EntityLink>
                     <ScoreChip score={t.priorityScore} className="h-5 min-w-8 shrink-0 text-2xs" />

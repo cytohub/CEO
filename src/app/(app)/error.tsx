@@ -11,7 +11,7 @@ export default function AppError({ error, reset }: { error: Error & { digest?: s
         <AlertTriangle className="size-5 text-critical-ink" aria-hidden />
       </div>
       <h1 className="text-base font-semibold">{setup ? "CytoHub Brain can’t reach its data" : "Something went wrong"}</h1>
-      <p className="text-[13px] text-muted-foreground">
+      <p className="text-[14px] text-muted-foreground">
         {setup ? (
           <>
             Check that PostgreSQL is running and <code className="rounded bg-muted px-1">DATABASE_URL</code> is set, then run{" "}

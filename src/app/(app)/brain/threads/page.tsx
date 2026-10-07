@@ -82,7 +82,7 @@ export default async function ThreadsPage(props: { searchParams: Promise<{ statu
                     <StatusPill tone={st.tone} label={st.label} />
                   </span>
                   <span className="min-w-0">
-                    <span className="block truncate text-[13px] font-medium text-foreground">{t.subject}</span>
+                    <span className="block truncate text-[14px] font-medium text-foreground">{t.subject}</span>
                     <span className="mt-0.5 flex flex-wrap items-center gap-x-2 text-2xs text-muted-foreground">
                       <span className="max-w-[320px] truncate">{people.map(personLabel).slice(0, 3).join(", ") || "—"}</span>
                       {t.company && <span>· {t.company.name}</span>}

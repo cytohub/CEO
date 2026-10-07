@@ -33,7 +33,7 @@ export function SetupChecklist({ progress }: { progress: SetupProgress }) {
             <Rocket className="size-4 text-brand" aria-hidden />
           </div>
           <div className="min-w-0">
-            <h2 id="setup-title" className="text-[15px] font-semibold tracking-tight">
+            <h2 id="setup-title" className="text-[16px] font-semibold tracking-tight">
               Set up your command center
             </h2>
             <p className="text-xs text-muted-foreground">Connect your sources and set what matters. CytoHub Brain then briefs you every morning.</p>
@@ -70,7 +70,7 @@ export function SetupChecklist({ progress }: { progress: SetupProgress }) {
               </span>
               <Icon className={cn("hidden size-4 shrink-0 sm:block", s.done ? "text-ink-3" : "text-ink-2")} aria-hidden />
               <div className="min-w-0 flex-1">
-                <div className={cn("text-[13px] font-medium", s.done ? "text-muted-foreground" : "text-foreground")}>
+                <div className={cn("text-[14px] font-medium", s.done ? "text-muted-foreground" : "text-foreground")}>
                   {step.title}
                   {s.done && <span className="sr-only"> (done)</span>}
                 </div>

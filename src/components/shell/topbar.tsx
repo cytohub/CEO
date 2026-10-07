@@ -25,7 +25,7 @@ export function Topbar({ brain, timezone }: { brain: ShellData["brain"]; timezon
       <button
         type="button"
         onClick={() => setCommandOpen(true)}
-        className="flex h-8 min-w-0 flex-1 items-center gap-2 rounded-md border border-border bg-surface px-2.5 text-left text-[13px] text-muted-foreground transition-colors hover:border-input hover:text-foreground sm:max-w-md"
+        className="flex h-8 min-w-0 flex-1 items-center gap-2 rounded-md border border-border bg-surface px-2.5 text-left text-[14px] text-muted-foreground transition-colors hover:border-input hover:text-foreground sm:max-w-md"
         aria-label="Open command bar"
       >
         <Search className="size-3.5 shrink-0" aria-hidden />

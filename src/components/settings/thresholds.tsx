@@ -57,7 +57,7 @@ export function ThresholdsForm({ thresholds, defaults }: { thresholds: BrainThre
         {FIELDS.map((f, i) => (
           <li key={f.key} className={`flex items-start gap-4 px-4 py-3 ${i >= 2 ? "@3xl:border-t @3xl:border-hairline" : ""} ${i % 2 === 1 ? "@3xl:border-l @3xl:border-hairline" : ""}`}>
             <div className="min-w-0 flex-1">
-              <label htmlFor={`threshold-${f.key}`} className="text-[13px] font-medium text-foreground">
+              <label htmlFor={`threshold-${f.key}`} className="text-[14px] font-medium text-foreground">
                 {f.label}
               </label>
               <p id={`threshold-${f.key}-hint`} className="mt-0.5 text-2xs text-muted-foreground">
@@ -78,7 +78,7 @@ export function ThresholdsForm({ thresholds, defaults }: { thresholds: BrainThre
                 onChange={(e) => setDraft((d) => ({ ...d, [f.key]: e.target.value }))}
                 aria-describedby={`threshold-${f.key}-hint`}
                 aria-invalid={Boolean(errors[f.key]) || undefined}
-                className="h-7 pr-14 text-right text-[13px] tabular md:text-[13px]"
+                className="h-7 pr-14 text-right text-[14px] tabular md:text-[14px]"
               />
               <span className="pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 text-2xs text-muted-foreground" aria-hidden>
                 {f.unit}

@@ -198,7 +198,7 @@ function ReviewCard({
   const titleId = `review-${item.id}-title`;
   const hint = (k: string) =>
     active && (
-      <Kbd className="ml-0.5 hidden h-4 min-w-4 border-current/25 bg-transparent px-0.5 text-[9px] text-current opacity-70 sm:inline-flex" aria-hidden>
+      <Kbd className="ml-0.5 hidden h-4 min-w-4 border-current/25 bg-transparent px-0.5 text-[10px] text-current opacity-70 sm:inline-flex" aria-hidden>
         {k}
       </Kbd>
     );
@@ -231,7 +231,7 @@ function ReviewCard({
           </span>
         </span>
       </header>
-      <h2 id={titleId} className="px-4 pt-2 text-[15px] leading-snug font-semibold tracking-tight">
+      <h2 id={titleId} className="px-4 pt-2 text-[16px] leading-snug font-semibold tracking-tight">
         {item.title}
       </h2>
 
@@ -239,7 +239,7 @@ function ReviewCard({
         <div className="min-w-0 space-y-3">
           <section className="rounded-lg border border-border bg-surface-2/60 p-3">
             <h3 className="eyebrow">Why this needs review</h3>
-            <p className="mt-1 text-[13px] leading-relaxed">{item.reason}</p>
+            <p className="mt-1 text-[14px] leading-relaxed">{item.reason}</p>
           </section>
           {(item.source || item.excerpt || item.sourceHidden) && (
             <section aria-label="Source">
@@ -310,7 +310,7 @@ function ReviewCard({
       </div>
 
       <footer className="flex flex-wrap items-center gap-2 border-t border-hairline px-4 py-2.5">
-        <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Note (optional)" aria-label={`Note for “${item.title}”`} maxLength={1000} className="h-7 min-w-0 flex-1 basis-[200px] text-[13px]" />
+        <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Note (optional)" aria-label={`Note for “${item.title}”`} maxLength={1000} className="h-7 min-w-0 flex-1 basis-[200px] text-[14px]" />
         <div className="flex flex-wrap items-center gap-1.5">
           {isMerge ? (
             <Button size="sm" onClick={approve} disabled={pending || !keepId}>

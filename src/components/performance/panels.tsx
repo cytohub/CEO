@@ -24,7 +24,7 @@ export function ImpactListPanel({ items, range }: { items: PerformanceData["impa
         <EmptyState compact title="Nothing completed in this window" />
       ) : (
         <div className="overflow-x-auto scrollbar-thin">
-          <table className="w-full min-w-[560px] text-left text-[13px]">
+          <table className="w-full min-w-[560px] text-left text-[14px]">
             <thead>
               <tr className="text-2xs text-muted-foreground">
                 <th scope="col" className="w-8 px-3.5 py-1.5 font-medium">
@@ -95,7 +95,7 @@ export function OverduePanel({ overdue }: { overdue: PerformanceData["overdue"] 
             <li key={t.id}>
               <EntityLink kind="task" id={t.id} className="flex items-start gap-3 px-3.5 py-2 hover:bg-muted/50">
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-[13px]">{t.title}</span>
+                  <span className="block truncate text-[14px]">{t.title}</span>
                   <span className="block truncate text-2xs text-muted-foreground">
                     <span className="font-medium text-critical-ink">{t.daysOverdue}d overdue</span>
                     {t.postponeCount ? ` · postponed ${t.postponeCount}×` : ""}
@@ -124,7 +124,7 @@ export function PendingDecisionsPanel({ pending }: { pending: PerformanceData["d
             <li key={d.id}>
               <Link href={`/decisions/${d.id}`} className="flex items-start gap-3 px-3.5 py-2 hover:bg-muted/50">
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-[13px]">{d.title}</span>
+                  <span className="block truncate text-[14px]">{d.title}</span>
                   <span className="mt-0.5 flex items-center gap-2 text-2xs text-muted-foreground">
                     <StatusPill tone={DECISION_STATUS[d.status].tone} label={DECISION_STATUS[d.status].label} />
                     Impact {d.strategicImpact}/5

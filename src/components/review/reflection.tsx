@@ -148,7 +148,7 @@ export function ReflectionForm({
                 maxLength={5000}
                 onChange={(e) => setValues((v) => ({ ...v, [p.field]: e.target.value }))}
                 onBlur={() => save(p.field)}
-                className="min-h-[68px] text-[13px] md:text-[13px]"
+                className="min-h-[68px] text-[14px] md:text-[14px]"
               />
             </div>
           );

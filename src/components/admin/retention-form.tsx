@@ -126,7 +126,7 @@ export function RetentionForm({ policy: initial, defaults }: { policy: Retention
           return (
             <li key={f.key} className="grid gap-3 px-4 py-3 @2xl:grid-cols-[minmax(0,1fr)_auto]">
               <div className="min-w-0">
-                <label htmlFor={id} className="text-[13px] font-medium text-foreground">
+                <label htmlFor={id} className="text-[14px] font-medium text-foreground">
                   {f.label}
                 </label>
                 <p id={`${id}-hint`} className="mt-0.5 text-2xs text-muted-foreground">
@@ -167,7 +167,7 @@ export function RetentionForm({ policy: initial, defaults }: { policy: Retention
                     onChange={(e) => setDay(f.key, { value: e.target.value })}
                     aria-describedby={`${id}-hint`}
                     aria-invalid={Boolean(errors[f.key] && !disabled) || undefined}
-                    className="h-7 pr-11 text-right text-[13px] tabular md:text-[13px]"
+                    className="h-7 pr-11 text-right text-[14px] tabular md:text-[14px]"
                   />
                   <span className="pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 text-2xs text-muted-foreground" aria-hidden>
                     days
@@ -184,7 +184,7 @@ export function RetentionForm({ policy: initial, defaults }: { policy: Retention
 
         <li className="px-4 py-3">
           <fieldset>
-            <legend className="text-[13px] font-medium text-foreground">When an item is deleted at its source</legend>
+            <legend className="text-[14px] font-medium text-foreground">When an item is deleted at its source</legend>
             <p className="mt-0.5 text-2xs text-muted-foreground">Applies when a synced message, event or file disappears upstream. Records you confirmed or edited are always kept.</p>
             <div className="mt-2 grid gap-2 @3xl:grid-cols-3">
               {BEHAVIORS.map((b) => (
@@ -204,7 +204,7 @@ export function RetentionForm({ policy: initial, defaults }: { policy: Retention
                     className="mt-0.5 accent-[var(--brand)]"
                   />
                   <span className="min-w-0">
-                    <span className="block text-[13px] font-medium text-foreground">
+                    <span className="block text-[14px] font-medium text-foreground">
                       {DELETED_SOURCE_BEHAVIOR[b].label}
                       {defaults.onSourceDeleted === b && <span className="ml-1.5 text-2xs font-normal text-muted-foreground">Default</span>}
                     </span>
@@ -218,7 +218,7 @@ export function RetentionForm({ policy: initial, defaults }: { policy: Retention
 
         <li className="grid gap-3 px-4 py-3 @2xl:grid-cols-[minmax(0,1fr)_auto]">
           <div className="min-w-0">
-            <label htmlFor="retention-auditLogDays" className="text-[13px] font-medium text-foreground">
+            <label htmlFor="retention-auditLogDays" className="text-[14px] font-medium text-foreground">
               Audit log
             </label>
             <p id="retention-auditLogDays-hint" className="mt-0.5 text-2xs text-muted-foreground">
@@ -239,7 +239,7 @@ export function RetentionForm({ policy: initial, defaults }: { policy: Retention
               onChange={(e) => setDraft((d) => ({ ...d, auditLogDays: e.target.value }))}
               aria-describedby="retention-auditLogDays-hint"
               aria-invalid={Boolean(errors.auditLogDays) || undefined}
-              className="h-7 pr-11 text-right text-[13px] tabular md:text-[13px]"
+              className="h-7 pr-11 text-right text-[14px] tabular md:text-[14px]"
             />
             <span className="pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 text-2xs text-muted-foreground" aria-hidden>
               days

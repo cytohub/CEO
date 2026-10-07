@@ -20,7 +20,7 @@ export function ConnectProviders({ providers, kindLabel }: { providers: Provider
         {providers.map((p) => (
           <li key={p.provider} className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-2.5">
             <div className="min-w-[min(100%,16rem)] flex-1">
-              <p className="text-[13px] font-medium text-foreground">
+              <p className="text-[14px] font-medium text-foreground">
                 {p.label} <span className="font-normal text-muted-foreground">· {p.vendor}</span>
               </p>
               {p.configured ? (
@@ -31,7 +31,7 @@ export function ConnectProviders({ providers, kindLabel }: { providers: Provider
                   {p.missingEnv.map((v, i) => (
                     <span key={v}>
                       {i > 0 && (i === p.missingEnv.length - 1 ? " and " : ", ")}
-                      <code className="rounded bg-muted px-1 font-mono text-[10.5px] text-ink-2">{v}</code>
+                      <code className="rounded bg-muted px-1 font-mono text-[11.5px] text-ink-2">{v}</code>
                     </span>
                   ))}{" "}
                   on the server to connect a live account.
