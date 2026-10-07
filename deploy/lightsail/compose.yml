@@ -1,0 +1,121 @@
+# CytoHub CEO Command Center on a single server (AWS Lightsail): the app, the
+# ingestion worker, PostgreSQL, and Caddy for HTTPS. Only Caddy is reachable
+# from outside. The app, worker and database share a private network that
+# Caddy is not on, so the proxy can reach the app but never the database.
+# See README.md in this folder.
+name: ceo
+
+# Docker keeps container logs forever by default; cap them.
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: '3'
+
+# Settings shared by the app and the worker. The app connects as a role that
+# can read and write rows but cannot change the schema; only the web service's
+# migration step uses the owner login.
+x-app-env: &app-env
+  DATABASE_URL: postgres://ceo_app:${APP_DB_PASSWORD:?Set APP_DB_PASSWORD in .env}@db:5432/ceo
+  APP_ORIGIN: https://${DOMAIN:?Set DOMAIN in .env}
+  CYTOHUB_ENCRYPTION_KEY: ${CYTOHUB_ENCRYPTION_KEY:?Set CYTOHUB_ENCRYPTION_KEY in .env}
+  CRON_SECRET: ${CRON_SECRET:?Set CRON_SECRET in .env}
+  ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+  CYTOHUB_CLAUDE_MODEL: ${CYTOHUB_CLAUDE_MODEL:-}
+  GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+  GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+  GOOGLE_PUBSUB_TOPIC: ${GOOGLE_PUBSUB_TOPIC:-}
+  GOOGLE_PUBSUB_VERIFICATION_TOKEN: ${GOOGLE_PUBSUB_VERIFICATION_TOKEN:-}
+  MICROSOFT_CLIENT_ID: ${MICROSOFT_CLIENT_ID:-}
+  MICROSOFT_CLIENT_SECRET: ${MICROSOFT_CLIENT_SECRET:-}
+  MICROSOFT_TENANT_ID: ${MICROSOFT_TENANT_ID:-}
+  DROPBOX_APP_KEY: ${DROPBOX_APP_KEY:-}
+  DROPBOX_APP_SECRET: ${DROPBOX_APP_SECRET:-}
+  DEFAULT_TIMEZONE: ${DEFAULT_TIMEZONE:-America/New_York}
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ceo
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ceo
+      # Read by initdb/01-app-role.sh on the database's first start.
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD:?Set APP_DB_PASSWORD in .env}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+      - ./initdb:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ceo -d ceo']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks: [back]
+    security_opt: ['no-new-privileges:true']
+    logging: *logging
+
+  web:
+    build:
+      context: ../..
+    image: cytohub-ceo:latest
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      <<: *app-env
+      MIGRATION_DATABASE_URL: postgres://ceo:${POSTGRES_PASSWORD}@db:5432/ceo
+    healthcheck:
+      test: ['CMD', 'node', '-e', "fetch('http://localhost:3000/login').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 60s
+    networks: [front, back]
+    # The app runs as an unprivileged user and needs no Linux capabilities.
+    cap_drop: [ALL]
+    security_opt: ['no-new-privileges:true']
+    logging: *logging
+
+  # Syncs due connections and runs the processing pipeline every 30 seconds.
+  worker:
+    image: cytohub-ceo:latest
+    restart: unless-stopped
+    command: ['npm', 'run', '-s', 'ingest:worker']
+    depends_on:
+      # The web service applies migrations before it reports healthy.
+      web:
+        condition: service_healthy
+    environment: *app-env
+    networks: [back]
+    cap_drop: [ALL]
+    security_opt: ['no-new-privileges:true']
+    logging: *logging
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    depends_on:
+      - web
+    environment:
+      DOMAIN: ${DOMAIN}
+    ports:
+      - '80:80'
+      - '443:443'
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    networks: [front]
+    security_opt: ['no-new-privileges:true']
+    logging: *logging
+
+networks:
+  front:
+  back:
+
+volumes:
+  db-data:
+  caddy-data:
+  caddy-config:

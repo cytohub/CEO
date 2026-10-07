@@ -110,11 +110,12 @@ detection and "Run sync now" behave as they would with a real account.
 
 ## Deploying
 
-[`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) walks through putting the app on
-`ceo.cytolab.ai`: Vercel Pro and a managed PostgreSQL database, the secrets to
-generate, creating the CEO account with `npm run db:bootstrap`, the DNS record,
-and the Google / Microsoft / Dropbox app setup. It also covers running it on
-your own server instead.
+`ceo.cytolab.ai` runs like cytolab.ai: on an AWS Lightsail server with Docker
+Compose (the app, an ingestion worker, PostgreSQL, and Caddy for HTTPS).
+[`deploy/lightsail/README.md`](deploy/lightsail/README.md) walks through it,
+from creating the server to the first sign-in.
+[`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) covers the Google / Microsoft /
+Dropbox app setup, and hosting on Vercel instead.
 
 ## Daily Brain Refresh
 

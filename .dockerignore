@@ -1,0 +1,12 @@
+# Never send secrets or local build output into the image.
+.env
+.env.*
+**/.env
+**/.env.*
+.git
+node_modules
+.next
+src/generated
+*.tsbuildinfo
+next-env.d.ts
+deploy/lightsail/*.log
