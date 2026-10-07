@@ -13,6 +13,7 @@
     "db:migrate:dev": "prisma migrate dev",
     "db:seed": "prisma db seed",
     "db:setup": "prisma migrate deploy && prisma db seed",
+    "db:bootstrap": "tsx scripts/bootstrap.ts",
     "brain:refresh": "tsx scripts/brain-refresh.ts",
     "ingest:worker": "tsx scripts/ingest-worker.ts",
     "test": "node --import tsx --test \"src/**/*.test.ts\""

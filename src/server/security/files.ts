@@ -13,6 +13,7 @@ import type { DocumentFormat } from "@/generated/prisma/enums";
 import { CANONICAL_MIME, IMAGE_MIME, extensionOf, hasPdfSignature, isExecutable, isHtmlMarkup, isSvgMarkup, looksLikeText } from "@/server/ingestion/documents/formats";
 import { MAX_DOCUMENT_BYTES, formatBytes } from "@/server/ingestion/documents/limits";
 import { ArchiveError, hasMacros, listZipEntries } from "@/server/ingestion/documents/zip";
+import { UPLOAD_MAX_BYTES } from "@/lib/upload-limit";
 
 export const UPLOAD_EXTENSIONS = ["pdf", "docx", "pptx", "xlsx", "csv", "txt", "md", "markdown", "png", "jpg", "jpeg", "webp"] as const;
 export type UploadExtension = (typeof UPLOAD_EXTENSIONS)[number];
@@ -32,7 +33,8 @@ export const UPLOAD_ACCEPT = [
   IMAGE_MIME.WEBP,
 ].join(",");
 
-export const MAX_UPLOAD_BYTES = MAX_DOCUMENT_BYTES;
+/** Direct uploads: the document limit, or lower where the host caps request bodies (see src/lib/upload-limit.ts). */
+export const MAX_UPLOAD_BYTES = Math.min(MAX_DOCUMENT_BYTES, UPLOAD_MAX_BYTES);
 const MAX_FILENAME_LENGTH = 180;
 
 export type UploadValidation =

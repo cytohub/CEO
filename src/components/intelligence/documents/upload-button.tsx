@@ -13,7 +13,7 @@ import type { Sensitivity } from "@/generated/prisma/enums";
 import { SENSITIVITY } from "@/lib/intelligence";
 import { cn } from "@/lib/utils";
 import { clearanceAllows, ROLE_CLEARANCE } from "@/server/security/rbac";
-import { formatBytes, UPLOAD_EXTENSIONS, validateUploadFile } from "../model";
+import { formatBytes, UPLOAD_EXTENSIONS, UPLOAD_MAX_LABEL, validateUploadFile } from "../model";
 
 interface UploadResult {
   documentId: string | null;
@@ -33,7 +33,7 @@ function messageFor(status: number, body: { error?: string } | null): string {
   if (status === 404) return "Uploads aren’t available yet — the upload service isn’t running.";
   if (status === 401) return "Your session expired. Sign in again and retry.";
   if (status === 403) return body?.error ?? "You don’t have permission to upload documents.";
-  if (status === 413) return body?.error ?? "The file is larger than the 25 MB limit.";
+  if (status === 413) return body?.error ?? `The file is larger than the ${UPLOAD_MAX_LABEL} upload limit.`;
   if (status === 415) return body?.error ?? "That file type isn’t supported.";
   if (status === 429) return body?.error ?? "Too many uploads — try again in a few minutes.";
   return body?.error ?? "The upload failed. Please try again.";
@@ -192,7 +192,7 @@ export function UploadButton({ documentId, label = "Upload", variant = "default"
                 ) : (
                   <>
                     <span className="text-[13px] font-medium">Drop a file here, or click to choose</span>
-                    <span className="text-2xs text-muted-foreground">PDF, Word, PowerPoint, Excel, CSV, text, Markdown or images · up to 25 MB</span>
+                    <span className="text-2xs text-muted-foreground">PDF, Word, PowerPoint, Excel, CSV, text, Markdown or images · up to {UPLOAD_MAX_LABEL}</span>
                   </>
                 )}
                 <input

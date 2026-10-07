@@ -116,6 +116,7 @@ export function AtRiskPanel({ atRisk, today }: { atRisk: TodayData["atRisk"]; to
 export function GoalsPanel({ goals }: { goals: TodayData["goals"] }) {
   return (
     <Panel id="goal-progress" title="Goal progress" icon={Target} href="/goals">
+      {goals.length === 0 && <EmptyState compact title="No goals yet" description="Add company and CEO goals on the Goals page to track progress here." />}
       <ul className="divide-y divide-hairline">
         {goals.map((g) => {
           const status = GOAL_STATUS[g.status];

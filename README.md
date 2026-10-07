@@ -104,8 +104,17 @@ detection and "Run sync now" behave as they would with a real account.
 | `npm run db:migrate:dev` | Create a migration after editing `prisma/schema.prisma` |
 | `npm run db:seed` | Reset the database to the sample workspace |
 | `npm run brain:refresh` | Run the Daily Brain Refresh from the command line |
+| `npm run db:bootstrap -- --name … --email …` | First-time production setup: the CEO account (one-time password) and source catalog, no demo data |
 | `npm run ingest:worker` | Long-running ingestion worker (self-hosted deployments) |
 | `npm run typecheck` · `lint` · `test` | Quality gates |
+
+## Deploying
+
+[`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) walks through putting the app on
+`ceo.cytohub.com`: Vercel Pro and a managed PostgreSQL database, the secrets to
+generate, creating the CEO account with `npm run db:bootstrap`, the DNS record,
+and the Google / Microsoft / Dropbox app setup. It also covers running it on
+your own server instead.
 
 ## Daily Brain Refresh
 

@@ -41,7 +41,9 @@ export function safeHttpUrl(url: string | null | undefined): string | null {
 
 // ─── Uploads ─────────────────────────────────────────────────────────────────
 
-export const UPLOAD_MAX_BYTES = 25 * 1024 * 1024;
+import { UPLOAD_MAX_BYTES, UPLOAD_MAX_LABEL } from "@/lib/upload-limit";
+
+export { UPLOAD_MAX_BYTES, UPLOAD_MAX_LABEL };
 export const UPLOAD_EXTENSIONS = ["pdf", "docx", "pptx", "xlsx", "csv", "txt", "md", "png", "jpg", "jpeg", "webp"] as const;
 
 export function fileExtension(name: string): string {
@@ -54,7 +56,7 @@ export function validateUploadFile(file: { name: string; size: number }): string
   const ext = fileExtension(file.name);
   if (!(UPLOAD_EXTENSIONS as readonly string[]).includes(ext)) return `“.${ext || "?"}” files aren’t supported. Use ${UPLOAD_EXTENSIONS.join(", ")}.`;
   if (file.size <= 0) return "That file is empty.";
-  if (file.size > UPLOAD_MAX_BYTES) return `That file is ${formatBytes(file.size)} — the limit is 25 MB.`;
+  if (file.size > UPLOAD_MAX_BYTES) return `That file is ${formatBytes(file.size)} — the upload limit is ${UPLOAD_MAX_LABEL}.`;
   return null;
 }
 

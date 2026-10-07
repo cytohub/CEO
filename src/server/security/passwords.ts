@@ -3,6 +3,7 @@
  * Format: scrypt$N$r$p$<salt b64>$<hash b64>
  */
 import { randomBytes, scrypt as scryptCb, timingSafeEqual, type ScryptOptions } from "node:crypto";
+import { randomToken } from "./crypto";
 
 const N = 1 << 15;
 const R = 8;
@@ -33,6 +34,14 @@ export async function verifyPassword(password: string, stored: string | null | u
   const expected = Buffer.from(hashB64, "base64");
   const actual = await scrypt(password, Buffer.from(saltB64, "base64"), { N: Number(n), r: Number(r), p: Number(p), maxmem: MAX_MEM });
   return actual.length === expected.length && timingSafeEqual(actual, expected);
+}
+
+/** 144-bit random password, shown once. Grouped so it is easy to read aloud or type. */
+export function generateOneTimePassword(): string {
+  return randomToken(18)
+    .replace(/[-_]/g, "x")
+    .match(/.{1,6}/g)!
+    .join("-");
 }
 
 /** Returns a reason when the password is too weak, else null. */

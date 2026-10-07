@@ -9,6 +9,7 @@ import type { NormalizedDocumentRef } from "@/server/ingestion/types";
 import { documentWhere, getAccessScope } from "@/server/security/access";
 import { audit } from "@/server/security/audit";
 import { sha256 } from "@/server/security/crypto";
+import { UPLOAD_MAX_LABEL } from "@/lib/upload-limit";
 import { MAX_UPLOAD_BYTES, validateUpload } from "@/server/security/files";
 import { LIMITS, rateLimit } from "@/server/security/rate-limit";
 import { forbiddenResponse, isSameOrigin } from "@/server/security/request";
@@ -92,7 +93,7 @@ async function uploadConnectionFor(viewer: Viewer) {
 
 /**
  * POST /api/uploads — multipart/form-data:
- *   file         the document (PDF, DOCX, PPTX, XLSX, CSV, TXT, MD, PNG/JPEG/WebP; ≤ 25 MB)
+ *   file         the document (PDF, DOCX, PPTX, XLSX, CSV, TXT, MD, PNG/JPEG/WebP; ≤ 25 MB, or NEXT_PUBLIC_UPLOAD_MAX_MB)
  *   sensitivity  optional INTERNAL | CONFIDENTIAL | RESTRICTED
  *   documentId   optional: upload a new version of an existing uploaded document
  *
@@ -114,10 +115,10 @@ export async function POST(request: Request) {
   const contentType = request.headers.get("content-type") ?? "";
   if (!contentType.toLowerCase().startsWith("multipart/form-data")) return error(415, "Send the file as multipart/form-data.");
   const declaredLength = Number(request.headers.get("content-length") ?? NaN);
-  if (Number.isFinite(declaredLength) && declaredLength > MAX_BODY_BYTES) return error(413, "The file is larger than the 25 MB upload limit.");
+  if (Number.isFinite(declaredLength) && declaredLength > MAX_BODY_BYTES) return error(413, `The file is larger than the ${UPLOAD_MAX_LABEL} upload limit.`);
 
   const body = await readBodyLimited(request, MAX_BODY_BYTES);
-  if (!body) return error(413, "The file is larger than the 25 MB upload limit.");
+  if (!body) return error(413, `The file is larger than the ${UPLOAD_MAX_LABEL} upload limit.`);
   let form: FormData;
   try {
     form = await new Response(body, { headers: { "content-type": contentType } }).formData();

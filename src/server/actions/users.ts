@@ -8,18 +8,11 @@ import { USER_ROLES } from "@/lib/intelligence";
 import { canShareResource, searchGrantable, userChangeProblem, type GrantableResource, type UserChange } from "@/server/queries/users";
 import { getAccessScope } from "@/server/security/access";
 import { audit } from "@/server/security/audit";
-import { randomToken } from "@/server/security/crypto";
-import { hashPassword, passwordProblem } from "@/server/security/passwords";
+import { generateOneTimePassword, hashPassword, passwordProblem } from "@/server/security/passwords";
 import { requireViewer, revokeUserSessions, type Viewer } from "@/server/security/session";
 import { attemptAs, fail, id, ok, type ActionResult } from "./result";
 
 const revalidateUsers = () => revalidatePath("/settings/users");
-
-/** 144-bit random password, shown once. Grouped so it is easy to read aloud or type. */
-function generatePassword(): string {
-  const raw = randomToken(18).replace(/[-_]/g, "x");
-  return raw.match(/.{1,6}/g)!.join("-");
-}
 
 async function activeCeoCount() {
   return db.user.count({ where: { role: "CEO", active: true } });
@@ -58,7 +51,7 @@ export async function createUser(input: z.input<typeof createSchema>): Promise<A
     }
     if (await db.user.findUnique({ where: { email: data.email }, select: { id: true } })) return fail("A user with that email already exists");
 
-    const oneTimePassword = data.password ? null : generatePassword();
+    const oneTimePassword = data.password ? null : generateOneTimePassword();
     const passwordHash = await hashPassword(data.password ?? oneTimePassword!);
     // Link the account to the matching person in the execution graph when there is an unclaimed one.
     const person = await db.person.findFirst({ where: { email: { equals: data.email, mode: "insensitive" }, user: { is: null } }, select: { id: true } });
@@ -109,7 +102,7 @@ export async function resetUserPassword(userId: string): Promise<ActionResult<{ 
     const viewer = await requireViewer();
     const { target, problem } = await checkChange(viewer, userId, { kind: "reset_password" });
     if (problem || !target) return denied(viewer, "user.password_reset", userId, problem ?? "User not found");
-    const oneTimePassword = generatePassword();
+    const oneTimePassword = generateOneTimePassword();
     await db.user.update({ where: { id: userId }, data: { passwordHash: await hashPassword(oneTimePassword), mustChangePassword: true, failedLogins: 0, lockedUntil: null } });
     await revokeUserSessions(userId);
     await audit({ action: "user.password_reset", viewer, targetType: "User", targetId: userId, metadata: { email: target.email, sessionsRevoked: true } });
