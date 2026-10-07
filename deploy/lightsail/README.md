@@ -97,7 +97,11 @@ docker compose version
 
 ## 6. Get the code
 
-Give the server a read-only deploy key:
+```sh
+git clone https://github.com/cytohub/CEO.git ~/ceo
+```
+
+If the repository is private, give the server a read-only deploy key instead:
 
 ```sh
 ssh-keygen -t ed25519 -N '' -f ~/.ssh/ceo_deploy
@@ -108,14 +112,12 @@ cat ~/.ssh/ceo_deploy.pub
 2. On GitHub, open **cytohub/CEO → Settings → Deploy keys → Add deploy key**.
 3. Paste the line, name the key `lightsail`, and leave **Allow write access** off.
 
-Then clone:
+Then clone over SSH, and answer `yes` when asked to trust github.com:
 
 ```sh
 printf 'Host github.com\n  IdentityFile ~/.ssh/ceo_deploy\n' >> ~/.ssh/config
 git clone git@github.com:cytohub/CEO.git ~/ceo
 ```
-
-Answer `yes` when asked to trust github.com.
 
 ## 7. Configure
 
