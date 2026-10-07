@@ -53,13 +53,27 @@ export async function createUser(input: z.input<typeof createSchema>): Promise<A
 
     const oneTimePassword = data.password ? null : generateOneTimePassword();
     const passwordHash = await hashPassword(data.password ?? oneTimePassword!);
-    // Link the account to the matching person in the execution graph when there is an unclaimed one.
-    const person = await db.person.findFirst({ where: { email: { equals: data.email, mode: "insensitive" }, user: { is: null } }, select: { id: true } });
-    const user = await db.user.create({
-      // Whoever created the account knows this password, so the user replaces it at first sign-in.
-      data: { name: data.name, email: data.email, role: data.role, passwordHash, mustChangePassword: true, active: true, personId: person?.id ?? null, title: USER_ROLES[data.role].label },
+    const title = USER_ROLES[data.role].label;
+    const { user, linkedPerson } = await db.$transaction(async (tx) => {
+      // Every account is a person in the execution graph, so tasks, goals and commitments can be
+      // assigned to it: claim the person CytoHub Brain already knows by this email, or add one.
+      const known = await tx.person.findFirst({ where: { email: { equals: data.email, mode: "insensitive" }, user: { is: null } }, select: { id: true } });
+      const type = data.role === "ADVISOR" ? "ADVISOR" : "TEAM";
+      let person: { id: string };
+      if (known) {
+        person = await tx.person.update({ where: { id: known.id }, data: type === "TEAM" ? { type } : {}, select: { id: true } });
+      } else {
+        // Another account's person may hold this exact email; the unique email then stays with it.
+        const taken = await tx.person.findUnique({ where: { email: data.email }, select: { id: true } });
+        person = await tx.person.create({ data: { name: data.name, email: taken ? null : data.email, title, type }, select: { id: true } });
+      }
+      const user = await tx.user.create({
+        // Whoever created the account knows this password, so the user replaces it at first sign-in.
+        data: { name: data.name, email: data.email, role: data.role, passwordHash, mustChangePassword: true, active: true, personId: person.id, title },
+      });
+      return { user, linkedPerson: Boolean(known) };
     });
-    await audit({ action: "user.create", viewer, targetType: "User", targetId: user.id, metadata: { email: user.email, role: user.role, password: oneTimePassword ? "generated" : "set by admin", linkedPerson: Boolean(person) } });
+    await audit({ action: "user.create", viewer, targetType: "User", targetId: user.id, metadata: { email: user.email, role: user.role, password: oneTimePassword ? "generated" : "set by admin", linkedPerson } });
     revalidateUsers();
     return ok({ id: user.id, oneTimePassword }, `${user.name} added as ${USER_ROLES[user.role].label}`);
   });

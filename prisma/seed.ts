@@ -158,13 +158,17 @@ async function main() {
 
   // Other roles, for permission-model demos.
   const seedUsers = [
-    { email: "elena@cytohub.example", name: "Elena Costa", role: "EXECUTIVE" as const, person: "elena" },
-    { email: "ben@cytohub.example", name: "Ben Carter", role: "TEAM_MEMBER" as const, person: "ben" },
-    { email: "catherine@cytohub.example", name: "Dr. Catherine Duval", role: "ADVISOR" as const, person: "catherine" },
-    { email: "admin@cytohub.example", name: "IT Administrator", role: "ADMIN" as const, person: null },
+    { email: "elena@cytohub.example", name: "Elena Costa", title: "Chief Operating Officer", role: "EXECUTIVE" as const, person: "elena" },
+    { email: "ben@cytohub.example", name: "Ben Carter", title: "Executive Assistant to the CEO", role: "TEAM_MEMBER" as const, person: "ben" },
+    { email: "catherine@cytohub.example", name: "Dr. Catherine Duval", title: "Independent board member", role: "ADVISOR" as const, person: "catherine" },
+    { email: "admin@cytohub.example", name: "IT Administrator", title: "IT Administrator", role: "ADMIN" as const, person: null },
   ];
   for (const u of seedUsers) {
-    await db.user.create({ data: { email: u.email, name: u.name, role: u.role, timezone: TZ, passwordHash, personId: u.person ? personId[u.person] : null } });
+    // Every account is a person in the execution graph, as createUser makes it.
+    const person = u.person
+      ? { connect: { id: personId[u.person] } }
+      : { create: { name: u.name, email: u.email, title: u.title, type: "TEAM" as const, department: "Operations" } };
+    await db.user.create({ data: { email: u.email, name: u.name, title: u.title, role: u.role, timezone: TZ, passwordHash, person } });
   }
   console.log(`  Sign in as ceo@cytohub.example (or ${seedUsers.map((u) => u.email.split("@")[0]).join(", ")}) with password: ${process.env.SEED_PASSWORD ? "$SEED_PASSWORD" : seedPassword}`);
 
