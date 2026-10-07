@@ -80,7 +80,7 @@ From your clone, against the production database:
 ```bash
 npm install
 DATABASE_URL="postgresql://…direct production string…" \
-  npm run db:bootstrap -- --name "Your Name" --email you@cytohub.com --timezone America/New_York
+  npm run db:bootstrap -- --name "Your Name" --email rb@cytohub.com --timezone America/New_York
 ```
 
 This creates the source catalog and the CEO account, then prints a **one-time
@@ -98,7 +98,7 @@ won't create a second CEO.
 
 ## 6. First sign-in
 
-1. Open https://ceo.cytolab.ai and sign in with your email and the one-time password.
+1. Open https://ceo.cytolab.ai and sign in as `rb@cytohub.com` with the one-time password.
 2. Choose your own password (at least 12 characters).
 3. **Settings → Users & access**: add your team. Each person gets a one-time
    password and chooses their own at first sign-in. Roles:
@@ -191,7 +191,7 @@ plan or upload limits:
 
 ```bash
 npm ci && npm run db:migrate && npm run build
-npm run db:bootstrap -- --name "Your Name" --email you@cytohub.com
+npm run db:bootstrap -- --name "Your Name" --email rb@cytohub.com
 npm start                 # the app on :3000   (run under systemd or pm2)
 npm run ingest:worker     # syncs and pipeline jobs, every 30 s (also under systemd)
 ```

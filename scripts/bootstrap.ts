@@ -1,7 +1,7 @@
 /**
  * First-time setup of a production database — no demo data:
  *
- *   npm run db:bootstrap -- --name "Your Name" --email you@cytohub.com [--timezone America/New_York]
+ *   npm run db:bootstrap -- --name "Your Name" --email rb@cytohub.com [--timezone America/New_York]
  *
  * Run it once after `npm run db:migrate`, with DATABASE_URL pointing at the
  * production database. It creates the Brain source catalog and the CEO's
