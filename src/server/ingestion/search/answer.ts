@@ -82,7 +82,11 @@ function targetPhrase(plan: QueryPlan): string | null {
   return companyTypeNoun(plan.companyTypes);
 }
 
-/** The note appended when the viewer's role hid records or sources. */
+/**
+ * The note appended when the viewer's role hid records or sources. Deliberate
+ * product decision: say that something was withheld (never what), so a short
+ * answer is not mistaken for a complete one.
+ */
 export function accessNote(input: AnswerInput): string {
   const notes: string[] = [];
   const wantsStructured = !input.plan.recordTypes.length || input.plan.recordTypes.some((t) => !["thread", "document", "event", "notes", "source"].includes(t));

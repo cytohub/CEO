@@ -198,7 +198,10 @@ can take action, delegate, snooze, ignore or open the source.
 * Authorization: role → capabilities; source content additionally filtered by
   **clearance** (`INTERNAL` < `CONFIDENTIAL` < `RESTRICTED`), connection
   ownership and explicit `AccessGrant`s. Search, View Source, Prepare Me and the
-  Chief of Staff all go through the same filter.
+  Chief of Staff all go through the same filter. When the filter hides
+  matching sources, search says so ("Some matching sources aren't available
+  at your access level") without revealing what they are, so a partial answer
+  is never mistaken for a complete one.
 * Secrets: OAuth tokens, raw payloads and stored documents encrypted with
   AES-256-GCM (`CYTOHUB_ENCRYPTION_KEY`, required in production). Ciphertext is
   versioned, so keys rotate by moving the old key to
