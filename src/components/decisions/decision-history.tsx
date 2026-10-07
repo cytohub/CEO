@@ -30,7 +30,7 @@ export function DecisionHistory({ items }: { items: DecisionListItem[] }) {
         <EmptyState compact title="No decisions found" />
       ) : (
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[820px] text-[14px]">
+          <table className="w-full min-w-[820px] text-[15px]">
             <thead>
               <tr className="border-b border-hairline text-left text-2xs text-muted-foreground">
                 <th className="py-2 pr-3 pl-4 font-medium">Decision</th>

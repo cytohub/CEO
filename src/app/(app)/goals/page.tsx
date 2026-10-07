@@ -88,14 +88,14 @@ export default async function GoalsPage(props: { searchParams: Promise<{ type?: 
               <section key={pillar?.id ?? "none"} className="panel overflow-hidden" aria-label={pillar?.name ?? "No pillar"}>
                 <div className="flex items-center gap-2.5 border-b border-hairline px-4 py-2.5">
                   <span className="size-2.5 rounded-[3px]" style={{ background: pillar ? pillarColorVar(pillar.color) : "var(--ink-3)" }} aria-hidden />
-                  <h2 className="text-[14px] font-semibold">{pillar?.name ?? "No strategic pillar"}</h2>
+                  <h2 className="text-[15px] font-semibold">{pillar?.name ?? "No strategic pillar"}</h2>
                   <span className="text-2xs text-muted-foreground">
                     {list.length} goal{list.length === 1 ? "" : "s"} · avg {avg}%
                   </span>
                   {pillar?.description && <span className="ml-auto hidden truncate text-2xs text-muted-foreground lg:block">{pillar.description}</span>}
                 </div>
                 <div className="overflow-x-auto">
-                  <table className="w-full min-w-[860px] text-[14px]">
+                  <table className="w-full min-w-[860px] text-[15px]">
                     <thead className="sr-only">
                       <tr>
                         <th>Goal</th>

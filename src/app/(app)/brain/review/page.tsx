@@ -65,7 +65,7 @@ export default async function ReviewQueuePage(props: { searchParams: Promise<{ t
 
       {tab === "pending" ? (
         data.items.length === 0 && filtered ? (
-          <p className="panel flex items-center gap-2 px-4 py-6 text-[14px] text-muted-foreground">
+          <p className="panel flex items-center gap-2 px-4 py-6 text-[15px] text-muted-foreground">
             <CheckCircle2 className="size-4 text-good" aria-hidden /> Nothing pending matches these filters.
           </p>
         ) : (

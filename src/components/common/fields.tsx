@@ -50,7 +50,7 @@ export function SimpleSelect({
   const groups = [...new Set(options.map((o) => o.group ?? ""))];
   return (
     <Select value={value ?? (allowNone ? NONE : undefined)} onValueChange={(v) => onChange(v === NONE ? null : v)}>
-      <SelectTrigger id={id} size={size} className={cn("w-full text-[14px]", className)} aria-label={ariaLabel}>
+      <SelectTrigger id={id} size={size} className={cn("w-full text-[15px]", className)} aria-label={ariaLabel}>
         <SelectValue placeholder={placeholder} />
       </SelectTrigger>
       <SelectContent className="max-h-80">

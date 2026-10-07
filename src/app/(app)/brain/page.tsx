@@ -58,7 +58,7 @@ export default async function BrainPage(props: { searchParams: Promise<{ tab?: s
               <Sparkles className="size-5 text-brain" aria-hidden />
             </div>
             <div>
-              <div className="flex items-center gap-2 text-[16px] font-semibold">
+              <div className="flex items-center gap-2 text-[17px] font-semibold">
                 Daily Brain Refresh
                 {last && <StatusPill tone={last.status === "SUCCEEDED" ? "good" : last.status === "PARTIAL" ? "warning" : last.status === "RUNNING" ? "info" : "critical"} label={last.status.toLowerCase().replace(/^./, (c) => c.toUpperCase())} />}
               </div>
@@ -73,7 +73,7 @@ export default async function BrainPage(props: { searchParams: Promise<{ tab?: s
               </div>
             </div>
           </div>
-          <dl className="flex flex-wrap gap-x-6 gap-y-2 text-[14px]">
+          <dl className="flex flex-wrap gap-x-6 gap-y-2 text-[15px]">
             {[
               ["Signals processed", last?.signalsScanned],
               ["New insights", last?.insightsCreated],
@@ -148,7 +148,7 @@ function BriefTab({ brief, timezone }: { brief: Awaited<ReturnType<typeof getBra
         <h2 id="brief-title" className="mt-1.5 text-lg leading-snug font-semibold tracking-tight">
           {brief.headline}
         </h2>
-        <p className="mt-1.5 max-w-3xl text-[14px] leading-relaxed text-ink-2">{brief.summary}</p>
+        <p className="mt-1.5 max-w-3xl text-[15px] leading-relaxed text-ink-2">{brief.summary}</p>
         <p className="mt-2 text-2xs text-muted-foreground">
           Covers changes since {formatDateTime(new Date(p.since), timezone)} · {p.narrativeEngine === "claude" ? "Narrative by Claude" : "Narrative by Brain rules"} ·{" "}
           {brief.reviewedAt ? `Reviewed ${formatDateTime(brief.reviewedAt, timezone)}` : "Not yet reviewed"}
@@ -168,11 +168,11 @@ function BriefTab({ brief, timezone }: { brief: Awaited<ReturnType<typeof getBra
                         <span className={cn("mt-[7px] size-1.5 shrink-0 rounded-full", item.isNew === false ? "border border-ink-3" : "bg-brand")} aria-label={item.isNew === false ? "Still open" : "New"} />
                         <div className="min-w-0">
                           {item.href ? (
-                            <Link href={item.href} className="text-[14px] leading-snug text-foreground hover:underline">
+                            <Link href={item.href} className="text-[15px] leading-snug text-foreground hover:underline">
                               {briefItemTitle(item.title)}
                             </Link>
                           ) : (
-                            <span className="text-[14px] leading-snug">{briefItemTitle(item.title)}</span>
+                            <span className="text-[15px] leading-snug">{briefItemTitle(item.title)}</span>
                           )}
                           {item.detail && <p className="text-xs text-muted-foreground">{item.detail}</p>}
                         </div>
@@ -218,7 +218,7 @@ async function SignalsTab() {
                 <div>{formatDateTime(s.occurredAt, timezone)}</div>
               </div>
               <div className="min-w-0">
-                <div className="text-[14px]">{s.title}</div>
+                <div className="text-[15px]">{s.title}</div>
                 {(meta?.summary ?? s.body) && <p className="line-clamp-2 text-xs text-muted-foreground">{meta?.summary ?? s.body}</p>}
                 <div className="mt-1 flex flex-wrap gap-x-3 text-2xs text-muted-foreground">
                   <span>{s.kind.replace("_", " ").toLowerCase()}</span>
@@ -261,7 +261,7 @@ function LogTab({ refreshes, timezone }: { refreshes: Awaited<ReturnType<typeof 
           <details key={r.id} className="panel group" open={r === refreshes[0]}>
             <summary className="flex cursor-pointer list-none flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3">
               <StatusPill tone={r.status === "SUCCEEDED" ? "good" : r.status === "PARTIAL" ? "warning" : r.status === "RUNNING" ? "info" : "critical"} label={r.status.toLowerCase()} />
-              <span className="text-[14px] font-medium">{formatDateTime(r.startedAt, timezone)}</span>
+              <span className="text-[15px] font-medium">{formatDateTime(r.startedAt, timezone)}</span>
               <span className="text-xs text-muted-foreground">{r.trigger.toLowerCase()}</span>
               <span className="ml-auto text-2xs text-muted-foreground tabular">
                 {r.signalsScanned} signals · {r.insightsCreated} insights · {r.inboxCreated} inbox · {r.tasksCreated} tasks · {r.durationMs ? `${(r.durationMs / 1000).toFixed(1)}s` : "—"}
@@ -308,7 +308,7 @@ function SourcesTab({ sources, timezone }: { sources: Awaited<ReturnType<typeof 
         <section key={s.key} className="panel flex flex-col p-4" aria-label={s.name}>
           <div className="flex items-start justify-between gap-2">
             <div>
-              <h3 className="text-[14px] font-semibold">{s.name}</h3>
+              <h3 className="text-[15px] font-semibold">{s.name}</h3>
               <p className="text-2xs text-muted-foreground">
                 {s.provider} · {s.category.toLowerCase()}
               </p>

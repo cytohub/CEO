@@ -58,7 +58,7 @@ export function ProcessedChart({ series }: { series: { day: string; count: numbe
             {/* Y axis ticks */}
             <div className="relative w-7" style={{ height: PLOT_H }} aria-hidden>
               {ticks.map((t) => (
-                <span key={t} className="absolute right-0 -translate-y-1/2 text-[11px] text-muted-foreground tabular" style={{ top: PLOT_H - (t / axis.max) * PLOT_H }}>
+                <span key={t} className="absolute right-0 -translate-y-1/2 text-[12px] text-muted-foreground tabular" style={{ top: PLOT_H - (t / axis.max) * PLOT_H }}>
                   {formatNumber(t, true)}
                 </span>
               ))}
@@ -87,7 +87,7 @@ export function ProcessedChart({ series }: { series: { day: string; count: numbe
                           style={{ height: h }}
                         />
                         {showLabel && active !== i && (
-                          <span aria-hidden className="pointer-events-none absolute text-[11px] font-medium text-ink-2 tabular" style={{ bottom: h + 3 }}>
+                          <span aria-hidden className="pointer-events-none absolute text-[12px] font-medium text-ink-2 tabular" style={{ bottom: h + 3 }}>
                             {formatNumber(s.count)}
                           </span>
                         )}
@@ -102,7 +102,7 @@ export function ProcessedChart({ series }: { series: { day: string; count: numbe
                           style={{ bottom: Math.min(PLOT_H - 30, h + 6) }}
                         >
                           <div className="text-xs font-semibold text-foreground tabular">{formatNumber(s.count)} items</div>
-                          <div className="text-[11px] text-muted-foreground">{formatDayLong(dayFromKey(s.day))}</div>
+                          <div className="text-[12px] text-muted-foreground">{formatDayLong(dayFromKey(s.day))}</div>
                         </div>
                       )}
                     </li>
@@ -114,7 +114,7 @@ export function ProcessedChart({ series }: { series: { day: string; count: numbe
             <div aria-hidden />
             <div className="mt-1 flex gap-0.5" aria-hidden>
               {series.map((s, i) => (
-                <span key={s.day} className={cn("flex-1 truncate text-center text-[11px] text-muted-foreground tabular", (last - i) % 2 === 1 && "max-sm:invisible")}>
+                <span key={s.day} className={cn("flex-1 truncate text-center text-[12px] text-muted-foreground tabular", (last - i) % 2 === 1 && "max-sm:invisible")}>
                   {label(s.day, i)}
                 </span>
               ))}

@@ -75,7 +75,7 @@ export default async function CompanyPage(props: { params: Promise<{ id: string 
               </a>
             )}
           </div>
-          {c.description && <p className="mt-2 max-w-3xl text-[14px] text-ink-2">{c.description}</p>}
+          {c.description && <p className="mt-2 max-w-3xl text-[15px] text-ink-2">{c.description}</p>}
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <DetailActions subject={c.name} companyId={c.id} />

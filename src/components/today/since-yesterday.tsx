@@ -57,7 +57,7 @@ export function SinceYesterday({
       }
     >
       <div className="border-b border-hairline px-4 py-3">
-        <p className="text-[14px] leading-snug font-medium text-foreground">{headline}</p>
+        <p className="text-[15px] leading-snug font-medium text-foreground">{headline}</p>
         <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{summary}</p>
         <p className="mt-2 text-2xs text-muted-foreground tabular">
           {payload.stats.signalsProcessed} signals processed · {payload.stats.newInsights} new insights · {payload.stats.tasksCreated} commitments captured · {payload.stats.inboxCreated} inbox items filed
@@ -95,7 +95,7 @@ function BriefSection({ label, items }: { label: string; items: BriefItem[] }) {
                 className={cn("mt-[7px] size-1.5 shrink-0 rounded-full", i.isNew === false ? "border border-ink-3" : i.importance >= 4 ? "bg-brand" : "bg-ink-3")}
               />
               <span className="min-w-0">
-                <span className="line-clamp-2 text-[13.5px] leading-snug text-foreground">{briefItemTitle(i.title)}</span>
+                <span className="line-clamp-2 text-[14.5px] leading-snug text-foreground">{briefItemTitle(i.title)}</span>
                 {i.detail && <span className="line-clamp-1 text-2xs text-muted-foreground">{i.detail}</span>}
               </span>
             </>

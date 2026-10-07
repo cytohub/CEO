@@ -79,7 +79,7 @@ export function TopFive({ items, confirmedAt, today }: { items: Item[]; confirme
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-hairline px-4 py-3">
         <div className="flex items-center gap-2">
           <Target className="size-4 text-foreground" aria-hidden />
-          <h2 id="top5-title" className="text-[16px] font-semibold tracking-tight">
+          <h2 id="top5-title" className="text-[17px] font-semibold tracking-tight">
             Today’s Top 5
           </h2>
           <span className="rounded bg-muted px-1.5 text-2xs font-medium text-muted-foreground tabular">
@@ -118,7 +118,7 @@ export function TopFive({ items, confirmedAt, today }: { items: Item[]; confirme
       </div>
 
       {items.length === 0 ? (
-        <div className="px-4 py-10 text-center text-[14px] text-muted-foreground">No priorities yet. Run the morning refresh to get today’s recommendations.</div>
+        <div className="px-4 py-10 text-center text-[15px] text-muted-foreground">No priorities yet. Run the morning refresh to get today’s recommendations.</div>
       ) : (
         <ol className="divide-y divide-hairline">
           {items.map((item, idx) => (
@@ -158,14 +158,14 @@ function PriorityRow({ item, index, count, today, expanded, onToggle }: { item: 
             done ? "border-good bg-good text-white" : "border-input hover:border-good hover:bg-good-soft",
           )}
         >
-          {done ? <Check className="size-3" /> : <span className="font-mono text-[11px] font-semibold text-muted-foreground tabular group-hover:hidden">{index + 1}</span>}
+          {done ? <Check className="size-3" /> : <span className="font-mono text-[12px] font-semibold text-muted-foreground tabular group-hover:hidden">{index + 1}</span>}
           {!done && <Check className="hidden size-3 text-good-ink group-hover:block" aria-hidden />}
         </button>
 
         <div className="min-w-0 flex-1">
           <div className="flex items-start gap-2">
             <button type="button" onClick={onToggle} className="min-w-0 flex-1 text-left" aria-expanded={expanded}>
-              <span className={cn("text-[15px] leading-snug font-medium text-foreground", done && "text-muted-foreground line-through")}>{t.title}</span>
+              <span className={cn("text-[16px] leading-snug font-medium text-foreground", done && "text-muted-foreground line-through")}>{t.title}</span>
             </button>
             <ScoreChip score={item.task.priorityScore} breakdown={item.breakdown} className="shrink-0" />
           </div>
@@ -192,7 +192,7 @@ function PriorityRow({ item, index, count, today, expanded, onToggle }: { item: 
           )}
 
           {expanded && (
-            <div className="mt-3 grid gap-3 rounded-lg border border-hairline bg-surface-2/60 p-3 text-[14px] sm:grid-cols-2">
+            <div className="mt-3 grid gap-3 rounded-lg border border-hairline bg-surface-2/60 p-3 text-[15px] sm:grid-cols-2">
               <Detail label="Why this matters" className="sm:col-span-2">
                 <span className="text-foreground">{item.breakdown?.rationale ?? t.aiRecommendation ?? "—"}</span>
               </Detail>
@@ -390,7 +390,7 @@ function AddPriority({ disabled }: { disabled?: boolean }) {
                   }
                 }}
               >
-                <span className="truncate text-[14px]">{t.title}</span>
+                <span className="truncate text-[15px]">{t.title}</span>
                 <span className="truncate text-2xs text-muted-foreground">{t.subtitle}</span>
               </button>
             </li>

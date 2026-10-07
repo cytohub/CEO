@@ -11,7 +11,7 @@ export default function Loading() {
           <Skeleton key={i} className="h-[168px] rounded-none" />
         ))}
       </div>
-      <div className="columns-[22rem] gap-4">
+      <div className="columns-[26rem] gap-4">
         {[2, 3, 2, 3, 3, 2, 2, 1].map((n, i) => (
           <Skeleton key={i} className="mb-4 w-full break-inside-avoid" style={{ height: 40 + n * 170 }} />
         ))}

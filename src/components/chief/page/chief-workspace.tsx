@@ -109,7 +109,7 @@ export function ChiefWorkspace({
       <header className="flex flex-wrap items-start gap-x-4 gap-y-2">
         <div className="min-w-0 flex-1">
           <h1 className="text-xl font-semibold tracking-tight text-foreground">Chief of Staff</h1>
-          <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[14px] text-muted-foreground">
+          <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[15px] text-muted-foreground">
             <span className="inline-flex h-5 items-center gap-1.5 rounded-full border border-border bg-surface px-2 text-2xs font-medium text-ink-2">
               <span className={cn("size-1.5 rounded-full", engine === "claude" ? "bg-brain" : "bg-good")} aria-hidden />
               {engine === "claude" ? `Claude · ${model}` : "CytoHub Brain rules engine"}
@@ -145,7 +145,7 @@ export function ChiefWorkspace({
         <aside aria-label="Conversation history" className="panel hidden min-h-0 flex-col lg:flex">
           <div className="flex h-10 shrink-0 items-center gap-2 border-b border-hairline px-3.5">
             <History className="size-3.5 text-ink-3" aria-hidden />
-            <h2 className="text-[13.5px] font-semibold tracking-tight">Conversations</h2>
+            <h2 className="text-[14.5px] font-semibold tracking-tight">Conversations</h2>
             <span className="rounded bg-muted px-1.5 text-2xs font-medium text-muted-foreground tabular">{visibleThreads.length}</span>
           </div>
           <div className="scrollbar-thin min-h-0 flex-1 overflow-y-auto">
@@ -235,7 +235,7 @@ function ChatPane({
     <>
       <div className="flex h-10 shrink-0 items-center gap-2 border-b border-hairline px-4">
         <Sparkles className="size-3.5 text-brain" aria-hidden />
-        <h2 className="min-w-0 truncate text-[13.5px] font-semibold tracking-tight">{title ?? starting ?? "New conversation"}</h2>
+        <h2 className="min-w-0 truncate text-[14.5px] font-semibold tracking-tight">{title ?? starting ?? "New conversation"}</h2>
         {!empty && (
           <span className="ml-auto shrink-0 text-2xs text-muted-foreground tabular">
             {questions} question{questions === 1 ? "" : "s"}

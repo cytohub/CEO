@@ -33,7 +33,7 @@ export function SettingsSection({
     <section id={id} aria-labelledby={`settings-${id}-heading`} data-settings-section className={cn("scroll-mt-16", className)}>
       <div className="mb-2.5 flex flex-wrap items-end justify-between gap-x-4 gap-y-2">
         <div className="min-w-0">
-          <h2 id={`settings-${id}-heading`} className="text-[16px] font-semibold tracking-tight text-foreground">
+          <h2 id={`settings-${id}-heading`} className="text-[17px] font-semibold tracking-tight text-foreground">
             {title}
           </h2>
           {description && <p className="mt-0.5 max-w-2xl text-xs text-muted-foreground">{description}</p>}

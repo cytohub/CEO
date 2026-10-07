@@ -159,7 +159,7 @@ export function TaskSheet({ taskId, onClose }: { taskId: string | null; onClose:
                   <div className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-brain">
                     <Sparkles className="size-3.5" aria-hidden /> Why this matters
                   </div>
-                  <p className="text-[14px] leading-relaxed text-foreground">{task.aiRecommendation ?? task.breakdown?.rationale}</p>
+                  <p className="text-[15px] leading-relaxed text-foreground">{task.aiRecommendation ?? task.breakdown?.rationale}</p>
                   {task.suggestedDelegate && task.delegationRecommended && (
                     <p className="mt-2 text-xs text-ink-2">
                       Suggested owner: <span className="font-medium">{task.suggestedDelegate.name}</span>
@@ -316,7 +316,7 @@ export function TaskSheet({ taskId, onClose }: { taskId: string | null; onClose:
               {task.delegation && (
                 <section>
                   <h3 className="eyebrow mb-2">Delegation</h3>
-                  <div className="rounded-lg border border-border p-3 text-[14px]">
+                  <div className="rounded-lg border border-border p-3 text-[15px]">
                     <div className="flex items-center justify-between gap-2">
                       <span className="flex items-center gap-2">
                         <Avatar name={task.delegation.delegate.name} />
@@ -339,7 +339,7 @@ export function TaskSheet({ taskId, onClose }: { taskId: string | null; onClose:
               {(task.dependsOn.length > 0 || task.blocks.length > 0) && (
                 <section>
                   <h3 className="eyebrow mb-2">Dependencies</h3>
-                  <ul className="space-y-1 text-[14px]">
+                  <ul className="space-y-1 text-[15px]">
                     {task.dependsOn.map((d) => (
                       <li key={d.id} className="flex items-center gap-2">
                         <CircleDashed className="size-3.5 text-ink-3" aria-hidden />
@@ -431,7 +431,7 @@ function RelatedSection({ task }: { task: TaskDetail }) {
   return (
     <section>
       <h3 className="eyebrow mb-2">Related information</h3>
-      <div className="grid gap-3 text-[14px]">
+      <div className="grid gap-3 text-[15px]">
         {task.decision && (
           <Link href={`/decisions/${task.decision.id}`} className="flex items-center gap-2 rounded-md border border-border px-3 py-2 hover:bg-muted">
             <span className="text-muted-foreground">Decision</span>
@@ -519,7 +519,7 @@ function NotesSection({ task, onAdded }: { task: TaskDetail; onAdded: () => void
       {task.notes.length > 0 && (
         <ul className="mt-3 space-y-2">
           {task.notes.map((n) => (
-            <li key={n.id} className="rounded-md bg-surface-2 px-3 py-2 text-[14px]">
+            <li key={n.id} className="rounded-md bg-surface-2 px-3 py-2 text-[15px]">
               <p className="whitespace-pre-wrap text-foreground">{n.body}</p>
               <p className="mt-1 text-2xs text-muted-foreground">
                 {n.author} · {formatDateTime(n.createdAt, lookups.timezone)}

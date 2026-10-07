@@ -96,7 +96,7 @@ function MetricRow({ m, label }: { m: MetricProgress; label?: string }) {
         <div className="truncate text-xs text-ink-2">{label ?? m.name}</div>
         <div className="mt-0.5 flex items-baseline gap-1.5 tabular">
           <span className="text-2xs text-muted-foreground">{formatMetric(m.start, m.unit)} →</span>
-          <span className="text-[16px] font-semibold tracking-tight text-foreground">{formatMetric(m.end, m.unit)}</span>
+          <span className="text-[17px] font-semibold tracking-tight text-foreground">{formatMetric(m.end, m.unit)}</span>
           {m.change !== null && (
             <span className={cn("text-2xs font-medium", up ? "text-good-ink" : down ? "text-critical-ink" : "text-muted-foreground")}>
               {m.change === 0 ? "±0" : `${up ? "+" : "−"}${formatMetric(Math.abs(m.change), m.unit)}`}
@@ -261,7 +261,7 @@ export function ImpactfulDecisionsPanel({ decisions, timezone }: { decisions: Mo
               <li key={d.id}>
                 <Link href={`/decisions/${d.id}`} className="block px-3.5 py-2 hover:bg-muted/50">
                   <div className="flex items-start gap-2">
-                    <span className="line-clamp-2 flex-1 text-[14px] leading-snug">{d.title}</span>
+                    <span className="line-clamp-2 flex-1 text-[15px] leading-snug">{d.title}</span>
                     <span className="shrink-0 rounded bg-muted px-1.5 text-2xs font-medium text-ink-2 tabular" title="Strategic impact">
                       {d.strategicImpact}/5
                     </span>
@@ -353,7 +353,7 @@ export function NextMonthPanel({ next, today, label }: { next: MonthlyReview["ne
                 <li key={t.id}>
                   <EntityLink kind="task" id={t.id} className="flex items-start gap-3 px-3.5 py-2 hover:bg-muted/50">
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-[14px] text-foreground">{t.title}</span>
+                      <span className="block truncate text-[15px] text-foreground">{t.title}</span>
                       <span className="block truncate text-2xs text-muted-foreground">
                         {t.dueDate ? `Due ${relativeDay(t.dueDate, today)}` : "No date"}
                         {t.goal ? ` · ${t.goal.title}` : ""}

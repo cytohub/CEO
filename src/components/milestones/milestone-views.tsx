@@ -32,7 +32,7 @@ function Card({ m, today, compact }: { m: MilestoneRow; today: Date; compact?: b
     <button type="button" onClick={() => openEntity("milestone", m.id)} className="w-full rounded-lg border border-border bg-surface p-3 text-left transition-colors hover:border-input hover:bg-muted/40">
       <div className="flex items-start gap-2">
         <Icon className="mt-0.5 size-3.5 shrink-0 text-ink-3" aria-hidden />
-        <span className="line-clamp-2 flex-1 text-[14px] leading-snug font-medium">{m.title}</span>
+        <span className="line-clamp-2 flex-1 text-[15px] leading-snug font-medium">{m.title}</span>
       </div>
       <div className="mt-2 flex items-center gap-2">
         <Meter value={m.progress} tone={tone === "done" ? "good" : tone} label={`${m.title} progress`} />
@@ -92,7 +92,7 @@ function TimelineView({ milestones, today }: { milestones: MilestoneRow[]; today
                   <button type="button" onClick={() => openEntity("milestone", m.id)} className="flex min-w-0 items-center gap-2 px-4 py-2 text-left">
                     <span className={cn("size-1.5 shrink-0 rounded-full", TONE_DOT[tone])} aria-hidden />
                     <span className="min-w-0">
-                      <span className="block truncate text-[14px] group-hover:underline">{m.title}</span>
+                      <span className="block truncate text-[15px] group-hover:underline">{m.title}</span>
                       <span className="block truncate text-2xs text-muted-foreground">
                         {tone === "critical" && m.status !== "BLOCKED" ? "Overdue" : MILESTONE_STATUS[m.status].label} · {formatDay(m.dueDate)} · {m.progress}%
                       </span>
@@ -153,7 +153,7 @@ function QuarterView({ milestones, today }: { milestones: MilestoneRow[]; today:
         return (
           <section key={keys[i]} className={cn("rounded-lg border border-border bg-surface-2/40 p-2", i === 1 && "border-brand/40 bg-brand-soft/30")} aria-label={keys[i]}>
             <div className="flex items-baseline justify-between px-1.5 pt-1 pb-2">
-              <h2 className="text-[14px] font-semibold">
+              <h2 className="text-[15px] font-semibold">
                 {keys[i].replace("-", " ")}
                 {i === 1 && <span className="ml-1.5 text-2xs font-medium text-brand">Current</span>}
               </h2>
@@ -188,7 +188,7 @@ function GoalView({ milestones, today }: { milestones: MilestoneRow[]; today: Da
         return (
           <section key={g.goal?.id ?? "none"} className="panel">
             <div className="flex flex-wrap items-center gap-2 border-b border-hairline px-4 py-2.5">
-              <a href={g.goal ? `/goals/${g.goal.id}` : "#"} className="text-[14px] font-semibold hover:underline">
+              <a href={g.goal ? `/goals/${g.goal.id}` : "#"} className="text-[15px] font-semibold hover:underline">
                 {g.goal?.title ?? "No goal"}
               </a>
               {g.pillar && <PillarTag name={g.pillar.name} color={g.pillar.color} />}

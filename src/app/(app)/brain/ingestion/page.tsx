@@ -55,7 +55,7 @@ export default async function IngestionHealthPage() {
                 <p className="font-medium text-foreground">
                   {c.providerLabel} · {c.label}: {c.status === "NEEDS_REAUTH" ? "access expired or was revoked — syncing has stopped." : "the last sync failed."}
                 </p>
-                {c.lastError && <p className="mt-0.5 font-mono text-[12px] break-words text-ink-2">{c.lastError}</p>}
+                {c.lastError && <p className="mt-0.5 font-mono text-[13px] break-words text-ink-2">{c.lastError}</p>}
               </div>
               {d.canManage ? (
                 <Button size="sm" asChild>
@@ -81,7 +81,7 @@ export default async function IngestionHealthPage() {
             <EmptyState compact icon={CheckCircle2} title="Queue is empty" description="Nothing is waiting to run." />
           ) : (
             <div className="relative overflow-x-auto scrollbar-thin">
-              <table className="w-full min-w-[360px] text-[14px]">
+              <table className="w-full min-w-[360px] text-[15px]">
                 <caption className="sr-only">Pending jobs by type and state</caption>
                 <thead>
                   <tr className="border-b border-hairline text-left text-2xs text-muted-foreground">
@@ -112,7 +112,7 @@ export default async function IngestionHealthPage() {
           <EmptyState compact icon={Gauge} title="No completed jobs in the last 7 days" />
         ) : (
           <div className="relative overflow-x-auto scrollbar-thin">
-            <table className="w-full min-w-[480px] text-[14px]">
+            <table className="w-full min-w-[480px] text-[15px]">
               <caption className="sr-only">Average and 95th percentile job duration per stage</caption>
               <thead>
                 <tr className="border-b border-hairline text-left text-2xs text-muted-foreground">
@@ -160,7 +160,7 @@ export default async function IngestionHealthPage() {
               {d.items.map((i) => (
                 <li key={i.id} className="px-3.5 py-2">
                   <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                    <span className={cn("flex min-w-0 items-center gap-1 truncate text-[14px]", i.restricted ? "text-muted-foreground italic" : "font-medium text-foreground")}>
+                    <span className={cn("flex min-w-0 items-center gap-1 truncate text-[15px]", i.restricted ? "text-muted-foreground italic" : "font-medium text-foreground")}>
                       {i.restricted && <Lock className="size-3 shrink-0" aria-hidden />}
                       <span className="truncate">{i.title}</span>
                     </span>
@@ -170,7 +170,7 @@ export default async function IngestionHealthPage() {
                     {SOURCE_ITEM_KINDS[i.kind].label} · {i.providerLabel} · stopped after {STAGE_LABEL[i.stage] ?? i.stage} · {i.attempts} attempt{i.attempts === 1 ? "" : "s"} ·{" "}
                     <span title={formatDateTime(i.updatedAt, tz)}>{timeAgo(i.updatedAt, now)}</span>
                   </p>
-                  {i.error && <p className="mt-0.5 line-clamp-2 font-mono text-[12px] break-words text-critical-ink">{i.error}</p>}
+                  {i.error && <p className="mt-0.5 line-clamp-2 font-mono text-[13px] break-words text-critical-ink">{i.error}</p>}
                 </li>
               ))}
             </ul>
@@ -183,7 +183,7 @@ export default async function IngestionHealthPage() {
             <ul className="divide-y divide-hairline">
               {d.issues.map((i) => (
                 <li key={i.id} className="px-3.5 py-2">
-                  <div className={cn("flex min-w-0 items-center gap-1 truncate text-[14px]", i.restricted ? "text-muted-foreground italic" : "font-medium text-foreground")}>
+                  <div className={cn("flex min-w-0 items-center gap-1 truncate text-[15px]", i.restricted ? "text-muted-foreground italic" : "font-medium text-foreground")}>
                     {i.restricted && <Lock className="size-3 shrink-0" aria-hidden />}
                     <span className="truncate">{i.title}</span>
                   </div>
@@ -194,7 +194,7 @@ export default async function IngestionHealthPage() {
                   </p>
                   {i.issues.map((x, n) => (
                     <p key={n} className="mt-0.5 line-clamp-2 text-2xs break-words text-ink-2">
-                      <code className="font-mono text-[11.5px] text-muted-foreground">{x.path}</code> {x.reason}
+                      <code className="font-mono text-[12.5px] text-muted-foreground">{x.path}</code> {x.reason}
                     </p>
                   ))}
                 </li>

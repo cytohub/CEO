@@ -68,7 +68,7 @@ export function AuditFilters({ initial, actions, exporter }: { initial: AuditFil
         <label htmlFor="audit-actor" className="text-2xs font-medium text-muted-foreground">
           Actor
         </label>
-        <Input id="audit-actor" value={f.actor ?? ""} onChange={(e) => setF((s) => ({ ...s, actor: e.target.value || undefined }))} placeholder="Email contains…" className="h-7 text-[14px]" maxLength={200} />
+        <Input id="audit-actor" value={f.actor ?? ""} onChange={(e) => setF((s) => ({ ...s, actor: e.target.value || undefined }))} placeholder="Email contains…" className="h-7 text-[15px]" maxLength={200} />
       </div>
       <div className="grid w-[calc(50%-4px)] gap-1 sm:w-36">
         <span className="text-2xs font-medium text-muted-foreground">Outcome</span>
@@ -78,13 +78,13 @@ export function AuditFilters({ initial, actions, exporter }: { initial: AuditFil
         <label htmlFor="audit-from" className="text-2xs font-medium text-muted-foreground">
           From
         </label>
-        <Input id="audit-from" type="date" value={f.from ?? ""} max={f.to} onChange={(e) => setF((s) => ({ ...s, from: e.target.value || undefined }))} className="h-7 text-[14px]" />
+        <Input id="audit-from" type="date" value={f.from ?? ""} max={f.to} onChange={(e) => setF((s) => ({ ...s, from: e.target.value || undefined }))} className="h-7 text-[15px]" />
       </div>
       <div className="grid w-[calc(50%-4px)] gap-1 sm:w-36">
         <label htmlFor="audit-to" className="text-2xs font-medium text-muted-foreground">
           To
         </label>
-        <Input id="audit-to" type="date" value={f.to ?? ""} min={f.from} onChange={(e) => setF((s) => ({ ...s, to: e.target.value || undefined }))} className="h-7 text-[14px]" />
+        <Input id="audit-to" type="date" value={f.to ?? ""} min={f.from} onChange={(e) => setF((s) => ({ ...s, to: e.target.value || undefined }))} className="h-7 text-[15px]" />
       </div>
       <div className="flex flex-wrap items-center gap-1.5">
         <Button type="submit" size="sm" disabled={navigating}>

@@ -197,7 +197,7 @@ function ResourceItem({
       <div className="min-w-0 flex-1">
         <div className="flex items-start gap-2">
           <div className="min-w-0 flex-1">
-            <h3 id={titleId} className="text-[14px] leading-snug font-medium text-foreground">
+            <h3 id={titleId} className="text-[15px] leading-snug font-medium text-foreground">
               {href ? (
                 <a href={href} target="_blank" rel="noopener noreferrer" className="inline-flex max-w-full items-baseline gap-1 hover:underline">
                   <span className="min-w-0 break-words">{r.title}</span>

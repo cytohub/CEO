@@ -39,7 +39,7 @@ export function ProposalFieldsView({ fields: all, names }: { fields: ProposalFie
         return (
           <div key={f.key} className={cn("min-w-0", wide && "sm:col-span-2")}>
             <dt className="text-2xs font-medium text-muted-foreground">{f.label}</dt>
-            <dd className={cn("mt-0.5 text-[14px] break-words text-foreground", (value === "—" || value == null) && "text-muted-foreground", f.type === "textarea" && "whitespace-pre-wrap")}>{value}</dd>
+            <dd className={cn("mt-0.5 text-[15px] break-words text-foreground", (value === "—" || value == null) && "text-muted-foreground", f.type === "textarea" && "whitespace-pre-wrap")}>{value}</dd>
           </div>
         );
       })}
@@ -80,7 +80,7 @@ export function ProposalFieldsEditor({
             {f.editable ? (
               <FieldInput field={f} value={value} id={inputId} invalid={Boolean(error)} onChange={(v, nameValue) => onChange(f.path, v, f.spec?.nameKey && nameValue !== undefined ? { key: f.spec.nameKey, value: nameValue } : undefined)} nameFor={nameFor} />
             ) : (
-              <p className="min-h-7 py-1 text-[14px] text-ink-2">{f.type === "person" || f.type === "company" ? (nameFor(f.type, value) ?? f.nameValue ?? "—") : displayValue({ ...f, value })}</p>
+              <p className="min-h-7 py-1 text-[15px] text-ink-2">{f.type === "person" || f.type === "company" ? (nameFor(f.type, value) ?? f.nameValue ?? "—") : displayValue({ ...f, value })}</p>
             )}
             {f.editable && f.type === "person" && !value && f.nameValue && <p className="mt-1 text-2xs text-muted-foreground">Written as “{f.nameValue}” — pick the matching person.</p>}
             {error && (
@@ -114,7 +114,7 @@ function FieldInput({
   const common = { id, "aria-invalid": invalid || undefined } as const;
   switch (f.type) {
     case "textarea":
-      return <Textarea {...common} rows={3} value={str} onChange={(e) => onChange(e.target.value)} className="text-[14px]" />;
+      return <Textarea {...common} rows={3} value={str} onChange={(e) => onChange(e.target.value)} className="text-[15px]" />;
     case "date":
       return <Input {...common} type="date" className="h-8 w-full max-w-[200px]" value={/^\d{4}-\d{2}-\d{2}$/.test(str) ? str : ""} onChange={(e) => onChange(e.target.value || null)} />;
     case "number":
@@ -146,7 +146,7 @@ function FieldInput({
     case "goal":
       return <GoalSelect id={id} size="sm" value={str || null} onChange={(v) => onChange(v)} />;
     case "list":
-      return <Textarea {...common} rows={3} value={Array.isArray(value) ? value.join("\n") : str} onChange={(e) => onChange(e.target.value.split("\n"))} placeholder="One per line" className="text-[14px]" />;
+      return <Textarea {...common} rows={3} value={Array.isArray(value) ? value.join("\n") : str} onChange={(e) => onChange(e.target.value.split("\n"))} placeholder="One per line" className="text-[15px]" />;
     case "json":
       return <pre className="max-h-32 overflow-auto rounded-md bg-muted p-2 font-mono text-2xs">{JSON.stringify(value, null, 2)}</pre>;
     default:

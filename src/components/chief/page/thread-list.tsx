@@ -68,7 +68,7 @@ export function ThreadList({
                   active ? "bg-muted text-foreground" : "text-ink-2 hover:bg-muted/60 hover:text-foreground",
                 )}
               >
-                <span className={cn("block truncate text-[14px]", active && "font-medium")}>{t.title}</span>
+                <span className={cn("block truncate text-[15px]", active && "font-medium")}>{t.title}</span>
                 <span className="block text-2xs text-muted-foreground tabular">
                   {timeAgo(t.updatedAt, now)} · {t.messageCount} message{t.messageCount === 1 ? "" : "s"}
                 </span>

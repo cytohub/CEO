@@ -94,7 +94,7 @@ export function UpcomingRow({ event: e, timezone, showDate }: { event: UpcomingE
       </span>
       <Icon className={cn("mt-0.5 size-3.5 shrink-0", e.importance >= 5 ? "text-foreground" : "text-ink-3")} aria-hidden />
       <button type="button" onClick={open} className="min-w-0 flex-1 text-left">
-        <span className={cn("block truncate text-[14px]", e.importance >= 4 ? "font-medium text-foreground" : "text-ink-2")}>{e.title}</span>
+        <span className={cn("block truncate text-[15px]", e.importance >= 4 ? "font-medium text-foreground" : "text-ink-2")}>{e.title}</span>
         {e.subtitle && <span className="block truncate text-2xs text-muted-foreground">{e.subtitle}</span>}
       </button>
       {e.prepareable && (

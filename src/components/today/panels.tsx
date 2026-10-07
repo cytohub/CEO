@@ -22,7 +22,7 @@ export function DecisionsPanel({ decisions, today }: { decisions: TodayData["dec
               <li key={d.id}>
                 <Link href={`/decisions/${d.id}`} className="block px-3.5 py-2.5 hover:bg-muted/50">
                   <div className="flex items-start gap-2">
-                    <span className="line-clamp-2 flex-1 text-[14px] leading-snug font-medium">{d.title}</span>
+                    <span className="line-clamp-2 flex-1 text-[15px] leading-snug font-medium">{d.title}</span>
                     {days !== null && (
                       <span className={cn("shrink-0 text-2xs font-medium tabular", days <= 1 ? "text-critical-ink" : days <= 3 ? "text-serious-ink" : "text-muted-foreground")}>
                         {days < 0 ? `${-days}d late` : days === 0 ? "Today" : `${days}d`}
@@ -102,7 +102,7 @@ export function AtRiskPanel({ atRisk, today }: { atRisk: TodayData["atRisk"]; to
                   <StatusPill tone={r.tone} label={r.kind} />
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-[14px] text-foreground">{r.title}</span>
+                  <span className="block truncate text-[15px] text-foreground">{r.title}</span>
                   <span className="block truncate text-2xs text-muted-foreground">{r.detail}</span>
                 </span>
               </Link>
@@ -125,7 +125,7 @@ export function GoalsPanel({ goals }: { goals: TodayData["goals"] }) {
             <li key={g.id}>
               <Link href={`/goals/${g.id}`} className="block px-3.5 py-2 hover:bg-muted/50">
                 <div className="flex items-center gap-2">
-                  <span className="min-w-0 flex-1 truncate text-[14px]">{g.title}</span>
+                  <span className="min-w-0 flex-1 truncate text-[15px]">{g.title}</span>
                   <span className="text-xs font-medium tabular">{g.progress}%</span>
                 </div>
                 <Meter value={g.progress} tone={status.tone === "done" ? "good" : status.tone} className="mt-1.5" label={`${g.title} progress`} />

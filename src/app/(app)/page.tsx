@@ -129,7 +129,7 @@ function InboxNudge({ count, top, delegation }: { count: number; top: { id: stri
           <Inbox className="size-4 text-serious-ink" aria-hidden />
         </div>
         <div className="min-w-0 flex-1">
-          <div className="text-[14px] font-semibold">
+          <div className="text-[15px] font-semibold">
             {count} item{count === 1 ? "" : "s"} need your attention
           </div>
           <div className="truncate text-2xs text-muted-foreground">{top.map((t) => INBOX_TYPES[t.type].label).slice(0, 3).join(" · ") || "Inbox zero"}</div>

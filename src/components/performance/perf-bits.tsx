@@ -112,7 +112,7 @@ export function KpiTile({
         {Icon && <Icon className="size-3.5 text-ink-3" aria-hidden />}
         {label}
       </h2>
-      <div className="mt-1 text-[22px] leading-tight font-semibold tracking-tight text-foreground tabular">{value}</div>
+      <div className="mt-1 text-[24px] leading-tight font-semibold tracking-tight text-foreground tabular">{value}</div>
       {sub && <div className="mt-0.5 text-2xs text-muted-foreground">{sub}</div>}
       {trend && <div className="mt-1">{trend}</div>}
       {children && <div className="mt-auto pt-3">{children}</div>}

@@ -62,7 +62,7 @@ export default async function ThreadPage(props: { params: Promise<{ id: string }
           <ThreadSummaryCard data={data} />
 
           <section aria-labelledby="messages-title" className="space-y-2">
-            <h2 id="messages-title" className="flex items-center gap-2 pt-1 text-[14px] font-semibold">
+            <h2 id="messages-title" className="flex items-center gap-2 pt-1 text-[15px] font-semibold">
               Messages
               <span className="rounded bg-muted px-1.5 text-2xs font-medium text-muted-foreground tabular">{data.messages.length}</span>
             </h2>
@@ -81,7 +81,7 @@ export default async function ThreadPage(props: { params: Promise<{ id: string }
                     <Avatar name={m.fromName ?? m.fromEmail} ceo={fromCeo} className="relative z-[1] mt-3 size-[30px] text-2xs ring-4 ring-background" />
                     <article className={cn("panel min-w-0 flex-1", m.direction === "OUTBOUND" && "bg-surface-2/50")} aria-label={`Message from ${m.fromName ?? m.fromEmail}`}>
                       <header className="flex flex-wrap items-center gap-x-2 gap-y-1 border-b border-hairline px-3.5 py-2">
-                        <span className="text-[14px] font-medium">{fromCeo ? "You" : (m.fromName ?? m.fromEmail)}</span>
+                        <span className="text-[15px] font-medium">{fromCeo ? "You" : (m.fromName ?? m.fromEmail)}</span>
                         <span className="text-2xs text-muted-foreground">{MESSAGE_DIRECTION[m.direction]}</span>
                         {m.sourceItem.attention && <AttentionBadge level={m.sourceItem.attention} />}
                         <time className="ml-auto text-2xs text-muted-foreground tabular" dateTime={m.sentAt.toISOString()}>
@@ -96,7 +96,7 @@ export default async function ThreadPage(props: { params: Promise<{ id: string }
                         {m.sourceItem.contentPurgedAt ? (
                           <p className="text-xs text-muted-foreground">Content purged by the retention policy.</p>
                         ) : (
-                          <div className="max-w-[72ch] text-[14px] leading-relaxed whitespace-pre-wrap">{m.sourceItem.text ?? m.sourceItem.snippet ?? ""}</div>
+                          <div className="max-w-[72ch] text-[15px] leading-relaxed whitespace-pre-wrap">{m.sourceItem.text ?? m.sourceItem.snippet ?? ""}</div>
                         )}
                         {m.attachments.length > 0 && (
                           <ul className="mt-3 flex flex-wrap gap-1.5">
@@ -138,7 +138,7 @@ export default async function ThreadPage(props: { params: Promise<{ id: string }
           <Panel title="Participants" icon={Users} count={participants.length}>
             <ul className="space-y-1.5 p-3">
               {participants.map((p, i) => (
-                <li key={`${p.email}-${i}`} className="flex items-center gap-2 text-[14px]">
+                <li key={`${p.email}-${i}`} className="flex items-center gap-2 text-[15px]">
                   <Avatar name={personLabel(p)} ceo={p.email?.toLowerCase() === data.ceoEmail} />
                   {p.personId ? (
                     <Link href={`/resources/people/${p.personId}`} className="truncate hover:underline">

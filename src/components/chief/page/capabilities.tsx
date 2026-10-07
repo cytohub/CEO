@@ -34,7 +34,7 @@ export function CapabilitiesDisclosure() {
       </PopoverTrigger>
       <PopoverContent align="end" className="w-[340px] p-0">
         <div className="border-b border-hairline px-3.5 py-2.5">
-          <div className="text-[14px] font-semibold">What the Chief of Staff can see</div>
+          <div className="text-[15px] font-semibold">What the Chief of Staff can see</div>
           <p className="mt-0.5 text-2xs text-muted-foreground">Read-only access to live CytoHub Brain data. It can’t change anything — you act on its answers.</p>
         </div>
         <ul className="scrollbar-thin max-h-[min(60dvh,420px)] divide-y divide-hairline overflow-y-auto">

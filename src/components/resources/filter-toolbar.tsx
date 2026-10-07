@@ -45,7 +45,7 @@ export function FilterToolbar({
           }}
           aria-label={searchLabel}
           placeholder={placeholder}
-          className="h-7 pr-7 pl-8 text-[14px] [&::-webkit-search-cancel-button]:hidden"
+          className="h-7 pr-7 pl-8 text-[15px] [&::-webkit-search-cancel-button]:hidden"
         />
         {query && (
           <button

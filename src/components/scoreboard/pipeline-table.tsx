@@ -94,7 +94,7 @@ export function PipelineComposition({ deals, today }: { deals: PipelineDeal[]; t
           <EmptyState compact icon={KINDS[kind].icon} title={`No open ${KINDS[kind].label.toLowerCase()} deals`} description="Deals sync from the CRM; open ones appear here with their weighted value." />
         ) : (
           <div className="overflow-x-auto scrollbar-thin">
-            <table className="w-full min-w-[860px] text-[14px]">
+            <table className="w-full min-w-[860px] text-[15px]">
               <caption className="sr-only">Open {KINDS[kind].label.toLowerCase()} deals behind the derived pipeline metrics</caption>
               <thead>
                 <tr className="border-b border-hairline text-left text-2xs font-medium text-muted-foreground">

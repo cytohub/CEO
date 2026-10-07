@@ -78,7 +78,7 @@ export function StatStrip({ items }: { items: { label: string; value: React.Reac
         {items.map((s) => (
           <div key={s.label} className="min-w-0 flex-1 basis-[150px] border-r border-b border-hairline px-3.5 py-2.5">
             <dt className="text-2xs font-medium text-muted-foreground">{s.label}</dt>
-            <dd className="mt-0.5 truncate text-[16px] font-semibold tracking-tight text-foreground">{s.value}</dd>
+            <dd className="mt-0.5 truncate text-[17px] font-semibold tracking-tight text-foreground">{s.value}</dd>
             {s.hint && <dd className="truncate text-2xs text-muted-foreground">{s.hint}</dd>}
           </div>
         ))}
@@ -117,7 +117,7 @@ export function DealsPanel({ deals, today, now, showCompany, title = "Deals" }: 
                 <div className="flex flex-wrap items-start gap-x-3 gap-y-1">
                   <div className="min-w-0 flex-1 basis-[240px]">
                     <div className="flex items-center gap-2">
-                      <span className={cn("truncate text-[14px] font-medium", open ? "text-foreground" : "text-ink-2")}>{d.name}</span>
+                      <span className={cn("truncate text-[15px] font-medium", open ? "text-foreground" : "text-ink-2")}>{d.name}</span>
                       <StatusPill tone={status.tone} label={status.label} />
                     </div>
                     <div className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-2xs text-muted-foreground">
@@ -179,7 +179,7 @@ export function DecisionsPanel({ decisions, today, title = "Decisions" }: { deci
               <li key={d.id}>
                 <Link href={`/decisions/${d.id}`} className="block px-3.5 py-2.5 hover:bg-muted/50">
                   <div className="flex items-start gap-2">
-                    <span className="min-w-0 flex-1 text-[14px] leading-snug font-medium text-foreground">{d.title}</span>
+                    <span className="min-w-0 flex-1 text-[15px] leading-snug font-medium text-foreground">{d.title}</span>
                     <StatusPill tone={meta.tone} label={meta.label} />
                   </div>
                   <div className="mt-1 flex items-center gap-2 text-2xs text-muted-foreground">
@@ -228,7 +228,7 @@ export function IntelFeed({ items, now, emptyHint }: { items: IntelItem[]; now: 
                   </span>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-start gap-2">
-                      <p className="min-w-0 flex-1 text-[14px] leading-snug font-medium text-foreground">{it.title}</p>
+                      <p className="min-w-0 flex-1 text-[15px] leading-snug font-medium text-foreground">{it.title}</p>
                       <time dateTime={it.occurredAt.toISOString()} className="shrink-0 text-2xs text-muted-foreground">
                         {timeAgo(it.occurredAt, now)}
                       </time>
@@ -267,7 +267,7 @@ export function IntelFeed({ items, now, emptyHint }: { items: IntelItem[]; now: 
                 </span>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-start gap-2">
-                    <p className="min-w-0 flex-1 text-[14px] leading-snug text-foreground">{it.title}</p>
+                    <p className="min-w-0 flex-1 text-[15px] leading-snug text-foreground">{it.title}</p>
                     <time dateTime={it.occurredAt.toISOString()} className="shrink-0 text-2xs text-muted-foreground">
                       {timeAgo(it.occurredAt, now)}
                     </time>
@@ -309,9 +309,9 @@ export function PeoplePanel({
           {people.map((p) => (
             <li key={p.id}>
               <Link href={`/resources/people/${p.id}`} className="flex items-center gap-2.5 px-3.5 py-2 hover:bg-muted/50">
-                <Avatar name={p.name} ceo={p.isCeo} className="size-6 text-[11px]" />
+                <Avatar name={p.name} ceo={p.isCeo} className="size-6 text-[12px]" />
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-[14px] font-medium text-foreground">{p.isCeo ? "You" : p.name}</span>
+                  <span className="block truncate text-[15px] font-medium text-foreground">{p.isCeo ? "You" : p.name}</span>
                   <span className="block truncate text-2xs text-muted-foreground">{[p.title, PERSON_TYPES[p.type].label].filter(Boolean).join(" · ")}</span>
                 </span>
                 <span className="shrink-0 text-2xs text-muted-foreground">{p.lastContactAt ? timeAgo(p.lastContactAt, now) : "No contact"}</span>
@@ -339,7 +339,7 @@ export function ResourcesPanel({ resources, addHint }: { resources: DetailResour
               <li key={r.id} className="flex items-start gap-2.5 px-3.5 py-2">
                 <Icon className="mt-0.5 size-3.5 shrink-0 text-ink-3" aria-hidden />
                 <div className="min-w-0 flex-1">
-                  <Link href={`/resources?resource=${r.id}`} className="block truncate text-[14px] text-foreground hover:underline">
+                  <Link href={`/resources?resource=${r.id}`} className="block truncate text-[15px] text-foreground hover:underline">
                     {r.title}
                   </Link>
                   <span className="block truncate text-2xs text-muted-foreground">{r.summary ?? meta.label}</span>

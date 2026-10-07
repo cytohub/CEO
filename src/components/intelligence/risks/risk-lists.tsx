@@ -72,7 +72,7 @@ function RiskItem({ r, timezone, highlighted, onDialog }: { r: RiskRow; timezone
       </div>
       <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-[14px] leading-snug font-medium">{r.title}</span>
+          <span className="text-[15px] leading-snug font-medium">{r.title}</span>
           <StatusPill tone={st.tone} label={st.label} />
         </div>
         {r.description && <p className="mt-0.5 line-clamp-2 text-xs text-ink-2">{r.description}</p>}
@@ -224,12 +224,12 @@ function OpportunityItem({ o, timezone, highlighted }: { o: OpportunityRow; time
   return (
     <li id={`row-${o.id}`} className={cn("grid scroll-mt-24 gap-x-4 gap-y-2 px-4 py-3 md:grid-cols-[110px_minmax(0,1fr)_auto]", highlighted && "bg-brand-soft/40", !active && "opacity-75")}>
       <div className="flex items-baseline gap-2 md:block">
-        <div className="text-[16px] font-semibold tabular">{o.estimatedValue != null ? formatCurrency(o.estimatedValue) : "—"}</div>
+        <div className="text-[17px] font-semibold tabular">{o.estimatedValue != null ? formatCurrency(o.estimatedValue) : "—"}</div>
         <div className="text-2xs text-muted-foreground">{OPPORTUNITY_KIND[o.kind].label}</div>
       </div>
       <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-[14px] leading-snug font-medium">{o.title}</span>
+          <span className="text-[15px] leading-snug font-medium">{o.title}</span>
           <StatusPill tone={st.tone} label={st.label} />
         </div>
         {(o.description ?? o.excerpt) && <p className={cn("mt-0.5 line-clamp-2 text-xs text-ink-2", !o.description && "italic")}>{o.description ?? `“${o.excerpt}”`}</p>}

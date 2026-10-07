@@ -66,7 +66,7 @@ export default async function DecisionPage(props: { params: Promise<{ id: string
           {d.context && (
             <section className="panel p-4">
               <h2 className="eyebrow mb-1.5">Context</h2>
-              <p className="text-[14px] leading-relaxed text-ink-2">{d.context}</p>
+              <p className="text-[15px] leading-relaxed text-ink-2">{d.context}</p>
               {d.waitingOn && d.status === "WAITING_INFO" && (
                 <p className="mt-3 rounded-md bg-warning-soft px-3 py-2 text-xs text-warning-ink">
                   <span className="font-medium">Waiting on:</span> {d.waitingOn}
@@ -84,7 +84,7 @@ export default async function DecisionPage(props: { params: Promise<{ id: string
                   <article key={o.id} className={cn("rounded-lg border p-3.5", o.recommended ? "border-brain/40 bg-brain-soft/40" : "border-border")}>
                     <div className="flex items-start gap-2">
                       <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-muted text-2xs font-semibold tabular">{String.fromCharCode(65 + i)}</span>
-                      <h3 className="flex-1 text-[14px] leading-snug font-semibold">{o.title}</h3>
+                      <h3 className="flex-1 text-[15px] leading-snug font-semibold">{o.title}</h3>
                     </div>
                     {o.recommended && (
                       <p className="mt-1.5 flex items-center gap-1 text-2xs font-medium text-brain">
@@ -104,7 +104,7 @@ export default async function DecisionPage(props: { params: Promise<{ id: string
           <div className="grid gap-4 md:grid-cols-2">
             <section className="panel p-4">
               <h2 className="eyebrow mb-1.5">Supporting information</h2>
-              {d.supportingInfo ? <p className="text-[14px] leading-relaxed whitespace-pre-wrap text-ink-2">{d.supportingInfo}</p> : <p className="text-xs text-muted-foreground">None recorded.</p>}
+              {d.supportingInfo ? <p className="text-[15px] leading-relaxed whitespace-pre-wrap text-ink-2">{d.supportingInfo}</p> : <p className="text-xs text-muted-foreground">None recorded.</p>}
             </section>
             <section className="panel p-4">
               <h2 className="mb-1.5 flex items-center gap-1.5 text-2xs font-semibold tracking-wide text-brain uppercase">
@@ -120,7 +120,7 @@ export default async function DecisionPage(props: { params: Promise<{ id: string
             ) : (
               <ul className="divide-y divide-hairline">
                 {d.tasks.map((t) => (
-                  <li key={t.id} className="flex items-center gap-3 px-4 py-2 text-[14px]">
+                  <li key={t.id} className="flex items-center gap-3 px-4 py-2 text-[15px]">
                     <StatusPill tone={TASK_STATUS[t.status].tone} label={TASK_STATUS[t.status].label} />
                     <TaskLink id={t.id} title={t.title} className="min-w-0 flex-1 truncate" />
                     <PersonName person={t.owner} className="hidden text-xs text-muted-foreground sm:inline-flex" />
@@ -148,7 +148,7 @@ export default async function DecisionPage(props: { params: Promise<{ id: string
             {decided ? (
               <>
                 <h2 className="eyebrow mb-1.5">Final decision</h2>
-                <p className="text-[16px] leading-snug font-semibold">{d.finalDecision}</p>
+                <p className="text-[17px] leading-snug font-semibold">{d.finalDecision}</p>
                 <p className="mt-1 text-2xs text-muted-foreground">
                   Decided {formatDateTime(d.decidedAt, timezone)} · {daysBetween(d.raisedAt, d.decidedAt!)} days after it was raised
                 </p>
@@ -158,13 +158,13 @@ export default async function DecisionPage(props: { params: Promise<{ id: string
               </>
             ) : (
               <>
-                <h2 className="mb-3 text-[14px] font-semibold">Make the decision</h2>
+                <h2 className="mb-3 text-[15px] font-semibold">Make the decision</h2>
                 <MakeDecision decision={d} />
               </>
             )}
           </section>
 
-          <section className="panel p-4 text-[14px]">
+          <section className="panel p-4 text-[15px]">
             <h2 className="eyebrow mb-2">Links</h2>
             <dl className="space-y-2">
               <div className="flex justify-between gap-3">
@@ -220,7 +220,7 @@ export default async function DecisionPage(props: { params: Promise<{ id: string
                   const Icon = RESOURCE_TYPES[r.type].icon;
                   return (
                     <li key={r.id}>
-                      <a href={r.url ?? `/resources?resource=${r.id}`} target={r.url ? "_blank" : undefined} rel="noreferrer" className="flex gap-2 px-4 py-2 text-[14px] hover:bg-muted/40">
+                      <a href={r.url ?? `/resources?resource=${r.id}`} target={r.url ? "_blank" : undefined} rel="noreferrer" className="flex gap-2 px-4 py-2 text-[15px] hover:bg-muted/40">
                         <Icon className="mt-0.5 size-3.5 shrink-0 text-ink-3" aria-hidden />
                         <span className="min-w-0">
                           <span className="block truncate">{r.title}</span>

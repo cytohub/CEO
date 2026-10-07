@@ -31,7 +31,7 @@ export function VersionTimeline({ versions, timezone }: { versions: DocumentDeta
             </span>
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                <span className="text-[14px] font-medium">Version {v.version}</span>
+                <span className="text-[15px] font-medium">Version {v.version}</span>
                 {i === 0 && <span className="rounded bg-muted px-1.5 text-2xs text-muted-foreground">Current</span>}
                 {v.isSignificant && <span className="rounded bg-serious-soft px-1.5 text-2xs font-medium text-serious-ink">Significant change</span>}
                 <time className="ml-auto text-2xs text-muted-foreground tabular" dateTime={v.modifiedAt.toISOString()}>
@@ -42,7 +42,7 @@ export function VersionTimeline({ versions, timezone }: { versions: DocumentDeta
               {changes.length > 0 && (
                 <ul className="mt-2 divide-y divide-hairline rounded-md border border-border">
                   {changes.map((c, j) => (
-                    <li key={j} className="flex flex-wrap items-center gap-x-2 gap-y-1 px-3 py-1.5 text-[14px]">
+                    <li key={j} className="flex flex-wrap items-center gap-x-2 gap-y-1 px-3 py-1.5 text-[15px]">
                       <span className="min-w-0 flex-1 text-ink-2">{c.label}</span>
                       <span className="text-muted-foreground line-through decoration-ink-3/60">{c.from ?? "—"}</span>
                       <ArrowRight className="size-3.5 text-ink-3" aria-label="changed to" />

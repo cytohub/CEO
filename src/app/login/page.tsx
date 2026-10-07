@@ -15,8 +15,8 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
 
   return (
     <AuthShell footer={<p className="mt-6 text-xs text-muted-foreground">Accounts are created by your CytoHub administrator. Every sign-in is logged.</p>}>
-      <h1 className="text-[22px] font-semibold tracking-tight">Sign in</h1>
-      <p className="mt-1 text-[14px] text-muted-foreground">Welcome back. Use your work email and password.</p>
+      <h1 className="text-[24px] font-semibold tracking-tight">Sign in</h1>
+      <p className="mt-1 text-[15px] text-muted-foreground">Welcome back. Use your work email and password.</p>
       <LoginForm next={typeof next === "string" ? next : undefined} />
     </AuthShell>
   );

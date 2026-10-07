@@ -45,7 +45,7 @@ export function TaskRows({ tasks, today, emptyTitle, showOwner = true }: { tasks
           <li key={t.id}>
             <button type="button" onClick={() => openEntity("task", t.id)} className="flex w-full items-center gap-2.5 px-3.5 py-2 text-left hover:bg-muted/50">
               <PriorityBadge priority={t.priority} />
-              <span className={cn("min-w-0 flex-1 truncate text-[14px]", done ? "text-muted-foreground line-through" : "text-foreground")}>{t.title}</span>
+              <span className={cn("min-w-0 flex-1 truncate text-[15px]", done ? "text-muted-foreground line-through" : "text-foreground")}>{t.title}</span>
               <span className="hidden sm:inline-flex">
                 <StatusPill tone={TASK_STATUS[t.status].tone} label={TASK_STATUS[t.status].label} />
               </span>
@@ -91,7 +91,7 @@ export function MeetingRows({ upcoming, past, timezone }: { upcoming: DetailMeet
           {upcoming.map((m) => (
             <li key={m.id} className="flex items-start gap-3 px-3.5 py-2.5">
               <div className="min-w-0 flex-1">
-                <button type="button" onClick={() => openEntity("meeting", m.id)} className="block max-w-full truncate text-left text-[14px] font-medium text-foreground hover:underline">
+                <button type="button" onClick={() => openEntity("meeting", m.id)} className="block max-w-full truncate text-left text-[15px] font-medium text-foreground hover:underline">
                   {m.title}
                 </button>
                 <div className="mt-0.5 flex flex-wrap items-center gap-x-2 text-2xs text-muted-foreground">
@@ -122,7 +122,7 @@ export function MeetingRows({ upcoming, past, timezone }: { upcoming: DetailMeet
           {past.map((m) => (
             <li key={m.id} className="px-3.5 py-2.5">
               <div className="flex items-start gap-2">
-                <button type="button" onClick={() => openEntity("meeting", m.id)} className="min-w-0 flex-1 truncate text-left text-[14px] font-medium text-foreground hover:underline">
+                <button type="button" onClick={() => openEntity("meeting", m.id)} className="min-w-0 flex-1 truncate text-left text-[15px] font-medium text-foreground hover:underline">
                   {m.title}
                 </button>
                 <MeetingWhen m={m} timezone={timezone} />
@@ -164,7 +164,7 @@ export function DelegationRows({ delegations, today }: { delegations: PersonDeta
           <li key={d.id}>
             <button type="button" onClick={() => openEntity("task", d.task.id)} className="flex w-full items-start gap-2.5 px-3.5 py-2 text-left hover:bg-muted/50">
               <span className="min-w-0 flex-1">
-                <span className={cn("block text-[14px] leading-snug", closed ? "text-muted-foreground" : "text-foreground")}>{d.task.title}</span>
+                <span className={cn("block text-[15px] leading-snug", closed ? "text-muted-foreground" : "text-foreground")}>{d.task.title}</span>
                 <span className="mt-1 flex min-w-0 items-center gap-2">
                   <StatusPill tone={meta.tone} label={meta.label} />
                   {d.lastUpdateNote && <span className="truncate text-2xs text-muted-foreground">Latest: {d.lastUpdateNote}</span>}

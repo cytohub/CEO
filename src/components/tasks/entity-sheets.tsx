@@ -158,7 +158,7 @@ function MilestoneSheet({ milestoneId, onClose }: { milestoneId: string | null; 
               {m.successMetric && (
                 <section>
                   <h3 className="eyebrow mb-1">Success criterion</h3>
-                  <p className="text-[14px]">{m.successMetric}</p>
+                  <p className="text-[15px]">{m.successMetric}</p>
                 </section>
               )}
               <section>
@@ -173,7 +173,7 @@ function MilestoneSheet({ milestoneId, onClose }: { milestoneId: string | null; 
                   <ul className="divide-y divide-hairline rounded-lg border border-border">
                     {m.tasks.map((t) => (
                       <li key={t.id}>
-                        <button type="button" onClick={() => openEntity("task", t.id)} className="flex w-full items-center gap-3 px-3 py-2 text-left text-[14px] hover:bg-muted/60">
+                        <button type="button" onClick={() => openEntity("task", t.id)} className="flex w-full items-center gap-3 px-3 py-2 text-left text-[15px] hover:bg-muted/60">
                           <StatusPill tone={TASK_STATUS[t.status].tone} label={TASK_STATUS[t.status].label} />
                           <span className="min-w-0 flex-1 truncate">{t.title}</span>
                           <PersonName person={t.owner} className="text-xs text-muted-foreground" />
@@ -186,7 +186,7 @@ function MilestoneSheet({ milestoneId, onClose }: { milestoneId: string | null; 
               {m.resources.length > 0 && (
                 <section>
                   <h3 className="eyebrow mb-2">Resources</h3>
-                  <ul className="space-y-1 text-[14px]">
+                  <ul className="space-y-1 text-[15px]">
                     {m.resources.map((r) => (
                       <li key={r.id}>
                         <a href={r.url ?? `/resources?resource=${r.id}`} target={r.url ? "_blank" : undefined} rel="noreferrer" className="hover:underline">
@@ -374,7 +374,7 @@ function BriefSection({ title, count, defaultOpen = true, children }: { title: s
 function Bullets({ items, ordered }: { items: string[]; ordered?: boolean }) {
   const List = ordered ? "ol" : "ul";
   return (
-    <List className={ordered ? "list-decimal space-y-1.5 pl-5 text-[14px]" : "space-y-1.5 text-[14px]"}>
+    <List className={ordered ? "list-decimal space-y-1.5 pl-5 text-[15px]" : "space-y-1.5 text-[15px]"}>
       {items.map((t, i) => (
         <li key={i} className={ordered ? "pl-1" : "flex gap-2"}>
           {!ordered && <span className="mt-2 size-1 shrink-0 rounded-full bg-ink-3" aria-hidden />}
@@ -389,7 +389,7 @@ function LinkRow({ href, title, detail, meta, className }: { href?: string; titl
   const body = (
     <>
       <span className="min-w-0 flex-1">
-        <span className="line-clamp-2 block text-[14px] text-foreground">{title}</span>
+        <span className="line-clamp-2 block text-[15px] text-foreground">{title}</span>
         {detail && <span className="mt-0.5 line-clamp-2 block text-xs text-muted-foreground">{detail}</span>}
       </span>
       {meta}
@@ -427,14 +427,14 @@ export function PrepBriefView({ brief }: { brief: PrepBrief }) {
     <div className="space-y-6">
       <section className="space-y-2 rounded-lg border border-brain/20 bg-brain-soft/60 p-3.5" aria-label="Meeting objective">
         {objective && (
-          <p className="text-[14px]">
+          <p className="text-[15px]">
             <span className="font-medium text-brain">Objective: </span>
             {objective}
           </p>
         )}
-        {brief.context && <p className="text-[14px] leading-relaxed text-ink-2">{brief.context}</p>}
+        {brief.context && <p className="text-[15px] leading-relaxed text-ink-2">{brief.context}</p>}
         {brief.desiredOutcome && (
-          <p className="text-[14px]">
+          <p className="text-[15px]">
             <span className="font-medium">Desired outcome: </span>
             {brief.desiredOutcome}
           </p>
@@ -443,7 +443,7 @@ export function PrepBriefView({ brief }: { brief: PrepBrief }) {
 
       {si && (si.goal || si.deal || si.whyNow.length > 0) && (
         <BriefSection title="Strategic importance">
-          <div className="space-y-2 text-[14px]">
+          <div className="space-y-2 text-[15px]">
             {si.goal && (
               <Link href={si.goal.href} className="flex items-center gap-3 rounded-lg border border-border px-3 py-2 hover:bg-muted/60">
                 <Target className="size-3.5 shrink-0 text-ink-3" aria-hidden />
@@ -480,7 +480,7 @@ export function PrepBriefView({ brief }: { brief: PrepBrief }) {
 
       {rich && brief.participantContext.length > 0 ? (
         <BriefSection title="Participants" count={brief.participantContext.length}>
-          <ul className="space-y-3 text-[14px]">
+          <ul className="space-y-3 text-[15px]">
             {brief.participantContext.map((p) => (
               <li key={p.personId ?? p.name} className="flex gap-3">
                 <Avatar name={p.name} className="mt-0.5" />
@@ -512,7 +512,7 @@ export function PrepBriefView({ brief }: { brief: PrepBrief }) {
       ) : (
         brief.participants.length > 0 && (
           <BriefSection title="Participants" count={brief.participants.length}>
-            <ul className="space-y-2 text-[14px]">
+            <ul className="space-y-2 text-[15px]">
               {brief.participants.map((p) => (
                 <li key={p.name} className="flex gap-3">
                   <Avatar name={p.name} className="mt-0.5" />
@@ -533,7 +533,7 @@ export function PrepBriefView({ brief }: { brief: PrepBrief }) {
 
       {brief.companyContext && (
         <BriefSection title="Company context">
-          <div className="space-y-2 rounded-lg border border-border p-3 text-[14px]">
+          <div className="space-y-2 rounded-lg border border-border p-3 text-[15px]">
             <div className="flex flex-wrap items-center gap-2">
               <Link href={`/resources/companies/${brief.companyContext.id}`} className="font-medium hover:underline">
                 {brief.companyContext.name}
@@ -661,7 +661,7 @@ export function PrepBriefView({ brief }: { brief: PrepBrief }) {
         <BriefSection title="Relationship history" count={brief.relationshipHistory.length} defaultOpen={false}>
           <ol className="relative space-y-2.5 border-l border-border pl-4">
             {brief.relationshipHistory.map((h, i) => (
-              <li key={i} className="text-[14px]">
+              <li key={i} className="text-[15px]">
                 <span className="absolute -left-[3px] mt-1.5 size-1.5 rounded-full bg-ink-3" aria-hidden />
                 <div className="flex gap-2">
                   <span className="w-24 shrink-0 text-2xs text-muted-foreground tabular">{h.date}</span>
@@ -688,7 +688,7 @@ export function PrepBriefView({ brief }: { brief: PrepBrief }) {
           <BriefSection title="History" count={brief.history.length} defaultOpen={false}>
             <ol className="relative space-y-2.5 border-l border-border pl-4">
               {brief.history.map((h, i) => (
-                <li key={i} className="text-[14px]">
+                <li key={i} className="text-[15px]">
                   <span className="absolute -left-[3px] mt-1.5 size-1.5 rounded-full bg-ink-3" aria-hidden />
                   <div className="flex gap-2">
                     <span className="w-20 shrink-0 text-2xs text-muted-foreground tabular">{h.date}</span>
@@ -779,7 +779,7 @@ function MeetingNotesPanel({ meetingId, notes, canEdit, past, onNotes }: { meeti
     <div className="space-y-5">
       {canEdit && (
         <form onSubmit={submit} className="space-y-2" aria-busy={busy}>
-          <Label htmlFor={`notes-${meetingId}`} className="text-[14px] font-medium">
+          <Label htmlFor={`notes-${meetingId}`} className="text-[15px] font-medium">
             Add meeting notes
           </Label>
           <p className="text-xs text-muted-foreground">
@@ -819,7 +819,7 @@ function MeetingNotesPanel({ meetingId, notes, canEdit, past, onNotes }: { meeti
             <li key={n.sourceItemId} className="rounded-lg border border-border">
               <div className="flex flex-wrap items-center gap-2 border-b border-hairline px-3.5 py-2">
                 <NotebookPen className="size-3.5 text-ink-3" aria-hidden />
-                <span className="text-[14px] font-medium">Notes added {formatDateTime(new Date(n.addedAt), lookups.timezone)}</span>
+                <span className="text-[15px] font-medium">Notes added {formatDateTime(new Date(n.addedAt), lookups.timezone)}</span>
                 <StatusPill tone={NOTE_STATUS[n.status].tone} label={n.retrying ? "Retrying" : NOTE_STATUS[n.status].label} className="ml-auto" />
               </div>
               <div className="space-y-3 p-3.5">
@@ -838,7 +838,7 @@ function MeetingNotesPanel({ meetingId, notes, canEdit, past, onNotes }: { meeti
                   </p>
                 )}
                 {n.status === "skipped" && <p className="text-xs text-muted-foreground">CytoHub Brain found nothing actionable in these notes.</p>}
-                {n.summary && <p className="text-[14px] leading-relaxed">{n.summary}</p>}
+                {n.summary && <p className="text-[15px] leading-relaxed">{n.summary}</p>}
                 <NotesGroup title="Decisions" items={n.decisions} />
                 <NotesGroup title="Action items" items={n.actionItems} />
                 <NotesGroup title="Commitments" items={n.commitments} />

@@ -73,7 +73,7 @@ export function MetricBoard({ metrics, today }: { metrics: ScoreboardMetric[]; t
   return (
     // Column count follows the available width (~360px per column), so every
     // breakpoint keeps tiles at a readable width instead of jumping density.
-    <div className="columns-[22rem] gap-4">
+    <div className="columns-[26rem] gap-4">
       {groups.map(({ category, items }) => {
         const meta = METRIC_CATEGORIES[category];
         const id = `category-${category.toLowerCase()}`;

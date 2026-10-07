@@ -163,5 +163,5 @@ export function HiddenSourcesNote({ count, className, noun = "source" }: { count
 
 /** A verbatim quote from a source. */
 export function Excerpt({ children, className }: { children: React.ReactNode; className?: string }) {
-  return <blockquote className={cn("border-l-2 border-brain/40 pl-3 text-[14px] leading-relaxed text-ink-2 italic", className)}>{children}</blockquote>;
+  return <blockquote className={cn("border-l-2 border-brain/40 pl-3 text-[15px] leading-relaxed text-ink-2 italic", className)}>{children}</blockquote>;
 }

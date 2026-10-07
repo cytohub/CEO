@@ -49,7 +49,7 @@ export function SettingsNav({ links = [] }: { links?: { href: string; label: str
                 aria-current={current ? "location" : undefined}
                 onClick={() => setActive(s.id)}
                 className={cn(
-                  "block rounded-md border px-2.5 py-1 text-xs transition-colors xl:border-transparent xl:py-1.5 xl:text-[14px]",
+                  "block rounded-md border px-2.5 py-1 text-xs transition-colors xl:border-transparent xl:py-1.5 xl:text-[15px]",
                   current
                     ? "border-border bg-surface font-medium text-foreground xl:bg-muted"
                     : "border-border bg-surface text-muted-foreground hover:bg-muted hover:text-foreground xl:bg-transparent",
@@ -69,7 +69,7 @@ export function SettingsNav({ links = [] }: { links?: { href: string; label: str
               <li key={l.href}>
                 <Link
                   href={l.href}
-                  className="block rounded-md border border-border bg-surface px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground xl:border-transparent xl:bg-transparent xl:py-1.5 xl:text-[14px]"
+                  className="block rounded-md border border-border bg-surface px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground xl:border-transparent xl:bg-transparent xl:py-1.5 xl:text-[15px]"
                 >
                   {l.label}
                 </Link>

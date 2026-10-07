@@ -22,8 +22,8 @@ export function PageHeader({
     <header className={cn("flex flex-wrap items-end justify-between gap-x-6 gap-y-3 pb-5", className)}>
       <div className="min-w-0">
         {eyebrow && <div className="eyebrow mb-1.5">{eyebrow}</div>}
-        <h1 className="text-xl font-semibold tracking-tight text-foreground">{title}</h1>
-        {description && <p className="mt-1 max-w-2xl text-[14px] text-muted-foreground">{description}</p>}
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">{title}</h1>
+        {description && <p className="mt-1 max-w-2xl text-[15px] text-muted-foreground">{description}</p>}
       </div>
       {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
     </header>
@@ -58,7 +58,7 @@ export function Panel({
     <section id={id} className={cn("panel flex min-w-0 flex-col", className)} aria-labelledby={id ? `${id}-title` : undefined}>
       <div className="flex min-h-10 shrink-0 items-center gap-2 border-b border-hairline px-3.5 py-1">
         {Icon && <Icon className="size-3.5 shrink-0 text-ink-3" aria-hidden />}
-        <h2 id={id ? `${id}-title` : undefined} className="min-w-0 truncate text-[13.5px] font-semibold tracking-tight text-foreground">
+        <h2 id={id ? `${id}-title` : undefined} className="min-w-0 truncate text-[14.5px] font-semibold tracking-tight text-foreground">
           {title}
         </h2>
         {count !== undefined && <span className="shrink-0 rounded bg-muted px-1.5 text-2xs font-medium text-muted-foreground tabular">{count}</span>}
@@ -99,7 +99,7 @@ export function EmptyState({
           <Icon className="size-4 text-ink-3" aria-hidden />
         </div>
       )}
-      <p className="text-[14px] font-medium text-foreground">{title}</p>
+      <p className="text-[15px] font-medium text-foreground">{title}</p>
       {description && <p className="max-w-sm text-xs text-muted-foreground">{description}</p>}
       {action && <div className="mt-2">{action}</div>}
     </div>
@@ -120,7 +120,7 @@ export function Avatar({ name, className, ceo }: { name: string; className?: str
     <span
       aria-hidden
       className={cn(
-        "inline-flex size-5 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold",
+        "inline-flex size-5 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold",
         ceo ? "bg-foreground text-background" : "bg-surface-2 text-ink-2 ring-1 ring-border",
         className,
       )}
@@ -195,7 +195,7 @@ export function Stat({ label, value, hint, className }: { label: string; value: 
 
 export function KeyValue({ label, children, className }: { label: string; children: React.ReactNode; className?: string }) {
   return (
-    <div className={cn("grid grid-cols-[120px_1fr] items-start gap-3 py-1.5 text-[14px]", className)}>
+    <div className={cn("grid grid-cols-[120px_1fr] items-start gap-3 py-1.5 text-[15px]", className)}>
       <dt className="text-muted-foreground">{label}</dt>
       <dd className="min-w-0 text-foreground">{children}</dd>
     </div>

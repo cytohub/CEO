@@ -116,7 +116,7 @@ function CommitmentRowView({ c, today, timezone, highlighted, onDialog }: { c: C
             <ChevronRight className={cn("size-3.5 transition-transform", open && "rotate-90")} aria-hidden />
           </button>
           <div className="min-w-0">
-            <div className="text-[14px] leading-snug font-medium text-foreground" title={c.text ? `“${c.text}”` : undefined}>
+            <div className="text-[15px] leading-snug font-medium text-foreground" title={c.text ? `“${c.text}”` : undefined}>
               {c.title}
             </div>
             <div className="mt-0.5 flex flex-wrap items-center gap-x-2 text-2xs text-muted-foreground">
@@ -209,7 +209,7 @@ function CommitmentRowView({ c, today, timezone, highlighted, onDialog }: { c: C
       {open && (
         <div id={detailsId} className="space-y-2 border-t border-hairline bg-surface-2/40 py-3 pr-4 pl-10 text-xs">
           {c.text ? (
-            <p className="max-w-3xl text-[14px] leading-relaxed text-ink-2 italic">“{c.text}”</p>
+            <p className="max-w-3xl text-[15px] leading-relaxed text-ink-2 italic">“{c.text}”</p>
           ) : (
             <p className="text-muted-foreground">The original wording is hidden by your access level.</p>
           )}

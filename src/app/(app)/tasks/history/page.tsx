@@ -94,7 +94,7 @@ export default async function TaskHistoryPage(props: { searchParams: Promise<SP>
           ) : (
             <ul className="grid divide-y divide-hairline md:grid-cols-2 md:divide-y-0">
               {ins.priorityChanges.map((a) => (
-                <li key={a.id} className="flex min-w-0 items-center gap-3 border-hairline px-3.5 py-2 text-[14px] md:border-b">
+                <li key={a.id} className="flex min-w-0 items-center gap-3 border-hairline px-3.5 py-2 text-[15px] md:border-b">
                   <span className="w-16 shrink-0 text-2xs text-muted-foreground tabular">{formatDay(a.createdAt)}</span>
                   {a.task ? <TaskLink id={a.task.id} title={a.task.title} className="min-w-0 flex-1 truncate" /> : <span className="flex-1">—</span>}
                   <span className="max-w-[45%] shrink-0 truncate text-xs text-ink-2">{a.summary.replace(/^Added .*/, "Added to Top 5").replace(/^Removed .*/, "Removed from Top 5")}</span>
@@ -107,7 +107,7 @@ export default async function TaskHistoryPage(props: { searchParams: Promise<SP>
 
       <section aria-labelledby="db-title" className="space-y-3 pt-2">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 id="db-title" className="flex items-center gap-2 text-[16px] font-semibold tracking-tight">
+          <h2 id="db-title" className="flex items-center gap-2 text-[17px] font-semibold tracking-tight">
             <Search className="size-4 text-ink-3" aria-hidden /> Historical task database
           </h2>
           <Button variant="ghost" size="sm" asChild>
@@ -128,7 +128,7 @@ function TaskList({ items, empty, footer }: { items: { id: string; title: string
       <ul className="divide-y divide-hairline">
         {items.map((i) => (
           <li key={i.id} className="px-3.5 py-2">
-            <TaskLink id={i.id} title={i.title} className="block truncate text-[14px]" />
+            <TaskLink id={i.id} title={i.title} className="block truncate text-[15px]" />
             <span className={i.warn ? "text-2xs text-serious-ink" : "text-2xs text-muted-foreground"}>{i.meta}</span>
           </li>
         ))}

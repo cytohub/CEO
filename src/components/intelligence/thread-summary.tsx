@@ -16,7 +16,7 @@ export function ThreadSummaryCard({ data }: { data: ThreadDetail }) {
     <section className="panel overflow-hidden" aria-labelledby="thread-summary-title">
       <header className="flex flex-wrap items-center gap-2 border-b border-hairline px-4 py-2.5">
         <Sparkles className="size-3.5 text-brain" aria-hidden />
-        <h2 id="thread-summary-title" className="text-[13.5px] font-semibold">
+        <h2 id="thread-summary-title" className="text-[14.5px] font-semibold">
           Thread summary
         </h2>
         <StatusPill tone={st.tone} label={st.label} />
@@ -32,18 +32,18 @@ export function ThreadSummaryCard({ data }: { data: ThreadDetail }) {
         </span>
       </header>
       <div className="space-y-4 p-4">
-        {t.summary ? <p className="text-[14px] leading-relaxed">{t.summary}</p> : <p className="text-xs text-muted-foreground">CytoHub Brain will summarize this thread on the next refresh.</p>}
+        {t.summary ? <p className="text-[15px] leading-relaxed">{t.summary}</p> : <p className="text-xs text-muted-foreground">CytoHub Brain will summarize this thread on the next refresh.</p>}
 
         {t.recommendedAction && (
           <div className="rounded-lg border border-brain/25 bg-brain-soft/60 p-3">
             <h3 className="flex items-center gap-1.5 text-2xs font-semibold tracking-wide text-brain uppercase">
               <Sparkles className="size-3" aria-hidden /> Recommended action
             </h3>
-            <p className="mt-1 text-[14px] leading-relaxed font-medium">{t.recommendedAction}</p>
+            <p className="mt-1 text-[15px] leading-relaxed font-medium">{t.recommendedAction}</p>
           </div>
         )}
 
-        <dl className="grid gap-x-6 gap-y-3 text-[14px] sm:grid-cols-2">
+        <dl className="grid gap-x-6 gap-y-3 text-[15px] sm:grid-cols-2">
           {t.currentStatus && (
             <div>
               <dt className="eyebrow mb-0.5">Current status</dt>
@@ -88,7 +88,7 @@ export function ThreadSummaryCard({ data }: { data: ThreadDetail }) {
             <h3 className="eyebrow mb-1.5">Open questions</h3>
             <ul className="space-y-1">
               {t.openQuestions.map((q) => (
-                <li key={q} className="flex gap-2 text-[14px]">
+                <li key={q} className="flex gap-2 text-[15px]">
                   <HelpCircle className="mt-0.5 size-3.5 shrink-0 text-warning-ink" aria-hidden />
                   {q}
                 </li>
@@ -100,7 +100,7 @@ export function ThreadSummaryCard({ data }: { data: ThreadDetail }) {
         {t.decisionsSummary.length > 0 && (
           <div>
             <h3 className="eyebrow mb-1.5">Decisions</h3>
-            <ul className="space-y-1 text-[14px]">
+            <ul className="space-y-1 text-[15px]">
               {t.decisionsSummary.map((d) => (
                 <li key={d} className="flex gap-2">
                   <span className="mt-2 size-1 shrink-0 rounded-full bg-ink-3" aria-hidden />
@@ -120,7 +120,7 @@ export function ThreadSummaryCard({ data }: { data: ThreadDetail }) {
                 const other = c.direction === "INBOUND" ? c.owner : c.counterparty;
                 return (
                   <li key={c.id}>
-                    <Link href={`/commitments?highlight=${c.id}`} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2 text-[14px] hover:bg-muted/40">
+                    <Link href={`/commitments?highlight=${c.id}`} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2 text-[15px] hover:bg-muted/40">
                       <span className="w-[76px] shrink-0 text-2xs text-muted-foreground">{COMMITMENT_DIRECTION[c.direction].label}</span>
                       <span className="min-w-0 flex-1 truncate">{c.title}</span>
                       {other && <span className="text-2xs text-muted-foreground">{other.isCeo ? "You" : other.name}</span>}

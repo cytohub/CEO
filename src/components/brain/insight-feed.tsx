@@ -100,7 +100,7 @@ function InsightRow({ insight: i, timezone, focused }: { insight: FeedInsight; t
       <meta.icon className={cn("mt-0.5 size-4 shrink-0", TONE_TEXT[meta.tone])} aria-hidden />
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-baseline gap-x-2">
-          <span className="text-[14px] font-medium text-foreground">{i.title}</span>
+          <span className="text-[15px] font-medium text-foreground">{i.title}</span>
           {i.status === "NEW" && <span className="rounded bg-brand-soft px-1 text-2xs font-medium text-brand">New</span>}
           {i.requiresCeo && <span className="rounded bg-serious-soft px-1 text-2xs font-medium text-serious-ink">Needs CEO</span>}
         </div>

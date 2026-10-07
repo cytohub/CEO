@@ -136,7 +136,7 @@ export function TaskTable({
         <EmptyState icon={Check} title={tasks.length ? "No tasks match these filters" : emptyTitle(view)} description={tasks.length ? "Try clearing a filter." : emptyHint(view)} />
       ) : (
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[880px] text-[14px]">
+          <table className="w-full min-w-[880px] text-[15px]">
             <thead>
               <tr className="border-b border-hairline text-left text-2xs font-medium text-muted-foreground">
                 <th className="w-10 py-2 pl-3" />

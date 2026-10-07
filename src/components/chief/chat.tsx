@@ -109,9 +109,9 @@ export function Markdown({ children }: { children: string }) {
     <ReactMarkdown
       remarkPlugins={[remarkGfm]}
       components={{
-        h1: ({ children }) => <h3 className="mt-4 mb-1.5 text-[14px] font-semibold first:mt-0">{children}</h3>,
-        h2: ({ children }) => <h3 className="mt-4 mb-1.5 text-[14px] font-semibold first:mt-0">{children}</h3>,
-        h3: ({ children }) => <h3 className="mt-4 mb-1.5 text-[14px] font-semibold first:mt-0">{children}</h3>,
+        h1: ({ children }) => <h3 className="mt-4 mb-1.5 text-[15px] font-semibold first:mt-0">{children}</h3>,
+        h2: ({ children }) => <h3 className="mt-4 mb-1.5 text-[15px] font-semibold first:mt-0">{children}</h3>,
+        h3: ({ children }) => <h3 className="mt-4 mb-1.5 text-[15px] font-semibold first:mt-0">{children}</h3>,
         p: ({ children }) => <p className="my-1.5 leading-relaxed">{children}</p>,
         ul: ({ children }) => <ul className="my-1.5 space-y-1 pl-4 [&>li]:list-disc [&>li]:marker:text-ink-3">{children}</ul>,
         ol: ({ children }) => <ol className="my-1.5 space-y-1 pl-5 [&>li]:list-decimal [&>li]:marker:text-ink-3">{children}</ol>,
@@ -144,14 +144,14 @@ export function ChatTranscript({ messages, className }: { messages: ChatMessage[
       {messages.map((m) =>
         m.role === "user" ? (
           <div key={m.id} className="flex justify-end">
-            <div className="max-w-[85%] rounded-2xl rounded-br-md bg-foreground px-3.5 py-2 text-[14px] text-background">{m.content}</div>
+            <div className="max-w-[85%] rounded-2xl rounded-br-md bg-foreground px-3.5 py-2 text-[15px] text-background">{m.content}</div>
           </div>
         ) : (
           <div key={m.id} className="flex gap-3">
             <div className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full bg-brain-soft">
               <Sparkles className="size-3.5 text-brain" aria-hidden />
             </div>
-            <div className="min-w-0 flex-1 text-[14px] text-ink-2">
+            <div className="min-w-0 flex-1 text-[15px] text-ink-2">
               {m.content ? <Markdown>{m.content}</Markdown> : null}
               {m.status && (
                 <p className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -213,7 +213,7 @@ export function ChatComposer({ onSend, busy, autoFocus, placeholder = "Ask your 
         rows={1}
         placeholder={placeholder}
         aria-label="Message the Chief of Staff"
-        className="field-sizing-content max-h-40 min-h-8 flex-1 resize-none bg-transparent px-1.5 py-1 text-[14px] outline-none placeholder:text-muted-foreground"
+        className="field-sizing-content max-h-40 min-h-8 flex-1 resize-none bg-transparent px-1.5 py-1 text-[15px] outline-none placeholder:text-muted-foreground"
       />
       <Button type="submit" size="icon-sm" disabled={busy || !value.trim()} aria-label="Send">
         {busy ? <Loader2 className="animate-spin" /> : <ArrowUp />}

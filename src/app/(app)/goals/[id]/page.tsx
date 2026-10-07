@@ -121,7 +121,7 @@ export default async function GoalPage(props: { params: Promise<{ id: string }> 
           {goal.description && (
             <section className="panel p-4">
               <h2 className="eyebrow mb-1.5">Description</h2>
-              <p className="text-[14px] leading-relaxed text-ink-2">{goal.description}</p>
+              <p className="text-[15px] leading-relaxed text-ink-2">{goal.description}</p>
             </section>
           )}
 
@@ -138,7 +138,7 @@ export default async function GoalPage(props: { params: Promise<{ id: string }> 
                 {goal.milestones.map((m) => {
                   const Icon = MILESTONE_TYPES[m.type].icon;
                   return (
-                    <li key={m.id} className="flex items-center gap-3 px-4 py-2.5 text-[14px]">
+                    <li key={m.id} className="flex items-center gap-3 px-4 py-2.5 text-[15px]">
                       <Icon className="size-3.5 shrink-0 text-ink-3" aria-hidden />
                       <div className="min-w-0 flex-1">
                         <MilestoneLink id={m.id} title={m.title} className="block truncate font-medium" />
@@ -173,7 +173,7 @@ export default async function GoalPage(props: { params: Promise<{ id: string }> 
             ) : (
               <ul className="divide-y divide-hairline">
                 {[...openTasks, ...doneTasks.slice(0, 5)].map((t) => (
-                  <li key={t.id} className="flex items-center gap-3 px-4 py-2 text-[14px]">
+                  <li key={t.id} className="flex items-center gap-3 px-4 py-2 text-[15px]">
                     <StatusPill tone={TASK_STATUS[t.status].tone} label={TASK_STATUS[t.status].label} />
                     <TaskLink id={t.id} title={t.title} className={cn("min-w-0 flex-1 truncate", t.status === "DONE" && "text-muted-foreground")} />
                     <span className="hidden text-xs text-muted-foreground sm:block">
@@ -193,7 +193,7 @@ export default async function GoalPage(props: { params: Promise<{ id: string }> 
               <ul className="divide-y divide-hairline">
                 {goal.children.map((c) => (
                   <li key={c.id}>
-                    <Link href={`/goals/${c.id}`} className="flex items-center gap-3 px-4 py-2 text-[14px] hover:bg-muted/40">
+                    <Link href={`/goals/${c.id}`} className="flex items-center gap-3 px-4 py-2 text-[15px] hover:bg-muted/40">
                       <span className="min-w-0 flex-1 truncate">{c.title}</span>
                       <span className="text-2xs text-muted-foreground">{GOAL_TYPES[c.type].label}</span>
                       <StatusPill tone={GOAL_STATUS[c.status].tone} label={GOAL_STATUS[c.status].label} />
@@ -243,7 +243,7 @@ export default async function GoalPage(props: { params: Promise<{ id: string }> 
                   <li key={m.id} className="flex items-center gap-3">
                     <div className="min-w-0 flex-1">
                       <div className="truncate text-xs text-muted-foreground">{m.name}</div>
-                      <div className="text-[16px] font-semibold">
+                      <div className="text-[17px] font-semibold">
                         {formatMetric(m.current, m.unit)}
                         {m.target != null && <span className="ml-1 text-xs font-normal text-muted-foreground">/ {formatMetric(m.target, m.unit)}</span>}
                       </div>
@@ -288,7 +288,7 @@ export default async function GoalPage(props: { params: Promise<{ id: string }> 
               <ul className="divide-y divide-hairline">
                 {goal.decisions.map((d) => (
                   <li key={d.id}>
-                    <Link href={`/decisions/${d.id}`} className="block px-4 py-2 text-[14px] hover:bg-muted/40">
+                    <Link href={`/decisions/${d.id}`} className="block px-4 py-2 text-[15px] hover:bg-muted/40">
                       <span className="line-clamp-2">{d.title}</span>
                       <span className="text-2xs text-muted-foreground">{DECISION_STATUS[d.status].label}</span>
                     </Link>
@@ -307,7 +307,7 @@ export default async function GoalPage(props: { params: Promise<{ id: string }> 
                   const Icon = RESOURCE_TYPES[r.type].icon;
                   return (
                     <li key={r.id}>
-                      <a href={r.url ?? `/resources?resource=${r.id}`} target={r.url ? "_blank" : undefined} rel="noreferrer" className="flex items-center gap-2 px-4 py-2 text-[14px] hover:bg-muted/40">
+                      <a href={r.url ?? `/resources?resource=${r.id}`} target={r.url ? "_blank" : undefined} rel="noreferrer" className="flex items-center gap-2 px-4 py-2 text-[15px] hover:bg-muted/40">
                         <Icon className="size-3.5 shrink-0 text-ink-3" aria-hidden />
                         <span className="truncate">{r.title}</span>
                       </a>
@@ -322,7 +322,7 @@ export default async function GoalPage(props: { params: Promise<{ id: string }> 
             <Panel title="Upcoming meetings" icon={CalendarClock}>
               <ul className="divide-y divide-hairline">
                 {goal.meetings.map((m) => (
-                  <li key={m.id} className="px-4 py-2 text-[14px]">
+                  <li key={m.id} className="px-4 py-2 text-[15px]">
                     <MeetingLink id={m.id} title={m.title} className="block truncate" />
                     <span className="text-2xs text-muted-foreground">{formatDateTime(m.startsAt, timezone)}</span>
                   </li>
@@ -336,7 +336,7 @@ export default async function GoalPage(props: { params: Promise<{ id: string }> 
               <GoalNoteForm goalId={goal.id} />
               {goal.notesText && <p className="text-xs text-ink-2">{goal.notesText}</p>}
               {goal.notes.map((n) => (
-                <div key={n.id} className="rounded-md bg-surface-2 px-3 py-2 text-[14px]">
+                <div key={n.id} className="rounded-md bg-surface-2 px-3 py-2 text-[15px]">
                   <p className="whitespace-pre-wrap">{n.body}</p>
                   <p className="mt-1 text-2xs text-muted-foreground">
                     {n.author} · {formatDateTime(n.createdAt, timezone)}

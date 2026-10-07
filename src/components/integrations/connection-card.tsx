@@ -62,7 +62,7 @@ export function ConnectionCard({ c, now, timezone }: { c: Card; now: Date; timez
         {/* A minimum width makes the actions wrap below on narrow screens instead of crushing the title. */}
         <div className="min-w-[min(100%,14rem)] flex-1">
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-            <h3 id={`${idp}-title`} className="min-w-0 truncate text-[14px] font-medium text-foreground" title={title}>
+            <h3 id={`${idp}-title`} className="min-w-0 truncate text-[15px] font-medium text-foreground" title={title}>
               {title}
             </h3>
             <span className="inline-flex h-5 items-center gap-1 rounded border border-border bg-surface-2 px-1.5 text-2xs font-medium text-ink-2">
@@ -104,7 +104,7 @@ export function ConnectionCard({ c, now, timezone }: { c: Card; now: Date; timez
               {c.status === "NEEDS_REAUTH" ? "Access expired or was revoked — reconnect to resume syncing." : "The last sync failed. It will retry automatically; reconnect if it keeps failing."}
             </p>
             {c.lastError && (
-              <p className="mt-0.5 font-mono text-[12px] break-words text-ink-2">
+              <p className="mt-0.5 font-mono text-[13px] break-words text-ink-2">
                 {c.lastError}
                 {c.lastErrorAt && <span className="font-sans text-muted-foreground"> · {timeAgo(c.lastErrorAt, now)}</span>}
               </p>
@@ -186,7 +186,7 @@ export function ConnectionCard({ c, now, timezone }: { c: Card; now: Date; timez
                 update({ syncFrequency: v as SyncFrequency }, () => setFrequency(prev));
               }}
             >
-              <SelectTrigger id={`${idp}-freq`} size="sm" className="w-full text-[14px]">
+              <SelectTrigger id={`${idp}-freq`} size="sm" className="w-full text-[15px]">
                 {/* Explicit label: Radix fills the value only after hydration. */}
                 <SelectValue>{SYNC_FREQUENCY[frequency].label}</SelectValue>
               </SelectTrigger>
@@ -216,7 +216,7 @@ export function ConnectionCard({ c, now, timezone }: { c: Card; now: Date; timez
                   update({ includeNoise: v }, () => setIncludeNoise(!v));
                 }}
               />
-              <span className="text-[14px] text-foreground">{includeNoise ? "Included" : "Skipped"}</span>
+              <span className="text-[15px] text-foreground">{includeNoise ? "Included" : "Skipped"}</span>
             </div>
             <p id={`${idp}-noise-hint`} className="text-2xs text-muted-foreground">
               Off by default: marketing, newsletters and automated notifications are stored but not analyzed.
@@ -235,7 +235,7 @@ export function ConnectionCard({ c, now, timezone }: { c: Card; now: Date; timez
                 update({ defaultSensitivity: v as Sensitivity }, () => setSensitivity(prev));
               }}
             >
-              <SelectTrigger id={`${idp}-sens`} size="sm" className="w-full text-[14px]">
+              <SelectTrigger id={`${idp}-sens`} size="sm" className="w-full text-[15px]">
                 <SelectValue>{SENSITIVITY[sensitivity].label}</SelectValue>
               </SelectTrigger>
               <SelectContent>

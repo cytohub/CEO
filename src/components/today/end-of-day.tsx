@@ -37,7 +37,7 @@ export function EndOfDayDialog({ open, onOpenChange, tasks, notes }: { open: boo
         </DialogHeader>
         <ul className="divide-y divide-hairline rounded-lg border border-border">
           {tasks.map((t) => (
-            <li key={t.id} className="flex items-center gap-3 px-3 py-2 text-[14px]">
+            <li key={t.id} className="flex items-center gap-3 px-3 py-2 text-[15px]">
               {t.done ? <CheckCircle2 className="size-4 text-good" aria-label="Done" /> : <Circle className="size-4 text-ink-3" aria-label="Not done" />}
               <span className={t.done ? "flex-1 text-muted-foreground line-through" : "flex-1"}>{t.title}</span>
               {!t.done && (

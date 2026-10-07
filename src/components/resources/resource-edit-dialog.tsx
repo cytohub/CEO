@@ -215,7 +215,7 @@ function EditForm({ resource, initialTab, onDone }: { resource: ResourceRow; ini
               onChange={(e) => setFilter(e.target.value)}
               placeholder={`Filter ${CHIP_META[kind].plural.toLowerCase()}…`}
               aria-label={`Filter ${CHIP_META[kind].plural.toLowerCase()}`}
-              className="h-7 pl-8 text-[14px]"
+              className="h-7 pl-8 text-[15px]"
             />
           </div>
 
@@ -233,7 +233,7 @@ function EditForm({ resource, initialTab, onDone }: { resource: ResourceRow; ini
                       <label htmlFor={id} className="flex cursor-pointer items-start gap-2.5 px-3 py-2 hover:bg-muted/60">
                         <Checkbox id={id} className="mt-0.5" checked={selected[kind].has(o.id)} onCheckedChange={(v) => toggle(kind, o.id, v === true)} />
                         <span className="min-w-0">
-                          <span className="block truncate text-[14px] text-foreground">{o.label}</span>
+                          <span className="block truncate text-[15px] text-foreground">{o.label}</span>
                           {o.hint && <span className="block truncate text-2xs text-muted-foreground">{o.hint}</span>}
                         </span>
                       </label>

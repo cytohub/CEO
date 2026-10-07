@@ -152,7 +152,7 @@ export function CompanyTable({ rows, now }: { rows: CompanyRow[]; now: Date }) {
           />
         ) : (
           <div className="overflow-x-auto scrollbar-thin">
-            <table className="w-full min-w-[820px] text-[14px]">
+            <table className="w-full min-w-[820px] text-[15px]">
               <caption className="sr-only">Companies, sortable by column</caption>
               <thead>
                 <tr className="border-b border-hairline text-left text-2xs text-muted-foreground">
@@ -302,7 +302,7 @@ export function PeopleTable({ rows, now }: { rows: PersonRow[]; now: Date }) {
           />
         ) : (
           <div className="overflow-x-auto scrollbar-thin">
-            <table className="w-full min-w-[760px] text-[14px]">
+            <table className="w-full min-w-[760px] text-[15px]">
               <caption className="sr-only">People, sortable by column</caption>
               <thead>
                 <tr className="border-b border-hairline text-left text-2xs text-muted-foreground">

@@ -94,7 +94,7 @@ export default async function DocumentPage(props: { params: Promise<{ id: string
             <h2 id="doc-summary" className="mb-1.5 flex items-center gap-1.5 text-2xs font-semibold tracking-wide text-brain uppercase">
               <Sparkles className="size-3" aria-hidden /> Summary
             </h2>
-            {d.summary ? <p className="text-[14px] leading-relaxed">{d.summary}</p> : <p className="text-xs text-muted-foreground">No summary yet — CytoHub Brain writes one after parsing.</p>}
+            {d.summary ? <p className="text-[15px] leading-relaxed">{d.summary}</p> : <p className="text-xs text-muted-foreground">No summary yet — CytoHub Brain writes one after parsing.</p>}
             {latest?.changeSummary && latest.version > 1 && latest.changeSummary !== d.summary && (
               <p className="mt-3 rounded-md border border-brain/20 bg-brain-soft/60 px-3 py-2 text-xs text-ink-2">
                 <span className="font-medium text-brain">What changed in v{latest.version} · </span>
@@ -111,7 +111,7 @@ export default async function DocumentPage(props: { params: Promise<{ id: string
                 {facts.map((f, i) => (
                   <div key={`${f.label}-${i}`} className="border-t border-hairline px-4 py-3 first:border-t-0 sm:odd:border-r sm:[&:nth-child(2)]:border-t-0">
                     <dt className="text-2xs text-muted-foreground">{f.label}</dt>
-                    <dd className="mt-0.5 text-[16px] font-semibold tabular">{f.value}</dd>
+                    <dd className="mt-0.5 text-[17px] font-semibold tabular">{f.value}</dd>
                   </div>
                 ))}
               </dl>
@@ -124,11 +124,11 @@ export default async function DocumentPage(props: { params: Promise<{ id: string
 
           {d.sourceItem.text && !d.sourceItem.contentPurgedAt && (
             <details className="panel group">
-              <summary className="flex cursor-pointer list-none items-center gap-2 px-4 py-2.5 text-[13.5px] font-semibold">
+              <summary className="flex cursor-pointer list-none items-center gap-2 px-4 py-2.5 text-[14.5px] font-semibold">
                 Extracted text
                 <span className="text-2xs font-normal text-muted-foreground group-open:hidden">· show</span>
               </summary>
-              <div className="max-h-[560px] overflow-y-auto border-t border-hairline px-4 py-3 text-[14px] leading-relaxed whitespace-pre-wrap scrollbar-thin">{d.sourceItem.text}</div>
+              <div className="max-h-[560px] overflow-y-auto border-t border-hairline px-4 py-3 text-[15px] leading-relaxed whitespace-pre-wrap scrollbar-thin">{d.sourceItem.text}</div>
             </details>
           )}
         </div>

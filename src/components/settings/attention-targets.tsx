@@ -75,7 +75,7 @@ export function AttentionTargetsForm({ rows, windowDays, totalMinutes, strategic
             <li key={d.focusArea} className="grid grid-cols-[minmax(0,1fr)_92px] items-center gap-x-3 gap-y-1.5 px-4 py-2 @xl:grid-cols-[minmax(130px,180px)_92px_minmax(0,1fr)] @3xl:grid-cols-[minmax(150px,200px)_92px_minmax(140px,220px)_minmax(0,1fr)]">
               <div className="flex min-w-0 items-center gap-2">
                 <Icon className="size-3.5 shrink-0 text-ink-3" aria-hidden />
-                <label htmlFor={`target-${d.focusArea}`} className="truncate text-[14px] text-foreground">
+                <label htmlFor={`target-${d.focusArea}`} className="truncate text-[15px] text-foreground">
                   {meta.label}
                 </label>
                 <span className="hidden shrink-0 text-2xs text-muted-foreground @4xl:inline">{meta.strategic ? "Strategic" : "Operational"}</span>
@@ -91,7 +91,7 @@ export function AttentionTargetsForm({ rows, windowDays, totalMinutes, strategic
                   value={d.pct}
                   onChange={(e) => update(i, { pct: e.target.value })}
                   aria-invalid={bad || undefined}
-                  className="h-7 pr-6 text-right text-[14px] tabular md:text-[14px]"
+                  className="h-7 pr-6 text-right text-[15px] tabular md:text-[15px]"
                 />
                 <span className="pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 text-2xs text-muted-foreground" aria-hidden>
                   %
@@ -125,7 +125,7 @@ export function AttentionTargetsForm({ rows, windowDays, totalMinutes, strategic
       <SectionFooter
         hint={
           <span className="flex flex-wrap items-center gap-2">
-            <span className="text-[14px] text-foreground">
+            <span className="text-[15px] text-foreground">
               Total <span className={cn("font-semibold tabular", !balanced && "text-serious-ink")}>{total}%</span>
             </span>
             {invalid ? (

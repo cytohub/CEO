@@ -97,7 +97,7 @@ export function ShortcutsDialog() {
             <div className="eyebrow mb-2">General</div>
             <ul className="space-y-1.5">
               {general.map(([keys, label]) => (
-                <li key={label} className="flex items-center justify-between gap-3 text-[14px]">
+                <li key={label} className="flex items-center justify-between gap-3 text-[15px]">
                   <span className="text-ink-2">{label}</span>
                   <span className="flex gap-0.5">
                     {keys.map((k) => (
@@ -112,7 +112,7 @@ export function ShortcutsDialog() {
             <div className="eyebrow mb-2">Go to (press G, then)</div>
             <ul className="space-y-1.5">
               {allNav.filter((n) => n.chord).map((n) => (
-                <li key={n.href} className="flex items-center justify-between gap-3 text-[14px]">
+                <li key={n.href} className="flex items-center justify-between gap-3 text-[15px]">
                   <span className="text-ink-2">{n.label}</span>
                   <span className="flex gap-0.5">
                     <Kbd>G</Kbd>

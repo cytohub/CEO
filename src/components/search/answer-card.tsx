@@ -37,7 +37,7 @@ export function AnswerCard({ response }: { response: SearchResponse }) {
           <AskChiefButton query={plan.query} />
         </span>
       </div>
-      <p className="mt-2 text-[14.5px] leading-relaxed text-foreground">{answer.text}</p>
+      <p className="mt-2 text-[15.5px] leading-relaxed text-foreground">{answer.text}</p>
 
       {answer.citations.length > 0 && (
         <div className="mt-3">
