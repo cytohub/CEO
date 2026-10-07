@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { REQUEST_PATH_HEADER, pathOf } from "@/server/security/request-path";
 
 /**
  * Coarse gate in front of the app: requests without a session cookie go to
@@ -12,15 +13,20 @@ import { NextResponse, type NextRequest } from "next/server";
 const SESSION_COOKIES = ["__Host-cytohub_session", "cytohub_session"];
 
 export function proxy(request: NextRequest) {
+  const path = pathOf(request.nextUrl);
   const hasSession = SESSION_COOKIES.some((name) => request.cookies.has(name));
-  if (hasSession) return NextResponse.next();
+  if (hasSession) {
+    // The cookie may still turn out to be expired or revoked: tell the server which page this is, so sign-in can return to it.
+    const headers = new Headers(request.headers);
+    headers.set(REQUEST_PATH_HEADER, path);
+    return NextResponse.next({ request: { headers } });
+  }
 
-  const { pathname, search } = request.nextUrl;
-  if (pathname.startsWith("/api/")) {
+  if (request.nextUrl.pathname.startsWith("/api/")) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
   const url = new URL("/login", request.url);
-  if (pathname !== "/") url.searchParams.set("next", `${pathname}${search}`);
+  if (path !== "/") url.searchParams.set("next", path);
   return NextResponse.redirect(url);
 }
 

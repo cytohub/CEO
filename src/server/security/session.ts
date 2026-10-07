@@ -9,13 +9,14 @@
  * PASSWORD_CHANGE_PATH. Only that page, its action and sign-out read the
  * pending session (getSessionViewer).
  */
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { cache } from "react";
 import type { Sensitivity, UserRole } from "@/generated/prisma/enums";
 import { db } from "@/lib/db";
 import { randomToken, sha256 } from "./crypto";
 import { type Capability, ROLE_CAPABILITIES, ROLE_CLEARANCE, homePathFor } from "./rbac";
+import { REQUEST_PATH_HEADER } from "./request-path";
 
 const SECURE = process.env.SESSION_COOKIE_SECURE ? process.env.SESSION_COOKIE_SECURE === "true" : process.env.NODE_ENV === "production";
 /** `__Host-` binds the cookie to this exact origin (requires Secure + Path=/). */
@@ -155,11 +156,17 @@ export async function requireCapability(capability: Capability): Promise<Viewer>
   return viewer;
 }
 
+/** Where to return after sign-in: the requested URL (from the proxy), else the page's own path. */
+async function returnPath(fallback: string): Promise<string> {
+  const requested = (await headers()).get(REQUEST_PATH_HEADER);
+  return requested?.startsWith("/") && !requested.startsWith("//") ? requested : fallback;
+}
+
 /** For pages: redirects to sign-in, or to the viewer's home when not permitted. */
 export async function requirePage(capability?: Capability, path = "/"): Promise<Viewer> {
   const viewer = await getSessionViewer();
-  if (!viewer) redirect(`/login?next=${encodeURIComponent(path)}`);
-  if (viewer.mustChangePassword) redirect(`${PASSWORD_CHANGE_PATH}?next=${encodeURIComponent(path)}`);
+  if (!viewer) redirect(`/login?next=${encodeURIComponent(await returnPath(path))}`);
+  if (viewer.mustChangePassword) redirect(`${PASSWORD_CHANGE_PATH}?next=${encodeURIComponent(await returnPath(path))}`);
   if (capability && !can(viewer, capability)) {
     const home = homePathFor(viewer.role);
     redirect(home === path ? "/forbidden" : `${home}${home.includes("?") ? "&" : "?"}denied=1`);
