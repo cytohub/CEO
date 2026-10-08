@@ -82,7 +82,9 @@ export async function connectWithKey(input: {
   const scopes = verification.scopes?.length ? verification.scopes : PROVIDER_SCOPES[input.provider];
   const credentials = sealCredentials({ accessToken: key, refreshToken: null, expiresAt: null, scope: scopes.join(" "), tokenType: "Bearer" });
   const brainSourceId = await brainSourceIdFor(input.provider);
-  const label = `${meta.label} · ${verification.accountName ?? verification.accountEmail ?? "account"}`.slice(0, 200);
+  const account = verification.accountName ?? verification.accountEmail ?? "account";
+  // "HubSpot 4455667" already names the vendor; don't repeat it.
+  const label = (account.toLowerCase().startsWith(meta.label.toLowerCase()) ? account : `${meta.label} · ${account}`).slice(0, 200);
   const common = {
     mode: "LIVE" as const,
     status: "CONNECTED" as const,

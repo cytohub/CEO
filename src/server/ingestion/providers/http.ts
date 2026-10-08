@@ -121,6 +121,8 @@ async function errorCode(res: Response): Promise<string | null> {
       if (typeof e.status === "string") return e.status.slice(0, 80);
     }
     if (typeof body.error_summary === "string") return body.error_summary.split("/")[0].slice(0, 80);
+    // HubSpot: { "status": "error", "category": "MISSING_SCOPES", … }
+    if (typeof body.category === "string") return body.category.slice(0, 80);
     return null;
   } catch {
     return null;
