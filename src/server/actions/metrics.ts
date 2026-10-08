@@ -4,6 +4,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { formatDay, parseDayInput } from "@/lib/dates";
 import { formatMetric } from "@/lib/format";
+import { syncGoalProgressFromMetrics } from "@/server/brain/goal-progress";
 import { DERIVED_METRICS, isDerived } from "@/server/brain/metrics";
 import { getCeoContext } from "@/server/context";
 import { logActivity, revalidateAll } from "@/server/mutations";
@@ -64,6 +65,7 @@ export async function recordMetricValue(metricId: string, input: RecordMetricInp
         note,
       },
     });
+    await syncGoalProgressFromMetrics(db, (await getCeoContext()).today);
     revalidateAll();
     return ok({ replaced: Boolean(existing) }, existing ? `${metric.name} updated for ${formatDay(recordedAt)}` : `${metric.name} recorded`);
   });
@@ -72,6 +74,8 @@ export async function recordMetricValue(metricId: string, input: RecordMetricInp
 const targetSchema = z.object({
   target: metricNumber.nullable(),
   targetDate: day.nullable().optional(),
+  /** The goal this metric measures (its progress then follows the metric); null unlinks. */
+  goalId: z.string().min(1).max(40).nullable().optional(),
 });
 
 export type MetricTargetInput = z.input<typeof targetSchema>;
@@ -84,6 +88,7 @@ export async function updateMetricTarget(metricId: string, input: MetricTargetIn
     if (!metric) return fail("Metric not found");
     const targetDate = data.targetDate === undefined ? undefined : data.targetDate === null ? null : parseDayInput(data.targetDate);
     if (data.targetDate && !targetDate) return fail("Pick a valid target date");
+    if (data.goalId && !(await db.goal.findUnique({ where: { id: data.goalId }, select: { id: true } }))) return fail("Goal not found");
 
     await db.metric.update({
       where: { id: metricId },
@@ -91,8 +96,10 @@ export async function updateMetricTarget(metricId: string, input: MetricTargetIn
         target: data.target,
         ...(targetDate !== undefined ? { targetDate } : {}),
         ...(data.target === null ? { targetDate: null } : {}),
+        ...(data.goalId !== undefined ? { goalId: data.goalId } : {}),
       },
     });
+    await syncGoalProgressFromMetrics(db, (await getCeoContext()).today);
 
     const from = metric.target === null ? "none" : formatMetric(metric.target, metric.unit);
     const to = data.target === null ? "none" : formatMetric(data.target, metric.unit);

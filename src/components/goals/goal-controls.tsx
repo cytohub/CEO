@@ -31,8 +31,11 @@ export interface GoalEditable {
   period: string | null;
 }
 
-/** Status, progress and confidence — the three numbers the CEO updates weekly. */
-export function GoalQuickControls({ goal }: { goal: GoalEditable }) {
+/**
+ * Status, progress and confidence — the three numbers the CEO updates weekly.
+ * A goal measured by a scoreboard metric takes its progress from that metric.
+ */
+export function GoalQuickControls({ goal, measuredBy = null }: { goal: GoalEditable; measuredBy?: string | null }) {
   const { pending, run } = useAction();
   const [progress, setProgress] = useState(goal.progress);
   const [confidence, setConfidence] = useState(goal.confidence);
@@ -53,7 +56,16 @@ export function GoalQuickControls({ goal }: { goal: GoalEditable }) {
           <span>Progress</span>
           <span className="tabular">{progress}%</span>
         </div>
-        <Slider value={[progress]} max={100} step={1} disabled={pending} onValueChange={([v]) => setProgress(v)} onValueCommit={([v]) => run(() => updateGoal(goal.id, { progress: v }))} aria-label="Progress" className="mt-3" />
+        {measuredBy ? (
+          <>
+            <Slider value={[goal.progress]} max={100} step={1} disabled aria-label="Progress" aria-describedby={`goal-${goal.id}-measured`} className="mt-3" />
+            <p id={`goal-${goal.id}-measured`} className="mt-2 text-2xs text-muted-foreground">
+              Measured by {measuredBy}; updates with the scoreboard.
+            </p>
+          </>
+        ) : (
+          <Slider value={[progress]} max={100} step={1} disabled={pending} onValueChange={([v]) => setProgress(v)} onValueCommit={([v]) => run(() => updateGoal(goal.id, { progress: v }))} aria-label="Progress" className="mt-3" />
+        )}
       </div>
       <div>
         <div className="mb-1.5 flex justify-between text-2xs font-medium text-muted-foreground">

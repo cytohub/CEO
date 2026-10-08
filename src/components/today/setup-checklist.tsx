@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, CalendarDays, Check, FileText, Layers, Loader2, Mail, Rocket, Sparkles, Target, Users, type LucideIcon } from "lucide-react";
+import { ArrowRight, CalendarDays, Check, FileText, Handshake, Landmark, Layers, Loader2, Mail, Rocket, Sparkles, Target, Users, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { useAction } from "@/components/common/use-action";
@@ -10,9 +10,11 @@ import { dismissSetupChecklist, runDailyRefresh } from "@/server/actions/brain";
 import type { SetupProgress, SetupStepId } from "@/server/queries/setup";
 
 const STEPS: Record<SetupStepId, { title: string; why: string; icon: LucideIcon; cta: string; href?: string }> = {
-  email: { title: "Connect your email", why: "Brain reads threads for requests, promises and decisions.", icon: Mail, cta: "Connect", href: "/settings/integrations#email" },
+  email: { title: "Connect your email and Teams chats", why: "Brain reads threads for requests, promises and decisions.", icon: Mail, cta: "Connect", href: "/settings/integrations#email" },
   calendar: { title: "Connect your calendar", why: "Every meeting gets a Prepare Me brief and follow-ups.", icon: CalendarDays, cta: "Connect", href: "/settings/integrations#calendar" },
   documents: { title: "Connect your documents", why: "Board decks, contracts and plans become key facts.", icon: FileText, cta: "Connect", href: "/settings/integrations#documents" },
+  crm: { title: "Connect your CRM", why: "Deals and pipeline feed the scoreboard and flag stalled deals.", icon: Handshake, cta: "Connect", href: "/settings/integrations#crm" },
+  finance: { title: "Connect accounting and banking", why: "Revenue, cash and burn keep runway on the scoreboard current.", icon: Landmark, cta: "Connect", href: "/settings/integrations#finance" },
   pillars: { title: "Set your strategic pillars", why: "Every task and goal is ranked against what matters most.", icon: Layers, cta: "Add pillars", href: "/settings#pillars" },
   goals: { title: "Add your goals", why: "Priorities roll up into progress you can track.", icon: Target, cta: "Add goals", href: "/goals" },
   team: { title: "Invite your leadership team", why: "Executives work from the same picture; private stays private.", icon: Users, cta: "Invite", href: "/settings/users" },

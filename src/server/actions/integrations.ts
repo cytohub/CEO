@@ -6,6 +6,7 @@ import { Sensitivity, SourceProvider, SyncFrequency } from "@/generated/prisma/e
 import { db } from "@/lib/db";
 import { SOURCE_PROVIDERS, SYNC_FREQUENCY } from "@/lib/intelligence";
 import { getCeoContext } from "@/server/context";
+import { KeyConnectError, connectWithKey } from "@/server/ingestion/business/keys";
 import { createDemoConnection, disconnectConnection } from "@/server/ingestion/connections";
 import { drainQueue } from "@/server/ingestion/jobs/worker";
 import { providerAvailability } from "@/server/ingestion/providers/availability";
@@ -146,10 +147,37 @@ export async function runSyncNow(connectionId: string): Promise<ActionResult<Syn
 // ─── Connect / disconnect ────────────────────────────────────────────────────
 
 const providerSchema = z.enum(SourceProvider).refine((p) => SOURCE_PROVIDERS[p].oauth != null, "This provider can’t be connected here");
+const keyProviderSchema = z.enum(SourceProvider).refine((p) => SOURCE_PROVIDERS[p].auth === "apiKey" || SOURCE_PROVIDERS[p].auth === "webhook", "This provider connects by signing in");
+
+/**
+ * Connect (or replace the key of) a key- or webhook-based source. The key is
+ * checked with the vendor, stored encrypted, and never returned or logged.
+ */
+export async function connectKeyAccount(provider: SourceProvider, key: string, connectionId?: string | null): Promise<ActionResult<{ id: string }>> {
+  return attemptAs("integrations.manage", async () => {
+    const p = keyProviderSchema.parse(provider);
+    const rawKey = z.string().max(4000).parse(key);
+    if (connectionId) id.parse(connectionId);
+    const viewer = await requireViewer();
+    const limit = await rateLimit("oauth", viewer.userId, LIMITS.oauth);
+    if (!limit.ok) return fail("Too many connection attempts. Wait a few minutes and try again.");
+    try {
+      const { connection, replaced } = await connectWithKey({ provider: p, key: rawKey, viewer: { userId: viewer.userId, email: viewer.email }, connectionId: connectionId ?? null });
+      revalidateIntegrations();
+      const label = SOURCE_PROVIDERS[p].label;
+      const next = SOURCE_PROVIDERS[p].auth === "webhook" ? "Reports arrive after each meeting." : "The first sync is running.";
+      return ok({ id: connection.id }, replaced ? `${label} key updated. ${next}` : `${label} connected. ${next}`);
+    } catch (error) {
+      if (error instanceof KeyConnectError) return fail(error.message);
+      throw error;
+    }
+  });
+}
 
 export async function connectDemoAccount(provider: SourceProvider): Promise<ActionResult<{ id: string }>> {
   return attemptAs("integrations.manage", async () => {
     const p = providerSchema.parse(provider);
+    if (!providerAvailability()[p].demo) return fail(`${SOURCE_PROVIDERS[p].label} has no demo account`);
     const viewer = await requireViewer();
     // The demo mailbox/calendar/drive is the CEO's sample workspace, so the CEO owns it
     // (connection ownership grants read access — an admin setting it up must not gain that).

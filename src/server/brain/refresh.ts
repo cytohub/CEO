@@ -36,6 +36,7 @@ import { composeBrief, enhanceBriefWithClaude } from "./brief";
 import { findOpenItemForRecord } from "@/server/inbox-dedupe";
 import { runIngestStage, type IngestStageResult } from "@/server/ingestion/refresh-stage";
 import { CONNECTORS, PIPELINE_SOURCE_KEYS } from "./connectors";
+import { syncGoalProgressFromMetrics } from "./goal-progress";
 import { snapshotDerivedMetrics } from "./metrics";
 import { recommendTopFive, rescoreTasks } from "./priorities";
 import type { BrainContext, InsightDraft, SyncResult } from "./types";
@@ -170,7 +171,8 @@ export async function runBrainRefresh(opts: { trigger?: RefreshTrigger; now?: Da
         // 6b. Top 5 + derived metric snapshots
         const top = await recommendTopFive(tx, { today: ctx.today, ceoPersonId: ctx.ceoPersonId });
         await snapshotDerivedMetrics(tx, ctx.today);
-        ctx.log("prioritize", `Top 5 recommended`);
+        const goalsMoved = await syncGoalProgressFromMetrics(tx, ctx.today);
+        ctx.log("prioritize", `Top 5 recommended; ${goalsMoved} measured goal${goalsMoved === 1 ? "" : "s"} updated from the scoreboard`);
 
         // 7. Brief
         const stats = {

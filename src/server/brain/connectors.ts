@@ -7,7 +7,8 @@
  * the workspace graph — so adding a source is a matter of implementing
  * `sync()` for it here.
  *
- * Connectors are inert until their credentials are present. Sources seeded
+ * Every external source is now a SourceConnection (Settings → Integrations);
+ * this catalog names them for the Brain and the scoreboard. Sources seeded
  * with sample data carry `config.mode = "sample"` and report as such in the UI.
  */
 import type { SourceProvider } from "@/generated/prisma/enums";
@@ -91,8 +92,8 @@ export const CONNECTOR_DEFINITIONS: ConnectorDefinition[] = [
     name: "Microsoft Teams",
     provider: "Microsoft 365",
     category: "COMMUNICATION",
-    description: "Leadership channels and direct messages that need CEO attention.",
-    extracts: ["Escalations", "Approvals", "Hiring signals"],
+    description: "Your Teams chats: requests, commitments and escalations, read like email threads.",
+    extracts: ["Requests and commitments", "Escalations", "Approvals"],
   },
   {
     key: "sharepoint",
@@ -107,56 +108,48 @@ export const CONNECTOR_DEFINITIONS: ConnectorDefinition[] = [
     name: "HubSpot CRM",
     provider: "HubSpot",
     category: "CRM",
-    description: "Pharma pipeline, investor pipeline and partnership deals.",
-    extracts: ["Deal stage changes", "Stalled deals", "Contact recency"],
+    description: "Sales, partnership and investor pipelines: deals, stages, amounts and close dates.",
+    extracts: ["Deal stage changes", "Won and lost deals", "Stalled deals", "Pipeline for the scoreboard"],
+  },
+  {
+    key: "quickbooks",
+    name: "QuickBooks Online",
+    provider: "Intuit",
+    category: "FINANCE",
+    description: "Monthly profit and loss and bank balances from the books.",
+    extracts: ["Revenue", "Operating expenses", "Net income", "Burn and runway"],
+  },
+  {
+    key: "brex",
+    name: "Brex",
+    provider: "Brex",
+    category: "FINANCE",
+    description: "Live cash balances, cash movements and card spend.",
+    extracts: ["Cash on hand", "Monthly net burn", "Card spend", "Large payments"],
   },
   {
     key: "granola",
     name: "Granola",
     provider: "Granola",
     category: "COMMUNICATION",
-    description: "Meeting notes and transcripts: decisions, action items and risks raised.",
-    extracts: ["Action items", "Decisions raised", "Risks mentioned"],
+    description: "Meeting notes and summaries: decisions, action items and risks raised.",
+    extracts: ["Action items", "Decisions raised", "Commitments", "Risks mentioned"],
   },
   {
     key: "read-ai",
     name: "Read AI",
     provider: "Read AI",
     category: "COMMUNICATION",
-    description: "Meeting summaries and engagement signals for external calls.",
-    extracts: ["Meeting summaries", "Follow-ups"],
+    description: "Meeting reports: summaries, action items and key questions after each call.",
+    extracts: ["Meeting summaries", "Action items", "Follow-ups"],
   },
   {
     key: "docusign",
     name: "DocuSign",
     provider: "DocuSign",
     category: "DOCUMENTS",
-    description: "Contract and agreement status: sent, viewed, signed, stalled.",
-    extracts: ["Contracts awaiting signature", "Signed agreements"],
-  },
-  {
-    key: "finance",
-    name: "Accounting & Banking",
-    provider: "Accounting system",
-    category: "FINANCE",
-    description: "Cash, burn, revenue recognition and bookings for the scoreboard.",
-    extracts: ["Cash & runway", "Revenue", "Burn"],
-  },
-  {
-    key: "eln-lims",
-    name: "ELN / LIMS",
-    provider: "Lab systems",
-    category: "SCIENCE",
-    description: "Scientific programs: donor hearts profiled, assays validated, study readouts.",
-    extracts: ["Dataset growth", "Study milestones", "Assay throughput"],
-  },
-  {
-    key: "hris",
-    name: "HRIS & Recruiting",
-    provider: "People systems",
-    category: "PEOPLE",
-    description: "Headcount, open roles, candidate pipeline and offers.",
-    extracts: ["Open roles", "Offer deadlines", "Headcount"],
+    description: "Agreements sent, signed, declined or waiting on you.",
+    extracts: ["Agreements awaiting your signature", "Signed agreements", "Stalled or declined agreements"],
   },
 ];
 
@@ -164,6 +157,10 @@ export const CONNECTOR_DEFINITIONS: ConnectorDefinition[] = [
 const MICROSOFT = ["MICROSOFT_CLIENT_ID", "MICROSOFT_CLIENT_SECRET"];
 const GOOGLE = ["GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET"];
 
+const INTUIT = ["QUICKBOOKS_CLIENT_ID", "QUICKBOOKS_CLIENT_SECRET"];
+const DOCUSIGN = ["DOCUSIGN_CLIENT_ID", "DOCUSIGN_CLIENT_SECRET"];
+
+/** Server configuration a connector needs before it can be connected (key-based ones need none). */
 const CREDENTIAL_ENV: Record<string, string[]> = {
   gmail: GOOGLE,
   "google-calendar": GOOGLE,
@@ -174,13 +171,8 @@ const CREDENTIAL_ENV: Record<string, string[]> = {
   sharepoint: MICROSOFT,
   teams: MICROSOFT,
   dropbox: ["DROPBOX_APP_KEY", "DROPBOX_APP_SECRET"],
-  hubspot: ["HUBSPOT_ACCESS_TOKEN"],
-  granola: ["GRANOLA_API_KEY"],
-  "read-ai": ["READ_AI_API_KEY"],
-  docusign: ["DOCUSIGN_ACCESS_TOKEN"],
-  finance: ["FINANCE_API_KEY"],
-  "eln-lims": ["ELN_API_KEY"],
-  hris: ["HRIS_API_KEY"],
+  quickbooks: INTUIT,
+  docusign: DOCUSIGN,
 };
 
 /** BrainSource catalog entry for each ingestion provider (SourceConnection.brainSourceId). */
@@ -195,9 +187,16 @@ export const BRAIN_SOURCE_KEY: Record<SourceProvider, string> = {
   DROPBOX: "dropbox",
   LOCAL_UPLOAD: "uploads",
   CYTOHUB_INTERNAL: "uploads",
+  TEAMS_CHAT: "teams",
+  GRANOLA: "granola",
+  READ_AI: "read-ai",
+  HUBSPOT: "hubspot",
+  QUICKBOOKS: "quickbooks",
+  BREX: "brex",
+  DOCUSIGN: "docusign",
 };
 
-/** Catalog keys whose data now arrives through the ingestion pipeline (SourceConnection), not BrainSignal sync. */
+/** Catalog keys whose data arrives through connections (Settings → Integrations), not the legacy BrainSignal sync. */
 export const PIPELINE_SOURCE_KEYS = new Set(Object.values(BRAIN_SOURCE_KEY));
 
 export function credentialEnvFor(key: string): string[] {

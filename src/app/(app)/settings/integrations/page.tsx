@@ -1,9 +1,11 @@
-import { AlertTriangle, CalendarDays, CheckCircle2, FileText, Mail } from "lucide-react";
+import { AlertTriangle, CheckCircle2 } from "lucide-react";
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { AdminPage, AdminSection } from "@/components/admin/admin-page";
 import { EmptyState } from "@/components/common/bits";
 import { ConnectProviders } from "@/components/integrations/connect-providers";
 import { ConnectionCard } from "@/components/integrations/connection-card";
+import { KIND_ICON } from "@/components/integrations/kind-icons";
 import { SOURCE_PROVIDERS } from "@/lib/intelligence";
 import { cn } from "@/lib/utils";
 import { providerFromSlug } from "@/server/ingestion/providers/oauth";
@@ -14,7 +16,6 @@ export const metadata: Metadata = { title: "Integrations" };
 // "Run sync now" drains the queue for up to 20 s inside the server action.
 export const maxDuration = 60;
 
-const KIND_ICON = { EMAIL: Mail, CALENDAR: CalendarDays, DOCUMENTS: FileText } as const;
 
 /** OAuth outcomes the connect/callback routes redirect back with. */
 const OAUTH_ERRORS: Record<string, string> = {
@@ -25,6 +26,10 @@ const OAUTH_ERRORS: Record<string, string> = {
   not_configured: "This provider isn’t configured on the server.",
   invalid_connection: "That connection can’t be reconnected.",
   unknown_provider: "Unknown provider.",
+  insufficient_scope: "Not every requested permission was granted. Connect again and accept all of them.",
+  token_exchange_failed: "The provider didn’t accept the sign-in. Check the app’s client id, secret and redirect URI on the server.",
+  identity_failed: "Signed in, but the account couldn’t be read. Try again; for QuickBooks, pick the company when asked.",
+  provider_error: "The provider returned an error. Try again in a minute.",
 };
 
 type SP = Record<string, string | string[] | undefined>;
@@ -42,7 +47,10 @@ function oauthOutcome(sp: SP): { ok: boolean; message: string } | null {
 
 export default async function IntegrationsPage(props: { searchParams: Promise<SP> }) {
   const viewer = await requirePage("integrations.manage", "/settings/integrations");
-  const [data, outcome] = await Promise.all([getIntegrationsData(), props.searchParams.then(oauthOutcome)]);
+  const h = await headers();
+  const host = h.get("x-forwarded-host") ?? h.get("host");
+  const origin = host ? `${h.get("x-forwarded-proto") ?? "http"}://${host}` : null;
+  const [data, outcome] = await Promise.all([getIntegrationsData(origin), props.searchParams.then(oauthOutcome)]);
   const total = data.sections.reduce((s, x) => s + x.connections.length, 0);
 
   return (
@@ -50,7 +58,7 @@ export default async function IntegrationsPage(props: { searchParams: Promise<SP
       capabilities={viewer.capabilities}
       current="/settings/integrations"
       title="Integrations"
-      description="The accounts CytoHub Brain reads: email, calendars and document stores. Access is read-only; credentials are encrypted and never leave the server."
+      description="The systems CytoHub Brain reads: email and chat, calendars, documents, meeting notes, CRM, finance and contracts. Access is read-only; keys and tokens are encrypted and never leave the server."
     >
       {outcome && (
         <div
@@ -75,7 +83,7 @@ export default async function IntegrationsPage(props: { searchParams: Promise<SP
                   compact
                   icon={KIND_ICON[section.kind]}
                   title={`No ${section.label.toLowerCase()} account connected`}
-                  description="Connect an account below — or a demo account to try the pipeline end to end with sample CytoHub data."
+                  description={section.providers.some((p) => p.demo) ? "Connect an account below — or a demo account to try the pipeline end to end with sample CytoHub data." : "Connect a source below."}
                 />
               </div>
             ) : (

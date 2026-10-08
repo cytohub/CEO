@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, CalendarDays, FileText, FlaskConical, Loader2, Lock, Mail, Radio, RefreshCw, Unplug, type LucideIcon } from "lucide-react";
+import { AlertTriangle, FlaskConical, KeyRound, Loader2, Lock, Radio, RefreshCw, Unplug } from "lucide-react";
 import { useState } from "react";
 import { StatusPill } from "@/components/common/status";
 import { useAction } from "@/components/common/use-action";
@@ -8,18 +8,18 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import type { Sensitivity, SourceKind, SyncFrequency } from "@/generated/prisma/enums";
+import type { Sensitivity, SyncFrequency } from "@/generated/prisma/enums";
 import { formatDateTime, timeAgo } from "@/lib/dates";
 import { formatNumber } from "@/lib/format";
-import { CONNECTION_MODE, CONNECTION_STATUS, SENSITIVITY, SYNC_FREQUENCY } from "@/lib/intelligence";
+import { CONNECTION_MODE, CONNECTION_STATUS, PIPELINE_KINDS, SENSITIVITY, SYNC_FREQUENCY } from "@/lib/intelligence";
 import { cn } from "@/lib/utils";
 import { runSyncNow, updateConnectionSettings } from "@/server/actions/integrations";
 import type { ConnectionCard as Card } from "@/server/queries/integrations";
 import { DisconnectDialog } from "./disconnect-dialog";
+import { KeyConnectDialog } from "./key-connect-dialog";
+import { KIND_ICON } from "./kind-icons";
 import { timeUntil } from "./labels";
 import { RunsTable } from "./runs-table";
-
-export const KIND_ICON: Record<SourceKind, LucideIcon> = { EMAIL: Mail, CALENDAR: CalendarDays, DOCUMENTS: FileText };
 
 const FREQUENCIES: SyncFrequency[] = ["MANUAL", "HOURLY", "DAILY", "REALTIME"];
 const SENSITIVITIES: Sensitivity[] = ["INTERNAL", "CONFIDENTIAL", "RESTRICTED"];
@@ -43,8 +43,13 @@ export function ConnectionCard({ c, now, timezone }: { c: Card; now: Date; timez
   const [includeNoise, setIncludeNoise] = useState(c.includeNoise);
   const [sensitivity, setSensitivity] = useState(c.defaultSensitivity);
   const [disconnectOpen, setDisconnectOpen] = useState(false);
+  const [keyOpen, setKeyOpen] = useState(false);
   const broken = c.status === "NEEDS_REAUTH" || c.status === "ERROR";
-  const title = c.accountEmail ?? c.label;
+  // Key-based sources are fixed by pasting a new key; OAuth ones by signing in again.
+  const keyBased = c.mode === "LIVE" && (c.auth === "apiKey" || c.auth === "webhook");
+  const showNoise = c.kind === "EMAIL";
+  const showSensitivity = PIPELINE_KINDS.includes(c.kind);
+  const title = c.kind === "EMAIL" || c.kind === "CALENDAR" || c.kind === "DOCUMENTS" ? (c.accountEmail ?? c.label) : c.label;
   const idp = `conn-${c.id}`;
 
   function update(patch: Parameters<typeof updateConnectionSettings>[1], revert: () => void) {
@@ -73,9 +78,15 @@ export function ConnectionCard({ c, now, timezone }: { c: Card; now: Date; timez
           </div>
           <p className="mt-0.5 text-2xs text-muted-foreground">
             {c.providerLabel} · {c.vendor}
-            {c.accountEmail && c.label !== c.accountEmail ? ` · ${c.label}` : ""}
+            {c.accountEmail && c.label !== c.accountEmail && title !== c.label ? ` · ${c.label}` : ""}
+            {c.keyHint ? ` · key ${c.keyHint}` : ""}
             {c.webhookActive ? " · push notifications on" : ""}
           </p>
+          {c.webhookUrl && (
+            <p className="mt-0.5 text-2xs text-muted-foreground">
+              Webhook <code className="rounded bg-muted px-1 font-mono text-[12.5px] text-ink-2">{c.webhookUrl}</code>
+            </p>
+          )}
         </div>
         <div className="flex shrink-0 items-center gap-1.5">
           {c.syncable && (
@@ -90,6 +101,11 @@ export function ConnectionCard({ c, now, timezone }: { c: Card; now: Date; timez
               {sync.pending ? "Syncing…" : "Run sync now"}
             </Button>
           )}
+          {keyBased && (
+            <Button size="sm" variant="outline" onClick={() => setKeyOpen(true)} aria-label={`Replace the key for ${title}`}>
+              <KeyRound aria-hidden /> Replace key
+            </Button>
+          )}
           <Button size="sm" variant="ghost" onClick={() => setDisconnectOpen(true)} aria-label={`Disconnect ${title}`}>
             <Unplug aria-hidden /> Disconnect
           </Button>
@@ -101,7 +117,11 @@ export function ConnectionCard({ c, now, timezone }: { c: Card; now: Date; timez
           <AlertTriangle className={cn("mt-0.5 size-3.5 shrink-0", c.status === "ERROR" ? "text-critical-ink" : "text-serious-ink")} aria-hidden />
           <div className="min-w-0 flex-1">
             <p className="font-medium text-foreground">
-              {c.status === "NEEDS_REAUTH" ? "Access expired or was revoked — reconnect to resume syncing." : "The last sync failed. It will retry automatically; reconnect if it keeps failing."}
+              {c.status === "NEEDS_REAUTH"
+                ? keyBased
+                  ? "The key was rejected or revoked — replace it to resume syncing."
+                  : "Access expired or was revoked — reconnect to resume syncing."
+                : "The last sync failed. It will retry automatically; reconnect if it keeps failing."}
             </p>
             {c.lastError && (
               <p className="mt-0.5 font-mono text-[13px] break-words text-ink-2">
@@ -110,7 +130,11 @@ export function ConnectionCard({ c, now, timezone }: { c: Card; now: Date; timez
               </p>
             )}
           </div>
-          {c.reconnectUrl ? (
+          {keyBased ? (
+            <Button size="sm" onClick={() => setKeyOpen(true)}>
+              Replace key
+            </Button>
+          ) : c.reconnectUrl ? (
             <Button size="sm" asChild>
               <a href={c.reconnectUrl}>Reconnect</a>
             </Button>
@@ -171,83 +195,89 @@ export function ConnectionCard({ c, now, timezone }: { c: Card; now: Date; timez
         )}
       </div>
 
-      {c.syncable && (
+      {(c.syncable || showSensitivity) && (
         <div className="grid gap-x-6 gap-y-3 border-t border-hairline px-4 py-3 @2xl:grid-cols-3">
-          <div className="grid gap-1">
-            <label htmlFor={`${idp}-freq`} className="text-2xs font-medium text-muted-foreground">
-              Sync frequency
-            </label>
-            <Select
-              value={frequency}
-              disabled={save.pending}
-              onValueChange={(v) => {
-                const prev = frequency;
-                setFrequency(v as SyncFrequency);
-                update({ syncFrequency: v as SyncFrequency }, () => setFrequency(prev));
-              }}
-            >
-              <SelectTrigger id={`${idp}-freq`} size="sm" className="w-full text-[15px]">
-                {/* Explicit label: Radix fills the value only after hydration. */}
-                <SelectValue>{SYNC_FREQUENCY[frequency].label}</SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                {FREQUENCIES.map((f) => (
-                  <SelectItem key={f} value={f} disabled={f === "REALTIME" && !c.supportsRealtime}>
-                    {SYNC_FREQUENCY[f].label}
-                    {f === "REALTIME" && !c.supportsRealtime ? " (not supported)" : ""}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <p className="text-2xs text-muted-foreground">{SYNC_FREQUENCY[frequency].description}</p>
-          </div>
-          <div className="grid content-start gap-1">
-            <span id={`${idp}-noise-label`} className="text-2xs font-medium text-muted-foreground">
-              Newsletters &amp; notifications
-            </span>
-            <div className="flex h-7 items-center gap-2">
-              <Switch
-                checked={includeNoise}
+          {c.syncable && (
+            <div className="grid gap-1">
+              <label htmlFor={`${idp}-freq`} className="text-2xs font-medium text-muted-foreground">
+                Sync frequency
+              </label>
+              <Select
+                value={frequency}
                 disabled={save.pending}
-                aria-labelledby={`${idp}-noise-label`}
-                aria-describedby={`${idp}-noise-hint`}
-                onCheckedChange={(v) => {
-                  setIncludeNoise(v);
-                  update({ includeNoise: v }, () => setIncludeNoise(!v));
+                onValueChange={(v) => {
+                  const prev = frequency;
+                  setFrequency(v as SyncFrequency);
+                  update({ syncFrequency: v as SyncFrequency }, () => setFrequency(prev));
                 }}
-              />
-              <span className="text-[15px] text-foreground">{includeNoise ? "Included" : "Skipped"}</span>
+              >
+                <SelectTrigger id={`${idp}-freq`} size="sm" className="w-full text-[15px]">
+                  {/* Explicit label: Radix fills the value only after hydration. */}
+                  <SelectValue>{SYNC_FREQUENCY[frequency].label}</SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {FREQUENCIES.map((f) => (
+                    <SelectItem key={f} value={f} disabled={f === "REALTIME" && !c.supportsRealtime}>
+                      {SYNC_FREQUENCY[f].label}
+                      {f === "REALTIME" && !c.supportsRealtime ? " (not supported)" : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-2xs text-muted-foreground">{SYNC_FREQUENCY[frequency].description}</p>
             </div>
-            <p id={`${idp}-noise-hint`} className="text-2xs text-muted-foreground">
-              Off by default: marketing, newsletters and automated notifications are stored but not analyzed.
-            </p>
-          </div>
-          <div className="grid content-start gap-1">
-            <label htmlFor={`${idp}-sens`} className="text-2xs font-medium text-muted-foreground">
-              Default sensitivity
-            </label>
-            <Select
-              value={sensitivity}
-              disabled={save.pending}
-              onValueChange={(v) => {
-                const prev = sensitivity;
-                setSensitivity(v as Sensitivity);
-                update({ defaultSensitivity: v as Sensitivity }, () => setSensitivity(prev));
-              }}
-            >
-              <SelectTrigger id={`${idp}-sens`} size="sm" className="w-full text-[15px]">
-                <SelectValue>{SENSITIVITY[sensitivity].label}</SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                {SENSITIVITIES.map((s) => (
-                  <SelectItem key={s} value={s}>
-                    {SENSITIVITY[s].label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <p className="text-2xs text-muted-foreground">{SENSITIVITY[sensitivity].description} Classification can raise it per item.</p>
-          </div>
+          )}
+          {showNoise && (
+            <div className="grid content-start gap-1">
+              <span id={`${idp}-noise-label`} className="text-2xs font-medium text-muted-foreground">
+                Newsletters &amp; notifications
+              </span>
+              <div className="flex h-7 items-center gap-2">
+                <Switch
+                  checked={includeNoise}
+                  disabled={save.pending}
+                  aria-labelledby={`${idp}-noise-label`}
+                  aria-describedby={`${idp}-noise-hint`}
+                  onCheckedChange={(v) => {
+                    setIncludeNoise(v);
+                    update({ includeNoise: v }, () => setIncludeNoise(!v));
+                  }}
+                />
+                <span className="text-[15px] text-foreground">{includeNoise ? "Included" : "Skipped"}</span>
+              </div>
+              <p id={`${idp}-noise-hint`} className="text-2xs text-muted-foreground">
+                Off by default: marketing, newsletters and automated notifications are stored but not analyzed.
+              </p>
+            </div>
+          )}
+          {showSensitivity && (
+            <div className="grid content-start gap-1">
+              <label htmlFor={`${idp}-sens`} className="text-2xs font-medium text-muted-foreground">
+                Default sensitivity
+              </label>
+              <Select
+                value={sensitivity}
+                disabled={save.pending}
+                onValueChange={(v) => {
+                  const prev = sensitivity;
+                  setSensitivity(v as Sensitivity);
+                  update({ defaultSensitivity: v as Sensitivity }, () => setSensitivity(prev));
+                }}
+              >
+                <SelectTrigger id={`${idp}-sens`} size="sm" className="w-full text-[15px]">
+                  <SelectValue>{SENSITIVITY[sensitivity].label}</SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {SENSITIVITIES.map((s) => (
+                    <SelectItem key={s} value={s}>
+                      {SENSITIVITY[s].label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-2xs text-muted-foreground">{SENSITIVITY[sensitivity].description} Classification can raise it per item.</p>
+            </div>
+          )}
         </div>
       )}
 
@@ -256,6 +286,7 @@ export function ConnectionCard({ c, now, timezone }: { c: Card; now: Date; timez
         <RunsTable runs={c.runs} now={now} timezone={timezone} caption={`Last runs for ${title}`} />
       </div>
 
+      {keyBased && <KeyConnectDialog provider={c.provider} connectionId={c.id} webhookUrl={c.webhookUrl} open={keyOpen} onOpenChange={setKeyOpen} />}
       <DisconnectDialog open={disconnectOpen} onOpenChange={setDisconnectOpen} connectionId={c.id} title={title} provider={c.providerLabel} items={c.itemsIngested} />
     </article>
   );

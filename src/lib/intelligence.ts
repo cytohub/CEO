@@ -181,23 +181,57 @@ export const MEETING_CATEGORIES: Record<MeetingCategory, { label: string; import
 };
 
 export const SOURCE_KINDS: Record<SourceKind, { label: string; description: string }> = {
-  EMAIL: { label: "Email", description: "Messages, threads, commitments and follow-ups." },
+  EMAIL: { label: "Email & chat", description: "Messages, Teams chats, threads, commitments and follow-ups." },
   CALENDAR: { label: "Calendar", description: "Meetings, attendees, reschedules and preparation." },
   DOCUMENTS: { label: "Documents", description: "Decks, models, contracts, reports and their versions." },
+  MEETINGS: { label: "Meeting notes", description: "Notes and transcripts become decisions, action items and commitments." },
+  CRM: { label: "CRM", description: "Deals, pipeline stages and companies for the scoreboard and deal alerts." },
+  FINANCE: { label: "Finance", description: "Revenue, expenses, cash and burn for the scoreboard and runway." },
+  CONTRACTS: { label: "Contracts", description: "Agreements sent, signed, declined or waiting on you." },
 };
 
-export const SOURCE_PROVIDERS: Record<SourceProvider, { label: string; vendor: string; kind: SourceKind; oauth: "google" | "microsoft" | "dropbox" | null }> = {
-  GMAIL: { label: "Gmail", vendor: "Google", kind: "EMAIL", oauth: "google" },
-  OUTLOOK_MAIL: { label: "Outlook Mail", vendor: "Microsoft 365", kind: "EMAIL", oauth: "microsoft" },
-  GOOGLE_CALENDAR: { label: "Google Calendar", vendor: "Google", kind: "CALENDAR", oauth: "google" },
-  OUTLOOK_CALENDAR: { label: "Outlook Calendar", vendor: "Microsoft 365", kind: "CALENDAR", oauth: "microsoft" },
-  GOOGLE_DRIVE: { label: "Google Drive", vendor: "Google", kind: "DOCUMENTS", oauth: "google" },
-  ONEDRIVE: { label: "OneDrive", vendor: "Microsoft 365", kind: "DOCUMENTS", oauth: "microsoft" },
-  SHAREPOINT: { label: "SharePoint", vendor: "Microsoft 365", kind: "DOCUMENTS", oauth: "microsoft" },
-  DROPBOX: { label: "Dropbox", vendor: "Dropbox", kind: "DOCUMENTS", oauth: "dropbox" },
-  LOCAL_UPLOAD: { label: "Uploads", vendor: "CytoHub", kind: "DOCUMENTS", oauth: null },
-  CYTOHUB_INTERNAL: { label: "CytoHub workspace", vendor: "CytoHub", kind: "DOCUMENTS", oauth: null },
+/** OAuth apps the server can be configured with (client id + secret in the environment). */
+export type OAuthVendor = "google" | "microsoft" | "dropbox" | "intuit" | "docusign";
+
+/**
+ * How a provider is connected:
+ * - oauth    sign in with the vendor (the server holds the app's client id and secret)
+ * - apiKey   paste a read-only key created in the vendor's admin (stored encrypted)
+ * - webhook  the vendor posts signed events to this server (signing key stored encrypted)
+ * - none     uploads and in-app content
+ */
+export type ProviderAuth = "oauth" | "apiKey" | "webhook" | "none";
+
+export interface ProviderMeta {
+  label: string;
+  vendor: string;
+  kind: SourceKind;
+  auth: ProviderAuth;
+  oauth: OAuthVendor | null;
+}
+
+export const SOURCE_PROVIDERS: Record<SourceProvider, ProviderMeta> = {
+  GMAIL: { label: "Gmail", vendor: "Google", kind: "EMAIL", auth: "oauth", oauth: "google" },
+  OUTLOOK_MAIL: { label: "Outlook Mail", vendor: "Microsoft 365", kind: "EMAIL", auth: "oauth", oauth: "microsoft" },
+  TEAMS_CHAT: { label: "Teams chats", vendor: "Microsoft 365", kind: "EMAIL", auth: "oauth", oauth: "microsoft" },
+  GOOGLE_CALENDAR: { label: "Google Calendar", vendor: "Google", kind: "CALENDAR", auth: "oauth", oauth: "google" },
+  OUTLOOK_CALENDAR: { label: "Outlook Calendar", vendor: "Microsoft 365", kind: "CALENDAR", auth: "oauth", oauth: "microsoft" },
+  GOOGLE_DRIVE: { label: "Google Drive", vendor: "Google", kind: "DOCUMENTS", auth: "oauth", oauth: "google" },
+  ONEDRIVE: { label: "OneDrive", vendor: "Microsoft 365", kind: "DOCUMENTS", auth: "oauth", oauth: "microsoft" },
+  SHAREPOINT: { label: "SharePoint", vendor: "Microsoft 365", kind: "DOCUMENTS", auth: "oauth", oauth: "microsoft" },
+  DROPBOX: { label: "Dropbox", vendor: "Dropbox", kind: "DOCUMENTS", auth: "oauth", oauth: "dropbox" },
+  LOCAL_UPLOAD: { label: "Uploads", vendor: "CytoHub", kind: "DOCUMENTS", auth: "none", oauth: null },
+  CYTOHUB_INTERNAL: { label: "CytoHub workspace", vendor: "CytoHub", kind: "DOCUMENTS", auth: "none", oauth: null },
+  GRANOLA: { label: "Granola", vendor: "Granola", kind: "MEETINGS", auth: "apiKey", oauth: null },
+  READ_AI: { label: "Read AI", vendor: "Read AI", kind: "MEETINGS", auth: "webhook", oauth: null },
+  HUBSPOT: { label: "HubSpot", vendor: "HubSpot", kind: "CRM", auth: "apiKey", oauth: null },
+  QUICKBOOKS: { label: "QuickBooks Online", vendor: "Intuit", kind: "FINANCE", auth: "oauth", oauth: "intuit" },
+  BREX: { label: "Brex", vendor: "Brex", kind: "FINANCE", auth: "apiKey", oauth: null },
+  DOCUSIGN: { label: "DocuSign", vendor: "DocuSign", kind: "CONTRACTS", auth: "oauth", oauth: "docusign" },
 };
+
+/** Kinds whose items run through the AI ingestion pipeline (source items → extraction → Brain). */
+export const PIPELINE_KINDS: SourceKind[] = ["EMAIL", "CALENDAR", "DOCUMENTS", "MEETINGS"];
 
 export const CONNECTION_MODE: Record<ConnectionMode, { label: string }> = {
   LIVE: { label: "Live" },
@@ -263,6 +297,8 @@ export const JOB_TYPES: Record<JobType, { label: string }> = {
   EMAIL_SYNC: { label: "Email sync" },
   CALENDAR_SYNC: { label: "Calendar sync" },
   DOCUMENT_SYNC: { label: "Document sync" },
+  MEETINGS_SYNC: { label: "Meeting notes sync" },
+  BUSINESS_SYNC: { label: "Business system sync" },
   DOCUMENT_PARSE: { label: "Document parsing" },
   ENTITY_EXTRACTION: { label: "Entity extraction" },
   ENTITY_RESOLUTION: { label: "Entity resolution" },

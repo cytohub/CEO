@@ -1,6 +1,6 @@
 /**
- * OAuth 2.0 (authorization code + PKCE + state) for Google, Microsoft 365
- * and Dropbox.
+ * OAuth 2.0 (authorization code + PKCE + state) for Google, Microsoft 365,
+ * Dropbox, Intuit (QuickBooks Online) and DocuSign.
  *
  * - Least privilege: each connection asks only for the read scope of the one
  *   provider being connected (plus identity), never a combined grant.
@@ -13,13 +13,13 @@
 import { createHash } from "node:crypto";
 import { z } from "zod";
 import type { SourceProvider } from "@/generated/prisma/enums";
-import { SOURCE_PROVIDERS } from "@/lib/intelligence";
+import { type OAuthVendor, SOURCE_PROVIDERS } from "@/lib/intelligence";
 import { decryptJson, encryptJson, randomToken, safeEqual, sha256 } from "@/server/security/crypto";
 import { ProviderAuthError } from "../types";
 
-export type OAuthVendor = "google" | "microsoft" | "dropbox";
+export type { OAuthVendor };
 
-export const OAUTH_VENDORS: OAuthVendor[] = ["google", "microsoft", "dropbox"];
+export const OAUTH_VENDORS: OAuthVendor[] = ["google", "microsoft", "dropbox", "intuit", "docusign"];
 
 /** Read-only scopes per provider. Google adds `openid email` to identify the account. */
 export const PROVIDER_SCOPES: Record<SourceProvider, string[]> = {
@@ -30,16 +30,38 @@ export const PROVIDER_SCOPES: Record<SourceProvider, string[]> = {
   OUTLOOK_CALENDAR: ["offline_access", "User.Read", "Calendars.Read"],
   ONEDRIVE: ["offline_access", "User.Read", "Files.Read.All"],
   SHAREPOINT: ["offline_access", "User.Read", "Sites.Read.All"],
+  TEAMS_CHAT: ["offline_access", "User.Read", "Chat.Read"],
   DROPBOX: ["files.metadata.read", "files.content.read", "account_info.read"],
+  // Intuit has no read-only accounting scope; the connector only ever issues GET requests.
+  QUICKBOOKS: ["com.intuit.quickbooks.accounting"],
+  // `extended` lets the refresh token renew beyond 30 days; the connector only reads envelopes.
+  DOCUSIGN: ["signature", "extended"],
   LOCAL_UPLOAD: [],
   CYTOHUB_INTERNAL: [],
+  // Key- and webhook-based providers: the scopes the key must carry (shown in Settings, checked on connect).
+  GRANOLA: ["notes:read"],
+  READ_AI: ["webhook:meeting_end"],
+  HUBSPOT: ["crm.objects.deals.read", "crm.objects.companies.read", "crm.objects.owners.read"],
+  BREX: ["accounts.cash.readonly", "transactions.cash.readonly", "transactions.card.readonly"],
 };
 
 export const VENDOR_ENV: Record<OAuthVendor, string[]> = {
   google: ["GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET"],
   microsoft: ["MICROSOFT_CLIENT_ID", "MICROSOFT_CLIENT_SECRET"],
   dropbox: ["DROPBOX_APP_KEY", "DROPBOX_APP_SECRET"],
+  intuit: ["QUICKBOOKS_CLIENT_ID", "QUICKBOOKS_CLIENT_SECRET"],
+  docusign: ["DOCUSIGN_CLIENT_ID", "DOCUSIGN_CLIENT_SECRET"],
 };
+
+/** QuickBooks API host: production by default, `QUICKBOOKS_ENV=sandbox` for Intuit's sandbox companies. */
+export function quickbooksApiBase(env: NodeJS.ProcessEnv = process.env): string {
+  return env.QUICKBOOKS_ENV === "sandbox" ? "https://sandbox-quickbooks.api.intuit.com" : "https://quickbooks.api.intuit.com";
+}
+
+/** DocuSign account server: production by default, `DOCUSIGN_ENV=demo` for a developer account. */
+export function docusignAuthHost(env: NodeJS.ProcessEnv = process.env): string {
+  return env.DOCUSIGN_ENV === "demo" ? "account-d.docusign.com" : "account.docusign.com";
+}
 
 export function vendorOf(provider: SourceProvider): OAuthVendor | null {
   return SOURCE_PROVIDERS[provider].oauth;
@@ -63,15 +85,31 @@ export interface VendorConfig {
   clientSecret: string;
   authorizeUrl: string;
   tokenUrl: string;
+  /** How the client authenticates at the token endpoint (Intuit and DocuSign require HTTP Basic). */
+  clientAuth: "body" | "basic";
+  /** Send a PKCE challenge (every vendor here except Intuit, whose flow is state + client secret). */
+  pkce: boolean;
 }
 
 export function vendorConfig(vendor: OAuthVendor, env: NodeJS.ProcessEnv = process.env): VendorConfig {
   const missingEnv = VENDOR_ENV[vendor].filter((name) => !env[name]);
   const [idVar, secretVar] = VENDOR_ENV[vendor];
-  const base = { vendor, configured: missingEnv.length === 0, missingEnv, clientId: env[idVar] ?? "", clientSecret: env[secretVar] ?? "" };
+  const base = { vendor, configured: missingEnv.length === 0, missingEnv, clientId: env[idVar] ?? "", clientSecret: env[secretVar] ?? "", clientAuth: "body" as const, pkce: true };
   switch (vendor) {
     case "google":
       return { ...base, authorizeUrl: "https://accounts.google.com/o/oauth2/v2/auth", tokenUrl: "https://oauth2.googleapis.com/token" };
+    case "intuit":
+      return {
+        ...base,
+        clientAuth: "basic",
+        pkce: false,
+        authorizeUrl: "https://appcenter.intuit.com/connect/oauth2",
+        tokenUrl: "https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer",
+      };
+    case "docusign": {
+      const host = docusignAuthHost(env);
+      return { ...base, clientAuth: "basic", authorizeUrl: `https://${host}/oauth/auth`, tokenUrl: `https://${host}/oauth/token` };
+    }
     case "microsoft": {
       // Tenant is a path segment: allow only the documented forms (GUID, domain, common/organizations/consumers).
       const tenant = (env.MICROSOFT_TENANT_ID ?? "common").trim() || "common";
@@ -203,8 +241,10 @@ export function authorizationUrl(
   p.set("response_type", "code");
   p.set("redirect_uri", opts.redirectUri);
   p.set("state", opts.state);
-  p.set("code_challenge", opts.challenge);
-  p.set("code_challenge_method", "S256");
+  if (opts.config.pkce) {
+    p.set("code_challenge", opts.challenge);
+    p.set("code_challenge_method", "S256");
+  }
   const scopes = PROVIDER_SCOPES[provider];
   if (vendor === "google") {
     p.set("scope", scopes.join(" "));
@@ -217,9 +257,11 @@ export function authorizationUrl(
     p.set("response_mode", "query");
     p.set("prompt", "select_account");
     if (opts.loginHint) p.set("login_hint", opts.loginHint);
-  } else {
+  } else if (vendor === "dropbox") {
     p.set("scope", scopes.join(" "));
     p.set("token_access_type", "offline");
+  } else {
+    p.set("scope", scopes.join(" "));
   }
   return u.toString();
 }
@@ -269,12 +311,19 @@ export class OAuthTokenError extends Error {
 const REVOKED_CODES = new Set(["invalid_grant", "unauthorized_client", "access_denied", "interaction_required", "consent_required", "invalid_token"]);
 
 async function tokenRequest(config: VendorConfig, params: Record<string, string>, fetchImpl: typeof fetch = fetch): Promise<StoredCredentials & { accountId: string | null }> {
-  const body = new URLSearchParams({ ...params, client_id: config.clientId, client_secret: config.clientSecret });
+  const headers: Record<string, string> = { "content-type": "application/x-www-form-urlencoded", accept: "application/json" };
+  const body = new URLSearchParams(params);
+  if (config.clientAuth === "basic") {
+    headers.authorization = `Basic ${Buffer.from(`${config.clientId}:${config.clientSecret}`).toString("base64")}`;
+  } else {
+    body.set("client_id", config.clientId);
+    body.set("client_secret", config.clientSecret);
+  }
   let res: Response;
   try {
     res = await fetchImpl(config.tokenUrl, {
       method: "POST",
-      headers: { "content-type": "application/x-www-form-urlencoded", accept: "application/json" },
+      headers,
       body,
       signal: AbortSignal.timeout(15_000),
     });
@@ -308,7 +357,9 @@ export async function exchangeCode(
   const vendor = vendorOf(provider);
   if (!vendor) throw new Error(`${provider} does not use OAuth`);
   const config = opts.config ?? vendorConfig(vendor);
-  return tokenRequest(config, { grant_type: "authorization_code", code: opts.code, code_verifier: opts.verifier, redirect_uri: opts.redirectUri }, opts.fetchImpl);
+  const params: Record<string, string> = { grant_type: "authorization_code", code: opts.code, redirect_uri: opts.redirectUri };
+  if (config.pkce) params.code_verifier = opts.verifier;
+  return tokenRequest(config, params, opts.fetchImpl);
 }
 
 /**
@@ -327,7 +378,7 @@ export async function refreshCredentials(provider: SourceProvider, current: Stor
     const next = await tokenRequest(config, params, opts.fetchImpl);
     return {
       accessToken: next.accessToken,
-      // Google and Dropbox keep the refresh token; Microsoft rotates it.
+      // Google and Dropbox keep the refresh token; Microsoft, Intuit and DocuSign rotate it.
       refreshToken: next.refreshToken ?? current.refreshToken,
       expiresAt: next.expiresAt,
       scope: next.scope ?? current.scope,
@@ -347,14 +398,44 @@ export interface AccountIdentity {
   email: string | null;
   name: string | null;
   externalAccountId: string | null;
+  /** Non-secret connection settings learned at sign-in (DocuSign account + API host, QuickBooks company). */
+  settings?: Record<string, string>;
 }
 
 const googleUser = z.object({ sub: z.string(), email: z.string().optional(), name: z.string().optional() });
 const graphMe = z.object({ id: z.string(), mail: z.string().nullable().optional(), userPrincipalName: z.string().nullable().optional(), displayName: z.string().nullable().optional() });
 const dropboxAccount = z.object({ account_id: z.string(), email: z.string().optional(), name: z.object({ display_name: z.string().optional() }).optional() });
+const quickbooksCompany = z.object({
+  CompanyInfo: z.object({ CompanyName: z.string().optional(), LegalName: z.string().optional(), Email: z.object({ Address: z.string().optional() }).optional() }),
+});
+const docusignUser = z.object({
+  sub: z.string(),
+  email: z.string().optional(),
+  name: z.string().optional(),
+  accounts: z.array(z.object({ account_id: z.string(), is_default: z.boolean().optional(), account_name: z.string().optional(), base_uri: z.string() })).min(1),
+});
 
-/** Who authorized the grant (Google userinfo, Graph /me, Dropbox get_current_account). */
-export async function fetchAccountIdentity(provider: SourceProvider, accessToken: string, fetchImpl: typeof fetch = fetch): Promise<AccountIdentity> {
+/** QuickBooks company ids (realmId) are numeric. */
+export const REALM_ID = /^\d{1,30}$/;
+
+/** DocuSign API hosts come from userinfo; only ever call DocuSign's own domains with the token. */
+export function safeDocusignBaseUri(uri: string): string | null {
+  try {
+    const u = new URL(uri);
+    const host = u.hostname.toLowerCase();
+    if (u.protocol !== "https:" || !(host.endsWith(".docusign.net") || host.endsWith(".docusign.com"))) return null;
+    return `https://${host}`;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Who authorized the grant (Google userinfo, Graph /me, Dropbox get_current_account,
+ * QuickBooks CompanyInfo, DocuSign userinfo). `extra.realmId` is the QuickBooks
+ * company the callback was given.
+ */
+export async function fetchAccountIdentity(provider: SourceProvider, accessToken: string, fetchImpl: typeof fetch = fetch, extra: { realmId?: string | null } = {}): Promise<AccountIdentity> {
   const vendor = vendorOf(provider);
   const headers = { authorization: `Bearer ${accessToken}`, accept: "application/json" };
   const signal = AbortSignal.timeout(15_000);
@@ -369,6 +450,30 @@ export async function fetchAccountIdentity(provider: SourceProvider, accessToken
     if (!res.ok) throw new OAuthTokenError(`graph /me failed (${res.status})`, `http_${res.status}`);
     const u = graphMe.parse(await res.json());
     return { email: (u.mail ?? u.userPrincipalName ?? null)?.toLowerCase() ?? null, name: u.displayName ?? null, externalAccountId: u.id };
+  }
+  if (vendor === "intuit") {
+    const realmId = extra.realmId ?? "";
+    if (!REALM_ID.test(realmId)) throw new OAuthTokenError("QuickBooks did not return a company id", "missing_realm");
+    const url = `${quickbooksApiBase()}/v3/company/${realmId}/companyinfo/${realmId}?minorversion=75`;
+    const res = await fetchImpl(url, { headers, signal });
+    if (!res.ok) throw new OAuthTokenError(`quickbooks companyinfo failed (${res.status})`, `http_${res.status}`);
+    const c = quickbooksCompany.parse(await res.json()).CompanyInfo;
+    const name = c.CompanyName ?? c.LegalName ?? null;
+    return { email: c.Email?.Address?.toLowerCase() ?? null, name, externalAccountId: realmId, settings: { realmId, ...(name ? { companyName: name } : {}) } };
+  }
+  if (vendor === "docusign") {
+    const res = await fetchImpl(`https://${docusignAuthHost()}/oauth/userinfo`, { headers, signal });
+    if (!res.ok) throw new OAuthTokenError(`docusign userinfo failed (${res.status})`, `http_${res.status}`);
+    const u = docusignUser.parse(await res.json());
+    const account = u.accounts.find((a) => a.is_default) ?? u.accounts[0];
+    const baseUri = safeDocusignBaseUri(account.base_uri);
+    if (!baseUri) throw new OAuthTokenError("docusign returned an unexpected API host", "bad_base_uri");
+    return {
+      email: u.email?.toLowerCase() ?? null,
+      name: u.name ?? null,
+      externalAccountId: account.account_id,
+      settings: { accountId: account.account_id, baseUri, ...(account.account_name ? { accountName: account.account_name } : {}) },
+    };
   }
   if (vendor === "dropbox") {
     const res = await fetchImpl("https://api.dropboxapi.com/2/users/get_current_account", {
@@ -398,5 +503,18 @@ export async function revokeCredentials(provider: SourceProvider, creds: StoredC
     });
   } else if (vendor === "dropbox") {
     await fetchImpl("https://api.dropboxapi.com/2/auth/token/revoke", { method: "POST", headers: { authorization: `Bearer ${creds.accessToken}` }, signal });
+  } else if (vendor === "intuit") {
+    const config = vendorConfig("intuit");
+    if (!config.configured) return;
+    await fetchImpl("https://developer.api.intuit.com/v2/oauth2/tokens/revoke", {
+      method: "POST",
+      headers: {
+        authorization: `Basic ${Buffer.from(`${config.clientId}:${config.clientSecret}`).toString("base64")}`,
+        "content-type": "application/json",
+        accept: "application/json",
+      },
+      body: JSON.stringify({ token: creds.refreshToken ?? creds.accessToken }),
+      signal,
+    });
   }
 }

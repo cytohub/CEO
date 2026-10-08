@@ -8,7 +8,9 @@ it takes about 45 minutes.
 This page covers what is the same wherever the app runs:
 
 - [Connect email, calendar and documents](#connect-email-calendar-and-documents):
-  the Google, Microsoft and Dropbox apps
+  the Google, Microsoft and Dropbox apps. For every source CytoHub uses,
+  including HubSpot, QuickBooks, Brex, DocuSign, Granola and Read AI, follow
+  **[CONNECTORS.md](CONNECTORS.md)**
 - [Check it's working](#check-its-working)
 - [Alternative: Vercel](#alternative-vercel): a managed host instead of a server
 
@@ -40,14 +42,14 @@ Production environment variables and redeploy). Then connect accounts from
 
 Calendar and Drive push notifications need no extra setup.
 
-### Microsoft 365: Outlook Mail, Outlook Calendar, OneDrive, SharePoint
+### Microsoft 365: Outlook Mail, Teams chats, Outlook Calendar, OneDrive, SharePoint
 
 1. Microsoft Entra admin center → **App registrations → New registration**:
    single tenant. Redirect URI, platform **Web**:
    `https://ceo.cytolab.ai/api/integrations/microsoft/callback`.
 2. **API permissions → Microsoft Graph → Delegated**: `offline_access`,
    `User.Read`, `Mail.Read`, `Calendars.Read`, `Files.Read.All`,
-   `Sites.Read.All`. Then **Grant admin consent**.
+   `Sites.Read.All`, `Chat.Read` (Teams chats). Then **Grant admin consent**.
 3. **Certificates & secrets → New client secret**. Note its expiry date and set
    a reminder: connections stop syncing when it expires.
 4. Set `MICROSOFT_CLIENT_ID` (Application ID), `MICROSOFT_CLIENT_SECRET` and

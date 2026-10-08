@@ -11,7 +11,15 @@ import { dayKey } from "@/lib/dates";
 import { SYNC_FREQUENCY } from "@/lib/intelligence";
 import { enqueue } from "./jobs/queue";
 
-export const SYNC_JOB: Record<SourceKind, JobType> = { EMAIL: "EMAIL_SYNC", CALENDAR: "CALENDAR_SYNC", DOCUMENTS: "DOCUMENT_SYNC" };
+export const SYNC_JOB: Record<SourceKind, JobType> = {
+  EMAIL: "EMAIL_SYNC",
+  CALENDAR: "CALENDAR_SYNC",
+  DOCUMENTS: "DOCUMENT_SYNC",
+  MEETINGS: "MEETINGS_SYNC",
+  CRM: "BUSINESS_SYNC",
+  FINANCE: "BUSINESS_SYNC",
+  CONTRACTS: "BUSINESS_SYNC",
+};
 
 const SYNCABLE: SourceConnection["status"][] = ["CONNECTED", "ERROR", "SYNCING"];
 

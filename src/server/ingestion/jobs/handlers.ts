@@ -6,6 +6,7 @@ import { getPriorityWeights } from "@/server/settings";
 import { summarizeThread } from "../extract/threads";
 import { PROCESSING_STAGES, runStage } from "../pipeline";
 import { runRetentionSweep } from "../retention";
+import { syncBusinessConnection } from "../business/run";
 import { syncConnection } from "../sync";
 import type { PipelineContext } from "../types";
 import { PermanentJobError } from "./queue";
@@ -21,6 +22,13 @@ async function sync(job: IngestionJob, ctx: PipelineContext) {
   return outcome as unknown as Record<string, unknown>;
 }
 
+async function businessSync(job: IngestionJob, ctx: PipelineContext) {
+  const { runId } = payload<{ runId?: string }>(job);
+  if (!job.connectionId) throw new PermanentJobError("Sync job without a connection");
+  const outcome = await syncBusinessConnection(ctx, job.connectionId, runId ?? job.runId ?? "");
+  return outcome as unknown as Record<string, unknown>;
+}
+
 async function stage(job: IngestionJob, ctx: PipelineContext) {
   if (!job.sourceItemId) throw new PermanentJobError(`${job.type} job without a source item`);
   return (await runStage(job.type, job.sourceItemId, ctx)) as unknown as Record<string, unknown>;
@@ -30,6 +38,8 @@ export const HANDLERS: Record<JobType, JobHandler> = {
   EMAIL_SYNC: sync,
   CALENDAR_SYNC: sync,
   DOCUMENT_SYNC: sync,
+  MEETINGS_SYNC: businessSync,
+  BUSINESS_SYNC: businessSync,
   DOCUMENT_PARSE: stage,
   ENTITY_EXTRACTION: stage,
   ENTITY_RESOLUTION: stage,

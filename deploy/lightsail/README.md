@@ -204,17 +204,19 @@ Email, calendar and document syncs don't need cron: the worker runs them
 continuously, hourly or daily per connection. Job output goes to
 `~/ceo-jobs.log`.
 
-## 12. Connect email, calendar and documents
+## 12. Connect CytoHub's systems
 
-Create the Google, Microsoft and/or Dropbox apps as described in
-[`docs/DEPLOYMENT.md`](../../docs/DEPLOYMENT.md#connect-email-calendar-and-documents).
-Put their values in `.env`, then apply them:
+Follow [`docs/CONNECTORS.md`](../../docs/CONNECTORS.md): Microsoft 365
+(Outlook, calendar, Teams, SharePoint), HubSpot, QuickBooks Online, Brex,
+DocuSign, Granola and Read AI, in that order. Sign-in apps (Microsoft,
+QuickBooks, DocuSign) go in `.env`; apply them with:
 
 ```sh
 docker compose up -d
 ```
 
-Then connect accounts in **Settings → Integrations**.
+HubSpot, Brex, Granola and Read AI keys are pasted in **Settings →
+Integrations** on the site, where every connection is made.
 
 ## Updating
 
@@ -241,5 +243,5 @@ docker compose start web worker
 | The build stops with `Killed` or "heap out of memory" | The server has less than 4 GB of memory. Resize the instance from a snapshot. |
 | The worker logs "waiting for the CEO account" | Run step 9. |
 | Integrations show "Not configured" | The provider's values are missing from `.env`, or you didn't run `docker compose up -d` after adding them. |
-| OAuth fails with `redirect_uri_mismatch` | The redirect URI registered with the provider must be exactly `https://ceo.cytolab.ai/api/integrations/<google\|microsoft\|dropbox>/callback`. |
+| OAuth fails with `redirect_uri_mismatch` | The redirect URI registered with the provider must be exactly `https://ceo.cytolab.ai/api/integrations/<microsoft\|google\|dropbox\|intuit\|docusign>/callback`. |
 | Something else | `docker compose ps` shows each container's state; `docker compose logs web worker` shows the app's errors. |

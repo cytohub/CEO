@@ -69,7 +69,9 @@ export interface HealthSnapshot {
   daily: { day: string; count: number }[];
 }
 
-const KINDS: SourceKind[] = ["EMAIL", "CALENDAR", "DOCUMENTS"];
+/** Always shown; meeting notes, CRM, finance and contracts appear once connected. */
+const BASE_KINDS: SourceKind[] = ["EMAIL", "CALENDAR", "DOCUMENTS"];
+const KIND_ORDER: SourceKind[] = ["EMAIL", "CALENDAR", "DOCUMENTS", "MEETINGS", "CRM", "FINANCE", "CONTRACTS"];
 
 /** Every dashboard metric in one round of parallel queries. */
 export async function healthSnapshot(opts: { now?: Date; timezone: string }): Promise<HealthSnapshot> {
@@ -143,7 +145,8 @@ export async function healthSnapshot(opts: { now?: Date; timezone: string }): Pr
       GROUP BY 1`,
   ]);
 
-  const sync: KindSync[] = KINDS.map((kind) => {
+  const kinds = KIND_ORDER.filter((k) => BASE_KINDS.includes(k) || connections.some((c) => c.kind === k));
+  const sync: KindSync[] = kinds.map((kind) => {
     const last = lastRuns.find((r) => r.kind === kind);
     return {
       kind,

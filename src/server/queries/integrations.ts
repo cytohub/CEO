@@ -5,10 +5,10 @@
  */
 import type { ConnectionMode, ConnectionStatus, RunStatus, RunTrigger, Sensitivity, SourceKind, SourceProvider, SyncFrequency } from "@/generated/prisma/enums";
 import { db } from "@/lib/db";
-import { SOURCE_KINDS, SOURCE_PROVIDERS } from "@/lib/intelligence";
+import { type ProviderAuth, SOURCE_KINDS, SOURCE_PROVIDERS } from "@/lib/intelligence";
 import { getCeoContext } from "@/server/context";
 import { providerAvailability } from "@/server/ingestion/providers/availability";
-import { providerSlug } from "@/server/ingestion/providers/oauth";
+import { appOrigin, providerSlug } from "@/server/ingestion/providers/oauth";
 
 // ─── Scopes → human-readable permissions ─────────────────────────────────────
 
@@ -48,6 +48,24 @@ const KNOWN_SCOPES: Record<string, { label: string; readOnly: boolean }> = {
   "files.metadata.read": { label: "View file and folder names", readOnly: true },
   "files.content.read": { label: "View and download file contents", readOnly: true },
   "account_info.read": { label: "See the account’s basic info", readOnly: true },
+  // Microsoft Teams
+  "chat.read": { label: "Read your Teams chats", readOnly: true },
+  // QuickBooks Online: Intuit offers no read-only accounting scope; CytoHub only reads.
+  "com.intuit.quickbooks.accounting": { label: "QuickBooks accounting data (CytoHub only reads reports and balances)", readOnly: true },
+  // DocuSign: the signature scope also allows sending; CytoHub only lists envelopes.
+  signature: { label: "DocuSign envelopes (CytoHub only reads their status)", readOnly: true },
+  extended: { label: "Stay connected beyond 30 days (refresh token)", readOnly: true },
+  // HubSpot
+  "crm.objects.deals.read": { label: "Read deals and pipelines", readOnly: true },
+  "crm.objects.companies.read": { label: "Read companies", readOnly: true },
+  "crm.objects.owners.read": { label: "Read deal owners", readOnly: true },
+  // Brex
+  "accounts.cash.readonly": { label: "Read cash account balances", readOnly: true },
+  "transactions.cash.readonly": { label: "Read cash transactions", readOnly: true },
+  "transactions.card.readonly": { label: "Read card transactions", readOnly: true },
+  // Granola, Read AI
+  "notes:read": { label: "Read meeting notes", readOnly: true },
+  "webhook:meeting_end": { label: "Receive meeting reports after each meeting (signed)", readOnly: true },
 };
 
 /** Provider scope strings as read-only permissions people understand. Unknown scopes are shown verbatim. Pure. */
@@ -70,7 +88,30 @@ export function describeScopes(scopes: string[]): Permission[] {
 
 // ─── Provider availability ───────────────────────────────────────────────────
 
-const CONNECTABLE: SourceProvider[] = ["GMAIL", "OUTLOOK_MAIL", "GOOGLE_CALENDAR", "OUTLOOK_CALENDAR", "GOOGLE_DRIVE", "ONEDRIVE", "SHAREPOINT", "DROPBOX"];
+/** Providers offered under "Add an account", in display order per section. */
+const CONNECTABLE: SourceProvider[] = [
+  "OUTLOOK_MAIL",
+  "TEAMS_CHAT",
+  "GMAIL",
+  "OUTLOOK_CALENDAR",
+  "GOOGLE_CALENDAR",
+  "SHAREPOINT",
+  "ONEDRIVE",
+  "GOOGLE_DRIVE",
+  "DROPBOX",
+  "GRANOLA",
+  "READ_AI",
+  "HUBSPOT",
+  "QUICKBOOKS",
+  "BREX",
+  "DOCUSIGN",
+];
+
+/** Where Read AI posts meeting reports (the public origin in production). */
+export function readAiWebhookUrl(origin: string | null): string | null {
+  const base = appOrigin(origin);
+  return base ? `${base}/api/webhooks/read-ai` : null;
+}
 
 export function connectUrl(provider: SourceProvider, connectionId?: string): string {
   const base = `/api/integrations/${providerSlug(provider)}/connect`;
@@ -118,6 +159,11 @@ export interface ConnectionCard {
   webhookActive: boolean;
   /** OAuth reconnect URL when the provider is configured; null otherwise. */
   reconnectUrl: string | null;
+  auth: ProviderAuth;
+  /** Last characters of a pasted key, so keys can be told apart (never the key). */
+  keyHint: string | null;
+  /** Read AI: where its webhook must point. */
+  webhookUrl: string | null;
   missingEnv: string[];
   /** Upload-only sources are not synced on a schedule. */
   syncable: boolean;
@@ -128,6 +174,8 @@ export interface ProviderOption {
   provider: SourceProvider;
   label: string;
   vendor: string;
+  auth: ProviderAuth;
+  webhookUrl: string | null;
   configured: boolean;
   missingEnv: string[];
   demo: boolean;
@@ -150,7 +198,8 @@ export interface IntegrationsData {
   disconnected: number;
 }
 
-export async function getIntegrationsData(): Promise<IntegrationsData> {
+/** `origin`: the request's origin, used for the webhook URL outside production. */
+export async function getIntegrationsData(origin: string | null = null): Promise<IntegrationsData> {
   const ceo = await getCeoContext();
   const [connections, disconnected] = await Promise.all([
     db.sourceConnection.findMany({
@@ -173,6 +222,7 @@ export async function getIntegrationsData(): Promise<IntegrationsData> {
         syncFrequency: true,
         includeNoise: true,
         defaultSensitivity: true,
+        settings: true,
         scopes: true,
         webhookChannelId: true,
         webhookExpiresAt: true,
@@ -201,6 +251,7 @@ export async function getIntegrationsData(): Promise<IntegrationsData> {
 
   const now = new Date();
   const availability = providerAvailability();
+  const webhookUrl = readAiWebhookUrl(origin);
   const cards: ConnectionCard[] = connections.map((c) => {
     const meta = SOURCE_PROVIDERS[c.provider];
     const avail = availability[c.provider];
@@ -227,8 +278,12 @@ export async function getIntegrationsData(): Promise<IntegrationsData> {
       supportsRealtime: avail.webhooks,
       webhookActive: Boolean(c.webhookChannelId && (!c.webhookExpiresAt || c.webhookExpiresAt > now)),
       reconnectUrl: meta.oauth && avail.configured ? connectUrl(c.provider, c.id) : null,
+      auth: meta.auth,
+      keyHint: c.mode === "LIVE" && (meta.auth === "apiKey" || meta.auth === "webhook") ? keyHintOf(c.settings) : null,
+      webhookUrl: c.provider === "READ_AI" ? webhookUrl : null,
       missingEnv: avail.missingEnv,
-      syncable: c.provider !== "LOCAL_UPLOAD",
+      // Uploads arrive from the Documents page and Read AI pushes reports: neither syncs on a schedule.
+      syncable: c.provider !== "LOCAL_UPLOAD" && meta.auth !== "webhook",
       runs: c.runs,
     };
   });
@@ -244,14 +299,21 @@ export async function getIntegrationsData(): Promise<IntegrationsData> {
         provider,
         label: SOURCE_PROVIDERS[provider].label,
         vendor: SOURCE_PROVIDERS[provider].vendor,
+        auth: SOURCE_PROVIDERS[provider].auth,
+        webhookUrl: provider === "READ_AI" ? webhookUrl : null,
         configured: avail.configured,
         missingEnv: avail.missingEnv,
         demo: avail.demo,
         webhooks: avail.webhooks,
-        connectUrl: avail.configured ? connectUrl(provider) : null,
+        connectUrl: avail.configured && SOURCE_PROVIDERS[provider].auth === "oauth" ? connectUrl(provider) : null,
       };
     }),
   }));
 
   return { sections, timezone: ceo.timezone, now, disconnected };
+}
+
+function keyHintOf(settings: unknown): string | null {
+  const hint = settings && typeof settings === "object" && !Array.isArray(settings) ? (settings as Record<string, unknown>).keyHint : null;
+  return typeof hint === "string" && /^….{1,8}$/.test(hint) ? hint : null;
 }

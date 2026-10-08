@@ -15,6 +15,7 @@ import { gmailProvider } from "./google/gmail";
 import { outlookCalendarProvider } from "./microsoft/calendar";
 import { oneDriveProvider, sharePointProvider } from "./microsoft/drive";
 import { outlookMailProvider } from "./microsoft/mail";
+import { teamsChatProvider } from "./microsoft/teams";
 import { mockCalendarProvider } from "./mock/calendar";
 import { mockDocumentProvider } from "./mock/documents";
 import { mockEmailProvider } from "./mock/email";
@@ -27,9 +28,11 @@ export const noopDocumentProvider: DocumentProvider = {
   },
 };
 
-const LIVE: Record<SourceProvider, SourceProviderAdapter> = {
+/** Mail, calendar and document adapters. Business systems and meeting notes sync through ../business. */
+const LIVE: Partial<Record<SourceProvider, SourceProviderAdapter>> = {
   GMAIL: gmailProvider,
   OUTLOOK_MAIL: outlookMailProvider,
+  TEAMS_CHAT: teamsChatProvider,
   GOOGLE_CALENDAR: googleCalendarProvider,
   OUTLOOK_CALENDAR: outlookCalendarProvider,
   GOOGLE_DRIVE: googleDriveProvider,
@@ -40,7 +43,7 @@ const LIVE: Record<SourceProvider, SourceProviderAdapter> = {
   CYTOHUB_INTERNAL: noopDocumentProvider,
 };
 
-const DEMO: Record<SourceKind, SourceProviderAdapter> = {
+const DEMO: Partial<Record<SourceKind, SourceProviderAdapter>> = {
   EMAIL: mockEmailProvider,
   CALENDAR: mockCalendarProvider,
   DOCUMENTS: mockDocumentProvider,
@@ -51,6 +54,7 @@ type AdapterConnection = { provider: SourceProvider; mode: ConnectionMode; kind:
 export function getAdapter(connection: AdapterConnection): SourceProviderAdapter {
   if (connection.provider === "LOCAL_UPLOAD" || connection.provider === "CYTOHUB_INTERNAL") return noopDocumentProvider;
   const adapter = connection.mode === "DEMO" ? DEMO[connection.kind] : LIVE[connection.provider];
+  if (!adapter) throw new Error(`${connection.provider} has no ${connection.mode === "DEMO" ? "demo" : "mail, calendar or document"} adapter`);
   if (adapter.kind !== connection.kind) throw new Error(`${connection.provider} adapter serves ${adapter.kind}, not ${connection.kind}`);
   return adapter;
 }

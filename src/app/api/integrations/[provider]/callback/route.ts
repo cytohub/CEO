@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { OAUTH_VENDORS, type OAuthVendor, appOrigin, callbackPath, flowCookieName, openFlowState, providerFromSlug, providerSlug, vendorOf } from "@/server/ingestion/providers/oauth";
+import { OAUTH_VENDORS, type OAuthVendor, REALM_ID, appOrigin, callbackPath, flowCookieName, openFlowState, providerFromSlug, providerSlug, vendorOf } from "@/server/ingestion/providers/oauth";
 import { OAuthFlowError, auditOAuthFailure, completeOAuthFlow } from "@/server/ingestion/providers/oauth-flow";
 import { LIMITS, rateLimit } from "@/server/security/rate-limit";
 import { can, getViewer } from "@/server/security/session";
@@ -13,7 +13,7 @@ function vendorFromSlug(slug: string): OAuthVendor | null {
 }
 
 /**
- * OAuth redirect target: /api/integrations/<google|microsoft|dropbox>/callback.
+ * OAuth redirect target: /api/integrations/<google|microsoft|dropbox|intuit|docusign>/callback.
  * Verifies the sealed state cookie (constant-time state match, expiry, same
  * viewer), exchanges the code with the PKCE verifier, stores encrypted
  * credentials and queues the first sync. Tokens never leave the server.
@@ -61,7 +61,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   }
 
   try {
-    await completeOAuthFlow({ flow, code, origin, viewer });
+    const realm = q.get("realmId");
+    await completeOAuthFlow({ flow, code, origin, viewer, realmId: realm && REALM_ID.test(realm) ? realm : null });
     return finish(`connected=${providerParam}`);
   } catch (error) {
     const errorCode = error instanceof OAuthFlowError ? error.code : "provider_error";

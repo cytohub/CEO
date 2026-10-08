@@ -133,6 +133,13 @@ class MentionSet {
   }
 
   participant(p: Participant, role: MentionRole) {
+    // Stand-in addresses (the reserved .invalid TLD, used when a provider gives no address)
+    // identify no one: keep a display name if there is one, never the address or a company.
+    if (/\.invalid$/i.test(p.email)) {
+      const name = p.name?.replace(/^["']|["']$/g, "").trim();
+      if (name && !isAutomatedAddress(p.email)) this.add({ entityType: "PERSON", text: name, email: null, domain: null, companyHint: null, role, confidence: 0.6 });
+      return;
+    }
     const full = domainOf(p.email);
     const domain = full ? registrableDomain(full) : null;
     const external = domain && !this.internalDomains.has(domain) && !isFreeMailDomain(domain);

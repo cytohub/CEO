@@ -91,7 +91,14 @@ function grantedAll(provider: SourceProvider, granted: string | null): boolean {
  * Exchange the code (PKCE), identify the account and store the connection.
  * Returns the connection id and whether this was a reconnect.
  */
-export async function completeOAuthFlow(input: { flow: OAuthFlowState; code: string; origin: string; viewer: Pick<Viewer, "userId" | "email"> }): Promise<{ connectionId: string; reconnected: boolean }> {
+export async function completeOAuthFlow(input: {
+  flow: OAuthFlowState;
+  code: string;
+  origin: string;
+  viewer: Pick<Viewer, "userId" | "email">;
+  /** QuickBooks: the company the CEO picked on Intuit's consent screen. */
+  realmId?: string | null;
+}): Promise<{ connectionId: string; reconnected: boolean }> {
   const { flow, viewer } = input;
   const provider = flow.provider;
   const vendor = vendorOf(provider);
@@ -109,7 +116,7 @@ export async function completeOAuthFlow(input: { flow: OAuthFlowState; code: str
 
   let identity: Awaited<ReturnType<typeof fetchAccountIdentity>>;
   try {
-    identity = await fetchAccountIdentity(provider, tokens.accessToken);
+    identity = await fetchAccountIdentity(provider, tokens.accessToken, fetch, { realmId: input.realmId ?? null });
   } catch {
     throw new OAuthFlowError("identity_failed");
   }
@@ -128,6 +135,9 @@ export async function completeOAuthFlow(input: { flow: OAuthFlowState; code: str
         : null;
 
   const previous = target ? decryptCredentials(target.credentials) : null;
+  const previousSettings = target?.settings && typeof target.settings === "object" && !Array.isArray(target.settings) ? (target.settings as Record<string, unknown>) : {};
+  // Account details learned at sign-in (never secrets) join the connection's own settings.
+  const settings = identity.settings ? ({ ...previousSettings, ...identity.settings } as Prisma.InputJsonValue) : undefined;
   const credentials: StoredCredentials = {
     accessToken: tokens.accessToken,
     // Some re-consents return no new refresh token; keep the one we have.
@@ -153,6 +163,7 @@ export async function completeOAuthFlow(input: { flow: OAuthFlowState; code: str
     consecutiveFailures: 0,
     disconnectedAt: null,
     nextSyncAt: null,
+    ...(settings ? { settings } : {}),
   };
 
   let connectionId: string;
@@ -171,7 +182,7 @@ export async function completeOAuthFlow(input: { flow: OAuthFlowState; code: str
     reconnected = true;
   } else {
     const created = await db.sourceConnection.create({
-      data: { ...common, kind: meta.kind, provider, label: `${meta.label} · ${identity.email ?? "account"}`, syncFrequency: "HOURLY" },
+      data: { ...common, kind: meta.kind, provider, label: `${meta.label} · ${identity.name && meta.kind === "FINANCE" ? identity.name : (identity.email ?? "account")}`, syncFrequency: "HOURLY" },
     });
     connectionId = created.id;
   }

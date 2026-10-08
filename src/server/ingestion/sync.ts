@@ -18,7 +18,7 @@
  * retries with backoff.
  */
 import { Prisma, type IngestionRun, type SourceConnection } from "@/generated/prisma/client";
-import type { RunStatus } from "@/generated/prisma/enums";
+import type { RunStatus, SourceKind } from "@/generated/prisma/enums";
 import { db } from "@/lib/db";
 import { DAY_MS } from "@/lib/dates";
 import { connectionSettings, getProviderContext } from "./connections";
@@ -65,7 +65,7 @@ export interface SyncOutcome {
 
 /** Pages processed per job before handing over to a continuation job. */
 export const MAX_PAGES_PER_JOB = 5;
-const PAGE_SIZE = { EMAIL: 50, CALENDAR: 100, DOCUMENTS: 50 } as const;
+const PAGE_SIZE: Record<SourceKind, number> = { EMAIL: 50, CALENDAR: 100, DOCUMENTS: 50, MEETINGS: 30, CRM: 100, FINANCE: 100, CONTRACTS: 100 };
 const CALENDAR_WINDOW = { pastDays: 90, futureDays: 180 } as const;
 const DEFAULT_INITIAL_DAYS = 90;
 /** Renew push subscriptions this long before they expire. */

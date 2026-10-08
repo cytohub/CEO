@@ -15,7 +15,7 @@ import { Prisma, type SourceConnection } from "@/generated/prisma/client";
 import type { SourceKind, SourceProvider } from "@/generated/prisma/enums";
 import { db } from "@/lib/db";
 import { SOURCE_PROVIDERS } from "@/lib/intelligence";
-import { BRAIN_SOURCE_KEY } from "@/server/brain/connectors";
+import { BRAIN_SOURCE_KEY, CONNECTOR_DEFINITIONS } from "@/server/brain/connectors";
 import { audit } from "@/server/security/audit";
 import { decryptJson, encryptJson } from "@/server/security/crypto";
 import { PROVIDER_SCOPES, type StoredCredentials, refreshCredentials, revokeCredentials, storedCredentialsSchema, vendorOf } from "./providers/oauth";
@@ -32,10 +32,20 @@ export function connectionSettings(conn: Pick<SourceConnection, "settings">): Re
   return s && typeof s === "object" && !Array.isArray(s) ? (s as Record<string, unknown>) : {};
 }
 
-/** BrainSource catalog row for a provider (null when the catalog has no entry yet). */
+/** BrainSource catalog row for a provider, created from the connector catalog on first use. */
 export async function brainSourceIdFor(provider: SourceProvider): Promise<string | null> {
-  const row = await db.brainSource.findUnique({ where: { key: BRAIN_SOURCE_KEY[provider] }, select: { id: true } });
-  return row?.id ?? null;
+  const key = BRAIN_SOURCE_KEY[provider];
+  const row = await db.brainSource.findUnique({ where: { key }, select: { id: true } });
+  if (row) return row.id;
+  const def = CONNECTOR_DEFINITIONS.find((c) => c.key === key);
+  if (!def) return null;
+  const created = await db.brainSource.upsert({
+    where: { key },
+    create: { key, name: def.name, category: def.category, description: def.description },
+    update: {},
+    select: { id: true },
+  });
+  return created.id;
 }
 
 export function decryptCredentials(sealed: string | null): StoredCredentials | null {
@@ -63,6 +73,23 @@ export async function getProviderContext(connectionId: string, now: Date = new D
   const conn = await db.sourceConnection.findUniqueOrThrow({ where: { id: connectionId } });
   const connection = { id: conn.id, provider: conn.provider, mode: conn.mode, accountEmail: conn.accountEmail, settings: connectionSettings(conn) };
   const log = debugLog(conn.id);
+
+  // Key- and webhook-based sources: the stored key is the bearer token; there is nothing to refresh,
+  // so a 401 means the key was revoked (connection → NEEDS_REAUTH, replace the key in Settings).
+  const auth = SOURCE_PROVIDERS[conn.provider].auth;
+  if (conn.mode === "LIVE" && (auth === "apiKey" || auth === "webhook")) {
+    const key = decryptCredentials(conn.credentials)?.accessToken ?? null;
+    const ctx: ProviderContext = {
+      connection,
+      now,
+      log,
+      async getAccessToken() {
+        if (!key) throw new ProviderAuthError(`${SOURCE_PROVIDERS[conn.provider].label} has no key — add it in Settings → Integrations`);
+        return key;
+      },
+    };
+    return ctx;
+  }
 
   if (conn.mode === "DEMO" || !vendorOf(conn.provider)) {
     const ctx: ProviderContext = {
@@ -229,7 +256,7 @@ export async function disconnectConnection(connectionId: string, opts: { deleteD
     },
   });
   await db.ingestionJob.updateMany({
-    where: { connectionId: conn.id, status: { in: ["QUEUED", "FAILED"] }, type: { in: ["EMAIL_SYNC", "CALENDAR_SYNC", "DOCUMENT_SYNC"] } },
+    where: { connectionId: conn.id, status: { in: ["QUEUED", "FAILED"] }, type: { in: ["EMAIL_SYNC", "CALENDAR_SYNC", "DOCUMENT_SYNC", "MEETINGS_SYNC", "BUSINESS_SYNC"] } },
     data: { status: "CANCELLED", dedupeKey: null, completedAt: now },
   });
 

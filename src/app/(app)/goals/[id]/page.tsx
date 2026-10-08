@@ -114,7 +114,7 @@ export default async function GoalPage(props: { params: Promise<{ id: string }> 
               </div>
             )}
             <div className="mt-4 border-t border-hairline pt-4">
-              <GoalQuickControls goal={goal} />
+              <GoalQuickControls goal={goal} measuredBy={metrics.find((m) => m.target !== null)?.name ?? null} />
             </div>
           </section>
 

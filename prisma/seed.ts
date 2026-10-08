@@ -471,8 +471,9 @@ async function main() {
 
   // ── Brain sources & signals ───────────────────────────────────────────────
   // Email, calendar and documents arrive through the ingestion pipeline (demo
-  // connections below); these legacy connectors still provide sample signals.
-  const sampleSources = new Set(["teams", "hubspot", "granola"]);
+  // connections below); these sources provide sample signals and metric values
+  // until a live account is connected in Settings → Integrations.
+  const sampleSources = new Set(["teams", "hubspot", "granola", "quickbooks", "brex"]);
   const sourceId: Record<string, string> = {};
   for (const c of CONNECTOR_DEFINITIONS) {
     const row = await db.brainSource.create({

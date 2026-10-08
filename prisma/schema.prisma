@@ -807,6 +807,11 @@ model Deal {
   stageChangedAt DateTime?
   lastActivityAt DateTime?
   nextStep       String?
+  /// System of record for synced deals ("hubspot"); null for deals created in the app.
+  externalSource String?
+  externalId     String?
+  /// Pipeline name at the source (e.g. "Pharma sales", "Series B").
+  pipeline       String?
   companyId      String?
   company        Company?   @relation(fields: [companyId], references: [id], onDelete: SetNull)
   ownerId        String?
@@ -822,6 +827,7 @@ model Deal {
   risks         Risk[]
   opportunities Opportunity[]
 
+  @@unique([externalSource, externalId])
   @@index([type, status])
 }
 
@@ -1370,6 +1376,14 @@ enum SourceKind {
   EMAIL
   CALENDAR
   DOCUMENTS
+  /// Meeting notes and transcripts (Granola, Read AI).
+  MEETINGS
+  /// Deals, pipelines and companies (HubSpot).
+  CRM
+  /// Accounting and banking (QuickBooks Online, Brex).
+  FINANCE
+  /// E-signature envelopes (DocuSign).
+  CONTRACTS
 }
 
 enum SourceProvider {
@@ -1383,6 +1397,13 @@ enum SourceProvider {
   DROPBOX
   LOCAL_UPLOAD
   CYTOHUB_INTERNAL
+  TEAMS_CHAT
+  GRANOLA
+  READ_AI
+  HUBSPOT
+  QUICKBOOKS
+  BREX
+  DOCUSIGN
 }
 
 /// LIVE = OAuth connection to the provider; DEMO = mock adapter over sample fixtures.
@@ -2357,6 +2378,8 @@ enum JobType {
   EMAIL_SYNC
   CALENDAR_SYNC
   DOCUMENT_SYNC
+  MEETINGS_SYNC
+  BUSINESS_SYNC
   DOCUMENT_PARSE
   ENTITY_EXTRACTION
   ENTITY_RESOLUTION

@@ -7,7 +7,7 @@
 import type { SourceKind } from "@/generated/prisma/enums";
 import { db } from "@/lib/db";
 
-export type SetupStepId = "email" | "calendar" | "documents" | "pillars" | "goals" | "team" | "refresh";
+export type SetupStepId = "email" | "calendar" | "documents" | "crm" | "finance" | "pillars" | "goals" | "team" | "refresh";
 
 export interface SetupStep {
   id: SetupStepId;
@@ -25,9 +25,11 @@ export interface SetupProgress {
 export const SETUP_DISMISSED_KEY = "setupChecklistDismissedAt";
 
 export async function getSetupProgress(): Promise<SetupProgress> {
-  const [connections, documents, pillars, goals, users, refreshes, dismissed] = await Promise.all([
+  const [connections, documents, deals, cash, pillars, goals, users, refreshes, dismissed] = await Promise.all([
     db.sourceConnection.groupBy({ by: ["kind"], where: { status: { not: "DISCONNECTED" } }, _count: true }),
     db.document.count(),
+    db.deal.count(),
+    db.metricValue.count({ where: { metric: { key: "cash_on_hand" } } }),
     db.strategicPillar.count({ where: { active: true } }),
     db.goal.count(),
     db.user.count({ where: { active: true } }),
@@ -39,6 +41,9 @@ export async function getSetupProgress(): Promise<SetupProgress> {
     { id: "email", done: connected("EMAIL") },
     { id: "calendar", done: connected("CALENDAR") },
     { id: "documents", done: connected("DOCUMENTS") || documents > 0 },
+    // A pipeline or cash history kept another way also counts.
+    { id: "crm", done: connected("CRM") || deals > 0 },
+    { id: "finance", done: connected("FINANCE") || cash > 0 },
     { id: "pillars", done: pillars > 0 },
     { id: "goals", done: goals > 0 },
     { id: "team", done: users > 1 },

@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Field } from "@/components/common/fields";
+import { Field, GoalSelect } from "@/components/common/fields";
 import { useAction } from "@/components/common/use-action";
 import { dayKey, formatDay } from "@/lib/dates";
 import { cn } from "@/lib/utils";
@@ -170,6 +170,7 @@ function EditTargetForm({ metric, onDone }: { metric: ScoreboardMetric; onDone: 
   const { pending, run } = useAction();
   const [raw, setRaw] = useState(metric.target !== null ? String(metric.target) : "");
   const [date, setDate] = useState(metric.targetDate ? dayKey(metric.targetDate) : "");
+  const [goalId, setGoalId] = useState<string | null>(metric.goalId);
   const value = parseMetricInput(raw);
   const name = displayName(metric.name);
   const lower = metric.direction === "LOWER_IS_BETTER";
@@ -180,7 +181,7 @@ function EditTargetForm({ metric, onDone }: { metric: ScoreboardMetric; onDone: 
       onSubmit={async (e) => {
         e.preventDefault();
         if (value === null) return;
-        const res = await run(() => updateMetricTarget(metric.id, { target: value, targetDate: date || null }));
+        const res = await run(() => updateMetricTarget(metric.id, { target: value, targetDate: date || null, goalId }));
         if (res.ok) onDone();
       }}
     >
@@ -216,6 +217,9 @@ function EditTargetForm({ metric, onDone }: { metric: ScoreboardMetric; onDone: 
           <Input id="target-date" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
         </Field>
       </div>
+      <Field label="Measures goal (optional)" htmlFor="target-goal" hint="The goal's progress then follows this metric toward its target, updated from live data.">
+        <GoalSelect id="target-goal" value={goalId} onChange={setGoalId} />
+      </Field>
       {metric.current !== null && (
         <p className="text-2xs text-muted-foreground">
           Current value: <span className="font-medium text-foreground tabular">{formatMetricValue(metric.current, metric.unit)}</span>

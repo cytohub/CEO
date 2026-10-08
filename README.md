@@ -159,22 +159,25 @@ only. To connect real ones, create an OAuth app per provider, register the
 redirect URI `<APP_ORIGIN>/api/integrations/{google|microsoft|dropbox}/callback`,
 and set:
 
-| Provider | Sources | Environment |
+| Provider | Sources | How it connects |
 | --- | --- | --- |
-| Google | Gmail, Google Calendar, Google Drive (read-only scopes) | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`; Gmail push: `GOOGLE_PUBSUB_TOPIC`, `GOOGLE_PUBSUB_VERIFICATION_TOKEN` |
-| Microsoft 365 | Outlook Mail, Outlook Calendar, OneDrive, SharePoint | `MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET`, `MICROSOFT_TENANT_ID` |
-| Dropbox | Dropbox files | `DROPBOX_APP_KEY`, `DROPBOX_APP_SECRET` (also verifies webhooks) |
+| Microsoft 365 | Outlook Mail, Teams chats, Outlook Calendar, OneDrive, SharePoint | Sign-in app: `MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET`, `MICROSOFT_TENANT_ID` |
+| Google | Gmail, Google Calendar, Google Drive (read-only scopes) | Sign-in app: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`; Gmail push: `GOOGLE_PUBSUB_TOPIC`, `GOOGLE_PUBSUB_VERIFICATION_TOKEN` |
+| Dropbox | Dropbox files | Sign-in app: `DROPBOX_APP_KEY`, `DROPBOX_APP_SECRET` (also verifies webhooks) |
+| QuickBooks Online | Monthly P&L, bank balances → revenue, expenses, burn, runway | Sign-in app: `QUICKBOOKS_CLIENT_ID`, `QUICKBOOKS_CLIENT_SECRET`, `QUICKBOOKS_ENV` |
+| DocuSign | Agreements sent, signed, declined, waiting on the CEO | Sign-in app: `DOCUSIGN_CLIENT_ID`, `DOCUSIGN_CLIENT_SECRET`, `DOCUSIGN_ENV` |
+| HubSpot | Deals, pipelines, companies, owners | Service key pasted in Settings → Integrations |
+| Brex | Live cash, cash movements, card spend | Read-only user token pasted in Settings → Integrations |
+| Granola | Meeting notes | API key pasted in Settings → Integrations |
+| Read AI | Meeting reports after each meeting | Signed webhook; signing key pasted in Settings → Integrations |
 | Uploads | PDF, DOCX, PPTX, XLSX, CSV, TXT, MD, images (≤ 25 MB) | — |
 
-OAuth uses authorization code + PKCE; refresh tokens are encrypted with
-`CYTOHUB_ENCRYPTION_KEY` (required in production). Each connection has a sync
-frequency — Manual, Hourly, Daily or Webhook (with an hourly safety sync).
-
-The other Brain connectors (`src/server/brain/connectors.ts`) are inert until
-their credentials are set: HubSpot (`HUBSPOT_ACCESS_TOKEN`), Granola
-(`GRANOLA_API_KEY`), Read AI (`READ_AI_API_KEY`), DocuSign
-(`DOCUSIGN_ACCESS_TOKEN`), accounting (`FINANCE_API_KEY`), ELN/LIMS
-(`ELN_API_KEY`), HRIS (`HRIS_API_KEY`); Teams uses the Microsoft app.
+Sign-in apps use the authorization code flow with state (and PKCE where the
+vendor supports it); tokens and pasted keys are encrypted with
+`CYTOHUB_ENCRYPTION_KEY` (required in production), checked with the vendor
+before they are stored, and never sent to a browser. Each connection has a
+sync frequency — Manual, Hourly, Daily or Webhook (with an hourly safety
+sync). Step-by-step setup for every vendor: [docs/CONNECTORS.md](docs/CONNECTORS.md).
 
 ## Roles and access
 

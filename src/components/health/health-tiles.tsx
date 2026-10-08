@@ -1,15 +1,13 @@
-import { AlertTriangle, CalendarDays, FileText, Mail, type LucideIcon } from "lucide-react";
+import { AlertTriangle } from "lucide-react";
 import Link from "next/link";
 import { StatusPill } from "@/components/common/status";
+import { KIND_ICON, KIND_NOUN } from "@/components/integrations/kind-icons";
 import { shortDuration } from "@/components/integrations/labels";
-import type { SourceKind } from "@/generated/prisma/enums";
 import { formatDateTime, timeAgo } from "@/lib/dates";
 import { formatNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { HealthSnapshot } from "@/server/ingestion/health";
 
-const KIND_ICON: Record<SourceKind, LucideIcon> = { EMAIL: Mail, CALENDAR: CalendarDays, DOCUMENTS: FileText };
-const KIND_NOUN: Record<SourceKind, string> = { EMAIL: "email", CALENDAR: "calendar", DOCUMENTS: "document" };
 
 /** Stat tile: label, value (proportional figures), hint. Status is never color-alone. */
 function Tile({ label, value, hint, alert, className }: { label: string; value: React.ReactNode; hint?: React.ReactNode; alert?: React.ReactNode; className?: string }) {
