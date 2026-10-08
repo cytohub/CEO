@@ -43,7 +43,7 @@ export function keyHint(key: string): string {
 function verifyWebhookKey(key: string): KeyVerification {
   const bytes = Buffer.from(key, "base64");
   if (bytes.length < 16 || !/^[A-Za-z0-9+/=_-]+$/.test(key)) throw new KeyRejectedError("That isn’t a Read AI signing key. Copy the signing key shown for the webhook in Read AI → Integrations → Webhooks.");
-  return { accountName: null, externalAccountId: null, scopes: PROVIDER_SCOPES.READ_AI };
+  return { accountName: "meeting reports webhook", externalAccountId: null, scopes: PROVIDER_SCOPES.READ_AI };
 }
 
 export async function connectWithKey(input: {
