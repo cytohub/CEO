@@ -147,10 +147,13 @@ What happens:
   balances. Only complete months are recorded, so a half-finished month never
   looks like a drop.
 - Scoreboard: revenue per month, trailing-12-month revenue, revenue run-rate
-  (last complete month × 12), operating expenses, net income, and cash per
-  books. If Brex is not connected, QuickBooks also provides cash on hand and
-  net burn (the 3-month average net loss), which drive runway.
-- When a month closes, the brief says how it went.
+  (last complete month × 12), operating expenses and net income. Without
+  Brex, QuickBooks also provides cash on hand and net burn (the 3-month
+  average net loss), which drive runway; with Brex connected it reports its
+  bank balance as "cash per books" instead.
+- About ten days after a month ends, when the books are usually closed, the
+  brief says how the month went. Figures keep updating if entries are
+  posted later.
 
 ## 4. Brex
 
@@ -167,7 +170,9 @@ What happens:
   balance separately as "cash per books" so you can see reconciliation gaps.
 - **Net burn** per month is cash out minus cash in across the Brex cash
   accounts (cash basis), for the last six complete months and every month
-  after. Runway = cash on hand ÷ the latest month's net burn.
+  after. Transfers between CytoHub's own Brex accounts are left out. Runway =
+  cash on hand ÷ the average net burn of the last three months, so one
+  month with a large inflow doesn't blank it.
 - **Card spend** per month, when the token can read card transactions.
 - Single payments of $50,000 or more, in or out, appear in the brief.
 - Brex disables tokens that go unused for 90 days; the hourly sync keeps this

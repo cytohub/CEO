@@ -45,7 +45,7 @@ export const DERIVED_METRICS: Record<string, { label: string; description: strin
   "derived:fundraising.committed": { label: "Round committed", description: "Σ fundraising deals won or ≥90% probability" },
   "derived:fundraising.weighted": { label: "Weighted investor pipeline", description: "Σ open fundraising value × probability" },
   "derived:fundraising.active": { label: "Active investor conversations", description: "Count of open fundraising deals" },
-  "derived:cash.runway": { label: "Runway", description: "Latest cash on hand ÷ latest monthly net burn" },
+  "derived:cash.runway": { label: "Runway", description: "Latest cash on hand ÷ average monthly net burn over the last 3 recorded months" },
 };
 
 async function deriveValue(client: Client, sourceKey: string): Promise<number | null> {
@@ -73,9 +73,12 @@ async function deriveValue(client: Client, sourceKey: string): Promise<number | 
       return client.deal.count({ where: { type: "FUNDRAISING", status: "OPEN" } });
     case "derived:cash.runway": {
       const cash = await client.metricValue.findFirst({ where: { metric: { key: "cash_on_hand" } }, orderBy: { recordedAt: "desc" } });
-      const burn = await client.metricValue.findFirst({ where: { metric: { key: "net_burn" } }, orderBy: { recordedAt: "desc" } });
-      if (!cash || !burn || burn.value <= 0) return null;
-      return Math.round((cash.value / burn.value) * 10) / 10;
+      // Averaging three months keeps one unusual month (a large customer payment, a round
+      // closing) from making burn zero and runway blank.
+      const burns = await client.metricValue.findMany({ where: { metric: { key: "net_burn" } }, orderBy: { recordedAt: "desc" }, take: 3, select: { value: true } });
+      const burn = burns.length ? burns.reduce((s, b) => s + b.value, 0) / burns.length : 0;
+      if (!cash || burn <= 0) return null;
+      return Math.round((cash.value / burn) * 10) / 10;
     }
     default:
       return null;
