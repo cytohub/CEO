@@ -12,6 +12,7 @@ import {
   Gauge,
   Gavel,
   Handshake,
+  HeartPulse,
   Inbox,
   type LucideIcon,
   Mails,
@@ -46,6 +47,7 @@ export const NAV_GROUPS: { label: string | null; items: NavItem[] }[] = [
     label: null,
     items: [
       { href: "/", label: "Today", icon: Sun, chord: "t", match: (p) => p === "/", capability: "cockpit.view" },
+      { href: "/pulse", label: "Daily Pulse", icon: HeartPulse, chord: "y", capability: "cockpit.view" },
       { href: "/brain", label: "Brain", icon: Brain, chord: "b", match: (p) => p === "/brain", capability: "brain.view" },
       { href: "/inbox", label: "Inbox", icon: Inbox, chord: "i", badge: "inbox", capability: "cockpit.view" },
       { href: "/brain/review", label: "Review Queue", icon: ClipboardCheck, chord: "q", badge: "review", capability: "review.resolve" },

@@ -2,7 +2,7 @@
 
 import { BarChart3, Table2 } from "lucide-react";
 import { useState } from "react";
-import { dayFromKey, formatDay, formatDayLong } from "@/lib/dates";
+import { dayFromKey, formatDayLong } from "@/lib/dates";
 import { formatNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { niceAxis } from "./axis";
@@ -10,31 +10,52 @@ import { niceAxis } from "./axis";
 const PLOT_H = 140;
 
 /**
- * Items processed per day — one series, so no legend (the title names it).
- * Thin columns (≤ 24 px, 4 px rounded data-end, square at the baseline) in the
+ * A count per day — one series, so no legend (the title names it). Thin
+ * columns (≤ 24 px, 4 px rounded data-end, square at the baseline) in the
  * brand blue, hairline solid gridlines, labelled ticks, a per-bar tooltip on
  * hover and keyboard focus, and a table view with the same numbers.
+ * Defaults describe items processed (ingestion health); other pages pass
+ * their own noun and summary.
  */
-export function ProcessedChart({ series }: { series: { day: string; count: number }[] }) {
+export function ProcessedChart({
+  series,
+  noun = { one: "item", many: "items" },
+  summary,
+  label = "Items processed per day",
+}: {
+  series: { day: string; count: number }[];
+  noun?: { one: string; many: string };
+  /** Line above the chart; defaults to the total and what is counted. */
+  summary?: React.ReactNode;
+  /** Accessible name of the chart and its table. */
+  label?: string;
+}) {
   const [view, setView] = useState<"chart" | "table">("chart");
   const [active, setActive] = useState<number | null>(null);
   const max = Math.max(0, ...series.map((s) => s.count));
-  const axis = niceAxis(max);
+  const nice = niceAxis(max);
+  // Leave a step of headroom when the tallest bar would touch the top, so its label fits inside the plot.
+  const axis = max > 0 && nice.max === max ? { max: nice.max + nice.step, step: nice.step } : nice;
   const ticks = Array.from({ length: Math.floor(axis.max / axis.step) + 1 }, (_, i) => i * axis.step);
   const total = series.reduce((s, x) => s + x.count, 0);
   const peak = series.reduce((best, x, i) => (x.count > series[best].count ? i : best), 0);
   const last = series.length - 1;
-  const label = (key: string, i: number) => {
+  // Day numbers fit any column width; a new month shows its short name (the tooltip has the full date).
+  const tick = (key: string, i: number) => {
     const d = dayFromKey(key);
     const prev = i > 0 ? dayFromKey(series[i - 1].day) : null;
-    return i === 0 || (prev && prev.getUTCMonth() !== d.getUTCMonth()) ? formatDay(d) : String(d.getUTCDate());
+    return prev && prev.getUTCMonth() !== d.getUTCMonth() ? d.toLocaleDateString("en-US", { month: "short", timeZone: "UTC" }) : String(d.getUTCDate());
   };
 
   return (
     <div>
       <div className="flex items-center justify-between gap-2 px-3.5 pt-2.5">
         <p className="text-2xs text-muted-foreground">
-          <span className="font-medium text-foreground tabular">{formatNumber(total)}</span> items in {series.length} days · processed or skipped as noise, by day in your timezone
+          {summary ?? (
+            <>
+              <span className="font-medium text-foreground tabular">{formatNumber(total)}</span> {total === 1 ? noun.one : noun.many} in {series.length} days · processed or skipped as noise, by day in your timezone
+            </>
+          )}
         </p>
         <div className="flex rounded-md border border-border p-0.5" role="group" aria-label="View">
           {(["chart", "table"] as const).map((v) => (
@@ -67,7 +88,7 @@ export function ProcessedChart({ series }: { series: { day: string; count: numbe
               {ticks.map((t) => (
                 <div key={t} aria-hidden className={cn("absolute inset-x-0 h-px", t === 0 ? "bg-border" : "bg-hairline")} style={{ top: PLOT_H - (t / axis.max) * PLOT_H }} />
               ))}
-              <ul className="absolute inset-0 flex items-end gap-0.5" aria-label="Items processed per day">
+              <ul className="absolute inset-0 flex items-end gap-0.5" aria-label={label}>
                 {series.map((s, i) => {
                   const h = axis.max ? (s.count / axis.max) * PLOT_H : 0;
                   const showLabel = (i === peak && s.count > 0) || (i === last && s.count > 0);
@@ -76,7 +97,7 @@ export function ProcessedChart({ series }: { series: { day: string; count: numbe
                       <button
                         type="button"
                         className="group relative flex h-full w-full items-end justify-center rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                        aria-label={`${formatDayLong(dayFromKey(s.day))}: ${formatNumber(s.count)} items`}
+                        aria-label={`${formatDayLong(dayFromKey(s.day))}: ${formatNumber(s.count)} ${s.count === 1 ? noun.one : noun.many}`}
                         onPointerEnter={() => setActive(i)}
                         onFocus={() => setActive(i)}
                         onBlur={() => setActive(null)}
@@ -101,7 +122,9 @@ export function ProcessedChart({ series }: { series: { day: string; count: numbe
                           )}
                           style={{ bottom: Math.min(PLOT_H - 30, h + 6) }}
                         >
-                          <div className="text-xs font-semibold text-foreground tabular">{formatNumber(s.count)} items</div>
+                          <div className="text-xs font-semibold text-foreground tabular">
+                            {formatNumber(s.count)} {s.count === 1 ? noun.one : noun.many}
+                          </div>
                           <div className="text-[12px] text-muted-foreground">{formatDayLong(dayFromKey(s.day))}</div>
                         </div>
                       )}
@@ -115,7 +138,7 @@ export function ProcessedChart({ series }: { series: { day: string; count: numbe
             <div className="mt-1 flex gap-0.5" aria-hidden>
               {series.map((s, i) => (
                 <span key={s.day} className={cn("flex-1 truncate text-center text-[12px] text-muted-foreground tabular", (last - i) % 2 === 1 && "max-sm:invisible")}>
-                  {label(s.day, i)}
+                  {tick(s.day, i)}
                 </span>
               ))}
             </div>
@@ -124,11 +147,11 @@ export function ProcessedChart({ series }: { series: { day: string; count: numbe
       ) : (
         <div className="max-h-[220px] overflow-y-auto px-3.5 pt-2 pb-3 scrollbar-thin">
           <table className="w-full text-xs">
-            <caption className="sr-only">Items processed per day</caption>
+            <caption className="sr-only">{label}</caption>
             <thead>
               <tr className="border-b border-hairline text-left text-2xs text-muted-foreground">
                 <th scope="col" className="py-1 font-medium">Day</th>
-                <th scope="col" className="py-1 text-right font-medium">Items</th>
+                <th scope="col" className="py-1 text-right font-medium">{noun.many.charAt(0).toUpperCase() + noun.many.slice(1)}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-hairline">
