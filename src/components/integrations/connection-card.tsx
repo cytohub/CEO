@@ -21,7 +21,7 @@ import { KIND_ICON } from "./kind-icons";
 import { timeUntil } from "./labels";
 import { RunsTable } from "./runs-table";
 
-const FREQUENCIES: SyncFrequency[] = ["MANUAL", "HOURLY", "DAILY", "REALTIME"];
+const FREQUENCIES: SyncFrequency[] = ["WORK_HOURS", "HOURLY", "DAILY", "REALTIME", "MANUAL"];
 const SENSITIVITIES: Sensitivity[] = ["INTERNAL", "CONFIDENTIAL", "RESTRICTED"];
 
 function When({ instant, now, timezone, future }: { instant: Date | null; now: Date; timezone: string; future?: boolean }) {

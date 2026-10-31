@@ -119,8 +119,11 @@ Dropbox app setup, and hosting on Vercel instead.
 
 ## Daily Brain Refresh
 
-The refresh runs on a schedule, on demand from the cockpit ("Run morning refresh"),
-or from the CLI. A run:
+The ingestion worker runs it for the morning brief at 6:30 AM every day and
+again hourly on weekdays until 7 PM (CEO's timezone; `src/lib/live-schedule.ts`).
+Later runs add what's new to the day's brief and leave it alone when nothing
+is. It also runs on demand from the cockpit ("Run morning refresh"), from the
+CLI, or from the cron route where no worker runs. A run:
 
 1. **Ingests**: syncs every email, calendar and document connection
    incrementally and drains the ingestion pipeline (extraction, resolution,
@@ -176,8 +179,9 @@ Sign-in apps use the authorization code flow with state (and PKCE where the
 vendor supports it); tokens and pasted keys are encrypted with
 `CYTOHUB_ENCRYPTION_KEY` (required in production), checked with the vendor
 before they are stored, and never sent to a browser. Each connection has a
-sync frequency — Manual, Hourly, Daily or Webhook (with an hourly safety
-sync). Step-by-step setup for every vendor: [docs/CONNECTORS.md](docs/CONNECTORS.md).
+sync frequency — Hourly in work hours (weekdays 7 AM–7 PM in the CEO's
+timezone, the default), Hourly around the clock, Daily, Manual, or Webhook
+(with an hourly safety sync). Step-by-step setup for every vendor: [docs/CONNECTORS.md](docs/CONNECTORS.md).
 
 ## Roles and access
 

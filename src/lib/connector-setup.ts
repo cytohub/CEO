@@ -38,7 +38,7 @@ export const KEY_SETUP: Partial<Record<SourceProvider, KeySetup>> = {
       "Copy the token and paste it here.",
     ],
     permissions: ["Cash accounts (read)", "Cash transactions (read)", "Card transactions (read)"],
-    note: "Brex expires tokens that go unused for 90 days; the hourly sync keeps this one active.",
+    note: "Brex expires tokens that go unused for 90 days; the weekday syncs keep this one active.",
     docsUrl: "https://developer.brex.com/docs/authentication/",
   },
   GRANOLA: {
@@ -46,7 +46,7 @@ export const KEY_SETUP: Partial<Record<SourceProvider, KeySetup>> = {
     steps: [
       "In Granola, open Settings → Connectors → API keys. The API needs a Business or Enterprise plan.",
       "Create a key and copy it.",
-      "Paste it here. Notes from the last 90 days are imported first, then new notes every hour.",
+      "Paste it here. Notes from the last 90 days are imported first, then new notes every hour through the working day.",
     ],
     permissions: ["Read notes (the key is read-only)"],
     note: "Your private notes are included only for notes you created, because the key belongs to you.",

@@ -58,7 +58,11 @@ export const HANDLERS: Record<JobType, JobHandler> = {
     return { rescored: updated, top5: top.length };
   },
   DAILY_BRAIN_REFRESH: async () => {
-    // Dynamic import: the refresh itself drains this queue.
+    // Dynamic imports: the refresh itself drains this queue.
+    const { refreshInProgress } = await import("@/server/brain/schedule");
+    // Someone started one by hand a moment ago; two at once would only repeat the work.
+    const running = await refreshInProgress();
+    if (running) return { skipped: "A Brain refresh is already running", refreshId: running.id };
     const { runBrainRefresh } = await import("@/server/brain/refresh");
     const outcome = await runBrainRefresh({ trigger: "SCHEDULED" });
     if (outcome.status === "FAILED") throw new Error(outcome.error ?? "Daily Brain Refresh failed");

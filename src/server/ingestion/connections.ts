@@ -180,7 +180,7 @@ export async function createDemoConnection(
       accountEmail: DEMO_ACCOUNT_EMAIL,
       externalAccountId: `demo:${provider.toLowerCase()}`,
       status: "CONNECTED",
-      syncFrequency: "HOURLY",
+      syncFrequency: "WORK_HOURS",
       scopes: [...PROVIDER_SCOPES[provider].filter((s) => !["openid", "email", "offline_access"].includes(s)), DEMO_SCOPE_NOTE],
       settings: {
         demoAnchor: anchor.toISOString(),

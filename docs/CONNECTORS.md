@@ -53,8 +53,8 @@ Keys and secrets to calendar:
 | Secret | Expires | What to do |
 | --- | --- | --- |
 | Microsoft client secret | The date you chose (max 24 months) | Create a new secret before then and update `.env` |
-| QuickBooks refresh token | 100 days without a sync (syncs run hourly) | Reconnect if a connection was paused that long |
-| Brex user token | 90 days without use (syncs run hourly) | Replace the key in Settings |
+| QuickBooks refresh token | 100 days without a sync (syncs run every weekday) | Reconnect if a connection was paused that long |
+| Brex user token | 90 days without use (syncs run every weekday) | Replace the key in Settings |
 | DocuSign refresh token | Renewed automatically with the `extended` scope | Reconnect if DocuSign asks |
 | HubSpot service key, Granola key | Until revoked | Replace the key if you rotate it |
 
@@ -252,9 +252,27 @@ it what matters.
 ## 9. The first refresh
 
 On **Today**, run the morning refresh once everything is connected. It takes a
-minute or two the first time. From then on the server runs it every morning
-(10:30 UTC by default) and the setup checklist on Today disappears once every
-step is done.
+minute or two the first time. The setup checklist on Today disappears once
+every step is done.
+
+## 10. Live updates
+
+From then on the server keeps everything current by itself, in your timezone
+(set on your profile):
+
+| When | What happens |
+| --- | --- |
+| Weekdays, every hour 7 AM–7 PM | Each connection on **Hourly, work hours** (the default) syncs: mail, calendar, Teams, HubSpot, QuickBooks, Brex, DocuSign, Granola |
+| The moment a meeting ends | Read AI sends its report (webhook) |
+| 6:30 AM every day | The Brain writes the morning brief |
+| Weekdays, every hour 8 AM–7 PM | The Brain updates: new deals, payments, signature requests and meeting notes become Inbox items and appear on the Daily Pulse; today's brief gains what's new |
+| Overnight and at weekends | Quiet, apart from webhooks and the morning brief |
+
+The **Daily Pulse** shows when it last synced and when the next update is due,
+and refreshes itself while it's open. If a sync falls more than a couple of
+hours behind during work hours, it says so and links here. To sync a source
+around the clock or once a day instead, change its **Sync frequency** in
+Settings → Integrations; **Run sync now** pulls immediately.
 
 ## Troubleshooting
 

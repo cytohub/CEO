@@ -79,10 +79,26 @@ describe("pipeline plumbing", () => {
 
   it("schedules syncs by frequency and backs off after failures", () => {
     const from = new Date("2026-10-06T12:00:00Z");
-    assert.equal(nextSyncTime({ syncFrequency: "MANUAL", consecutiveFailures: 0 }, from), null);
-    assert.equal(nextSyncTime({ syncFrequency: "HOURLY", consecutiveFailures: 0 }, from)?.toISOString(), "2026-10-06T13:00:00.000Z");
-    assert.equal(nextSyncTime({ syncFrequency: "DAILY", consecutiveFailures: 0 }, from)?.toISOString(), "2026-10-07T12:00:00.000Z");
-    const failing = nextSyncTime({ syncFrequency: "HOURLY", consecutiveFailures: 5 }, from)!;
+    const tz = "America/New_York";
+    assert.equal(nextSyncTime({ syncFrequency: "MANUAL", consecutiveFailures: 0 }, from, tz), null);
+    assert.equal(nextSyncTime({ syncFrequency: "HOURLY", consecutiveFailures: 0 }, from, tz)?.toISOString(), "2026-10-06T13:00:00.000Z");
+    assert.equal(nextSyncTime({ syncFrequency: "DAILY", consecutiveFailures: 0 }, from, tz)?.toISOString(), "2026-10-07T12:00:00.000Z");
+    const failing = nextSyncTime({ syncFrequency: "HOURLY", consecutiveFailures: 5 }, from, tz)!;
     assert.equal(failing.getTime() - from.getTime(), 240 * 60_000);
+  });
+
+  it("keeps work-hours syncs to weekdays, 7 AM–7 PM in the CEO's timezone", () => {
+    const tz = "America/New_York";
+    const next = (iso: string, failures = 0) => nextSyncTime({ syncFrequency: "WORK_HOURS", consecutiveFailures: failures }, new Date(iso), tz)?.toISOString();
+    // Tuesday 08:00 EDT → 09:00 EDT.
+    assert.equal(next("2026-10-06T12:00:00Z"), "2026-10-06T13:00:00.000Z");
+    // Tuesday 18:30 EDT → 19:30 is after hours → Wednesday 07:00 EDT.
+    assert.equal(next("2026-10-06T22:30:00Z"), "2026-10-07T11:00:00.000Z");
+    // Friday 18:10 EDT → Monday 07:00 EDT.
+    assert.equal(next("2026-10-09T22:10:00Z"), "2026-10-12T11:00:00.000Z");
+    // Across the DST change: Friday Oct 30 18:30 EDT → Monday Nov 2 07:00 EST.
+    assert.equal(next("2026-10-30T22:30:00Z"), "2026-11-02T12:00:00.000Z");
+    // Backoff still applies inside the window: 4 h after Tuesday 08:00 EDT.
+    assert.equal(next("2026-10-06T12:00:00Z", 5), "2026-10-06T16:00:00.000Z");
   });
 });

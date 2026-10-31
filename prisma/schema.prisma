@@ -1423,6 +1423,8 @@ enum ConnectionStatus {
 
 enum SyncFrequency {
   MANUAL
+  /// Hourly on weekdays, 7 AM–7 PM in the CEO's timezone; quiet overnight and at weekends.
+  WORK_HOURS
   HOURLY
   DAILY
   REALTIME
@@ -1608,7 +1610,7 @@ model SourceConnection {
   accountEmail        String?
   externalAccountId   String?
   status              ConnectionStatus @default(CONNECTED)
-  syncFrequency       SyncFrequency    @default(HOURLY)
+  syncFrequency       SyncFrequency    @default(WORK_HOURS)
   scopes              String[]
   /// AES-256-GCM encrypted JSON token set. Never sent to the client.
   credentials         String?

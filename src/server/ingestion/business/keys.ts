@@ -115,7 +115,7 @@ export async function connectWithKey(input: {
   } else {
     connection = await db.sourceConnection.create({
       // Webhook sources are pushed to, never polled.
-      data: { ...common, kind: meta.kind, provider: input.provider, label, syncFrequency: meta.auth === "webhook" ? "MANUAL" : "HOURLY" },
+      data: { ...common, kind: meta.kind, provider: input.provider, label, syncFrequency: meta.auth === "webhook" ? "MANUAL" : "WORK_HOURS" },
     });
   }
   if (brainSourceId) await db.brainSource.update({ where: { id: brainSourceId }, data: { status: "CONNECTED", error: null } }).catch(() => {});

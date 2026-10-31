@@ -12,11 +12,15 @@
  *   6. Prioritize rescore all open work; refresh delegation advice; Top 5
  *   7. Brief     compose the CEO Daily Intelligence Brief
  *   8. Record    refresh stats + activity log (history feeds tomorrow's run)
+ *
+ * The worker runs this for the morning brief and again hourly through the
+ * working day (lib/live-schedule). Later runs add to the day's brief instead
+ * of replacing it, and leave it alone when they find nothing new.
  */
 import type { BrainInsight, Prisma } from "@/generated/prisma/client";
 import type { RefreshTrigger } from "@/generated/prisma/enums";
 import { db } from "@/lib/db";
-import { addDays } from "@/lib/dates";
+import { addDays, dayStartInstant, DAY_MS } from "@/lib/dates";
 import { loadCeoContext } from "@/server/context";
 import { getPriorityWeights, getThresholds } from "@/server/settings";
 import { analyzeSignals } from "./analyzers/signals";
@@ -60,6 +64,18 @@ export async function runBrainRefresh(opts: { trigger?: RefreshTrigger; now?: Da
     orderBy: { startedAt: "desc" },
   });
   const since = previous?.completedAt ?? previous?.startedAt ?? new Date(now.getTime() - 24 * 3_600_000);
+
+  // Earlier runs today (the morning brief, hourly updates): this run adds to their brief.
+  const dayStart = dayStartInstant(ceo.today, ceo.timezone);
+  const earlierToday = await db.brainRefresh.findMany({
+    where: { status: { in: ["SUCCEEDED", "PARTIAL"] }, startedAt: { gte: dayStart, lt: now } },
+    select: { id: true, signalsScanned: true, tasksCreated: true, milestonesChanged: true, inboxCreated: true },
+  });
+  const beforeToday = earlierToday.length
+    ? await db.brainRefresh.findFirst({ where: { status: { in: ["SUCCEEDED", "PARTIAL"] }, startedAt: { lt: dayStart } }, orderBy: { startedAt: "desc" } })
+    : null;
+  const briefSince = earlierToday.length ? (beforeToday?.completedAt ?? beforeToday?.startedAt ?? new Date(dayStart.getTime() - DAY_MS)) : since;
+  const sumToday = (key: "signalsScanned" | "tasksCreated" | "milestonesChanged" | "inboxCreated") => earlierToday.reduce((n, r) => n + r[key], 0);
 
   const refresh = await db.brainRefresh.create({
     data: { trigger: opts.trigger ?? "MANUAL", status: "RUNNING", startedAt: now },
@@ -174,7 +190,7 @@ export async function runBrainRefresh(opts: { trigger?: RefreshTrigger; now?: Da
         const goalsMoved = await syncGoalProgressFromMetrics(tx, ctx.today);
         ctx.log("prioritize", `Top 5 recommended; ${goalsMoved} measured goal${goalsMoved === 1 ? "" : "s"} updated from the scoreboard`);
 
-        // 7. Brief
+        // 7. Brief — the whole day's findings, not only this run's.
         const stats = {
           newInsights: created.length,
           requiresCeo: created.filter((c) => c.requiresCeo).length,
@@ -184,8 +200,33 @@ export async function runBrainRefresh(opts: { trigger?: RefreshTrigger; now?: Da
           milestonesChanged: ms.changed,
           inboxCreated,
         };
-        const brief = await composeBrief(ctx, { newInsights: created, stats, topPriorityTaskIds: top });
-        ctx.log("brief", "Daily Intelligence Brief composed");
+        const foundNew = created.length > 0 || inboxCreated > 0;
+        const todaysBrief = earlierToday.length ? await tx.dailyBrief.findUnique({ where: { date: ctx.today }, select: { id: true } }) : null;
+        let brief: { id: string } | null = todaysBrief;
+        if (!todaysBrief || foundNew) {
+          const earlier = earlierToday.length
+            ? await tx.brainInsight.findMany({ where: { refreshId: { in: earlierToday.map((r) => r.id) }, status: { not: "DISMISSED" } } })
+            : [];
+          const ids = new Set(created.map((c) => c.id));
+          const dayInsights = [...created, ...earlier.filter((i) => !ids.has(i.id))];
+          brief = await composeBrief(ctx, {
+            newInsights: dayInsights,
+            since: briefSince,
+            stats: {
+              ...stats,
+              newInsights: dayInsights.length,
+              requiresCeo: dayInsights.filter((c) => c.requiresCeo).length,
+              signalsProcessed: stats.signalsProcessed + sumToday("signalsScanned"),
+              tasksCreated: stats.tasksCreated + sumToday("tasksCreated"),
+              milestonesChanged: stats.milestonesChanged + sumToday("milestonesChanged"),
+              inboxCreated: stats.inboxCreated + sumToday("inboxCreated"),
+            },
+            topPriorityTaskIds: top,
+          });
+          ctx.log("brief", earlierToday.length ? "Today's brief updated with new findings" : "Daily Intelligence Brief composed");
+        } else {
+          ctx.log("brief", "Nothing new since the last update; today's brief unchanged");
+        }
 
         // 8. Record
         const failedSources = sourceResults.filter((r) => r.status === "error");
@@ -205,17 +246,21 @@ export async function runBrainRefresh(opts: { trigger?: RefreshTrigger; now?: Da
             log: log as unknown as Prisma.InputJsonValue,
           },
         });
-        await tx.activity.create({
-          data: {
-            type: "BRAIN_REFRESH",
-            summary: `Daily Brain Refresh: ${created.length} new insights, ${inboxCreated} items for the CEO inbox`,
-            actor: "CytoHub Brain",
-            metadata: stats,
-            createdAt: now,
-          },
-        });
+        // Quiet hourly updates stay out of the activity feed.
+        if (!earlierToday.length || foundNew) {
+          await tx.activity.create({
+            data: {
+              type: "BRAIN_REFRESH",
+              summary: `${earlierToday.length ? "Brain update" : "Daily Brain Refresh"}: ${created.length} new insights, ${inboxCreated} items for the CEO inbox`,
+              actor: "CytoHub Brain",
+              metadata: stats,
+              createdAt: now,
+            },
+          });
+        }
         return {
-          briefId: brief.id,
+          briefId: brief?.id ?? null,
+          briefChanged: brief !== todaysBrief,
           created: created.length,
           inboxCreated,
           tasksCreated: signalStage.tasksCreated,
@@ -225,8 +270,8 @@ export async function runBrainRefresh(opts: { trigger?: RefreshTrigger; now?: Da
       { timeout: 120_000, maxWait: 10_000 },
     );
 
-    // Best-effort narrative upgrade outside the transaction.
-    await enhanceBriefWithClaude(db, result.briefId).catch((e) => console.error("[brain] brief narrative failed", e));
+    // Best-effort narrative upgrade outside the transaction, only when the brief changed.
+    if (result.briefId && result.briefChanged) await enhanceBriefWithClaude(db, result.briefId).catch((e) => console.error("[brain] brief narrative failed", e));
 
     return {
       refreshId: refresh.id,

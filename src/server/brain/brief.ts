@@ -53,6 +53,8 @@ export async function composeBrief(
     newInsights: BrainInsight[];
     stats: BriefSections["stats"];
     topPriorityTaskIds: string[];
+    /** Start of the window the brief covers (defaults to the previous refresh). */
+    since?: Date;
   },
 ) {
   const sections: Partial<Record<BriefSectionKey, BriefItem[]>> = {};
@@ -152,7 +154,7 @@ export async function composeBrief(
     sections,
     stats: input.stats,
     topPriorityTaskIds: input.topPriorityTaskIds,
-    since: ctx.since.toISOString(),
+    since: (input.since ?? ctx.since).toISOString(),
     narrativeEngine: "rules",
   };
 

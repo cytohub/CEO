@@ -5,6 +5,7 @@ import { z } from "zod";
 import { Sensitivity, SourceProvider, SyncFrequency } from "@/generated/prisma/enums";
 import { db } from "@/lib/db";
 import { SOURCE_PROVIDERS, SYNC_FREQUENCY } from "@/lib/intelligence";
+import { nextWorkHoursInstant } from "@/lib/live-schedule";
 import { getCeoContext } from "@/server/context";
 import { KeyConnectError, connectWithKey } from "@/server/ingestion/business/keys";
 import { createDemoConnection, disconnectConnection } from "@/server/ingestion/connections";
@@ -52,10 +53,13 @@ export async function updateConnectionSettings(connectionId: string, input: z.in
 
     // A new frequency reschedules the next sync from the last one (or now).
     const frequency = data.syncFrequency ?? conn.syncFrequency;
-    const nextSyncAt = data.syncFrequency ? nextSyncTime({ syncFrequency: frequency, consecutiveFailures: conn.consecutiveFailures }, conn.lastSyncAt ?? new Date()) : undefined;
+    const now = new Date();
+    const { timezone } = await getCeoContext();
+    const scheduled = data.syncFrequency ? nextSyncTime({ syncFrequency: frequency, consecutiveFailures: conn.consecutiveFailures }, conn.lastSyncAt ?? now, timezone) : undefined;
+    const nextSyncAt = scheduled && scheduled < now ? (frequency === "WORK_HOURS" ? nextWorkHoursInstant(now, timezone) : now) : scheduled;
     await db.sourceConnection.update({
       where: { id: connectionId },
-      data: { ...data, ...(nextSyncAt !== undefined ? { nextSyncAt: nextSyncAt && nextSyncAt < new Date() ? new Date() : nextSyncAt } : {}) },
+      data: { ...data, ...(nextSyncAt !== undefined ? { nextSyncAt } : {}) },
     });
     await audit({ action: "connection.update", viewer, targetType: "SourceConnection", targetId: connectionId, metadata: { provider: conn.provider, changes } });
     revalidateIntegrations();

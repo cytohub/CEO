@@ -134,7 +134,7 @@ export async function syncBusinessConnection(pipeline: PipelineContext, connecti
         lastSuccessAt: now,
         lastError: null,
         consecutiveFailures: 0,
-        nextSyncAt: nextSyncTime({ syncFrequency: conn.syncFrequency, consecutiveFailures: 0 }, now),
+        nextSyncAt: nextSyncTime({ syncFrequency: conn.syncFrequency, consecutiveFailures: 0 }, now, pipeline.ceo.timezone),
         itemsIngested: { increment: counters.created },
       },
     });
@@ -162,7 +162,7 @@ export async function syncBusinessConnection(pipeline: PipelineContext, connecti
         lastError: message,
         lastErrorAt: now,
         consecutiveFailures: failures,
-        nextSyncAt: nextSyncTime({ syncFrequency: conn.syncFrequency, consecutiveFailures: failures }, now),
+        nextSyncAt: nextSyncTime({ syncFrequency: conn.syncFrequency, consecutiveFailures: failures }, now, pipeline.ceo.timezone),
       },
     });
     throw error;

@@ -92,6 +92,22 @@ export function dayStartInstant(day: Date, timeZone: string): Date {
   return offset2 === offsetMin ? candidate : new Date(day.getTime() - offset2 * 60_000);
 }
 
+/** The instant a local wall-clock time occurs on a calendar day (07:00 in New York on that day). */
+export function zonedInstant(day: Date, minuteOfDay: number, timeZone: string): Date {
+  const wall = day.getTime() + minuteOfDay * 60_000;
+  const offsetMin = tzOffsetMinutes(new Date(wall), timeZone);
+  const candidate = new Date(wall - offsetMin * 60_000);
+  // Re-check across DST boundaries.
+  const offset2 = tzOffsetMinutes(candidate, timeZone);
+  return offset2 === offsetMin ? candidate : new Date(wall - offset2 * 60_000);
+}
+
+/** Minutes after local midnight (0–1439) for the instant in the timezone. */
+export function minuteOfDayInTz(instant: Date, timeZone: string): number {
+  const local = instant.getTime() + tzOffsetMinutes(instant, timeZone) * 60_000;
+  return Math.floor((((local % DAY_MS) + DAY_MS) % DAY_MS) / 60_000);
+}
+
 /** Minutes the timezone is ahead of UTC at the given instant. */
 export function tzOffsetMinutes(instant: Date, timeZone: string): number {
   const dtf = new Intl.DateTimeFormat("en-US", {

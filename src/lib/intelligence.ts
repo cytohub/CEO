@@ -249,7 +249,8 @@ export const CONNECTION_STATUS: Record<ConnectionStatus, Meta> = {
 
 export const SYNC_FREQUENCY: Record<SyncFrequency, { label: string; description: string; minutes: number | null }> = {
   MANUAL: { label: "Manual", description: "Only when you run a sync.", minutes: null },
-  HOURLY: { label: "Hourly", description: "Incremental sync every hour.", minutes: 60 },
+  WORK_HOURS: { label: "Hourly, work hours", description: "Every hour on weekdays, 7 AM–7 PM your time. Quiet overnight and at weekends.", minutes: 60 },
+  HOURLY: { label: "Hourly, around the clock", description: "Every hour, day and night.", minutes: 60 },
   DAILY: { label: "Daily", description: "Once a day, before the Daily Brain Refresh.", minutes: 24 * 60 },
   REALTIME: { label: "Near real-time", description: "Provider webhooks, with an hourly safety sync.", minutes: 60 },
 };

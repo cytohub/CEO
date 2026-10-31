@@ -6,6 +6,7 @@
 import type { ConnectionMode, ConnectionStatus, RunStatus, RunTrigger, Sensitivity, SourceKind, SourceProvider, SyncFrequency } from "@/generated/prisma/enums";
 import { db } from "@/lib/db";
 import { type ProviderAuth, SOURCE_KINDS, SOURCE_PROVIDERS } from "@/lib/intelligence";
+import { nextWorkHoursInstant } from "@/lib/live-schedule";
 import { getCeoContext } from "@/server/context";
 import { providerAvailability } from "@/server/ingestion/providers/availability";
 import { appOrigin, providerSlug } from "@/server/ingestion/providers/oauth";
@@ -269,7 +270,8 @@ export async function getIntegrationsData(origin: string | null = null): Promise
       lastErrorAt: c.lastErrorAt,
       lastSyncAt: c.lastSyncAt,
       lastSuccessAt: c.lastSuccessAt,
-      nextSyncAt: c.syncFrequency === "MANUAL" ? null : c.nextSyncAt,
+      // Work-hours connections that come due overnight or at the weekend wait for the next opening.
+      nextSyncAt: c.syncFrequency === "MANUAL" ? null : c.syncFrequency === "WORK_HOURS" && c.nextSyncAt ? nextWorkHoursInstant(c.nextSyncAt < now ? now : c.nextSyncAt, ceo.timezone) : c.nextSyncAt,
       itemsIngested: c.itemsIngested,
       syncFrequency: c.syncFrequency,
       includeNoise: c.includeNoise,

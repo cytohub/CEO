@@ -622,7 +622,7 @@ async function completeSync(state: SyncState, cursor: SyncCursor | null) {
       lastSuccessAt: ctx.now,
       lastError: null,
       consecutiveFailures: 0,
-      nextSyncAt: nextSyncTime({ syncFrequency: conn.syncFrequency, consecutiveFailures: 0 }, ctx.now),
+      nextSyncAt: nextSyncTime({ syncFrequency: conn.syncFrequency, consecutiveFailures: 0 }, ctx.now, ctx.ceo.timezone),
       itemsIngested: { increment: counters.created },
     },
   });
@@ -663,7 +663,7 @@ async function recordFailure(state: SyncState, cursor: SyncCursor | null, error:
       lastError: message,
       lastErrorAt: ctx.now,
       consecutiveFailures: failures,
-      nextSyncAt: nextSyncTime({ syncFrequency: conn.syncFrequency, consecutiveFailures: failures }, ctx.now),
+      nextSyncAt: nextSyncTime({ syncFrequency: conn.syncFrequency, consecutiveFailures: failures }, ctx.now, ctx.ceo.timezone),
       itemsIngested: { increment: counters.created },
     },
   });

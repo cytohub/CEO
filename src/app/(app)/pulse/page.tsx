@@ -4,11 +4,13 @@ import Link from "next/link";
 import { EmptyState, PageHeader } from "@/components/common/bits";
 import { StatusPill, TONE_DOT, TONE_TEXT } from "@/components/common/status";
 import { ProcessedChart } from "@/components/health/processed-chart";
+import { LiveRefresh } from "@/components/pulse/live-refresh";
 import { Button } from "@/components/ui/button";
-import { dayFromKey, formatDay, formatDayFull, formatDayLong, relativeDay } from "@/lib/dates";
+import { dayFromKey, dayKeyInTz, formatDateTime, formatDay, formatDayFull, formatDayLong, formatTime, relativeDay, timeAgo } from "@/lib/dates";
 import { formatNumber } from "@/lib/format";
+import { inWorkHours, WORK_HOURS_LABEL } from "@/lib/live-schedule";
 import { cn } from "@/lib/utils";
-import { getPulseData, type PulseFlag } from "@/server/queries/pulse";
+import { getPulseData, type PulseData, type PulseFlag } from "@/server/queries/pulse";
 import { requirePage } from "@/server/security/session";
 
 export const metadata: Metadata = { title: "Daily Pulse" };
@@ -32,6 +34,61 @@ function FlagTile({ flag }: { flag: PulseFlag }) {
   );
 }
 
+/** Minutes since the last sync after which, during work hours, the page says it’s behind. */
+const STALE_MINUTES = 150;
+
+function Freshness({ f, timezone }: { f: PulseData["freshness"]; timezone: string }) {
+  const integrations = (label: string) => (
+    <Link href="/settings/integrations" className="font-medium text-brand hover:underline">
+      {label}
+    </Link>
+  );
+  if (!f.sources || !f.lastSync) {
+    return (
+      <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+        <span className={cn("size-2 rounded-full", TONE_DOT.neutral)} aria-hidden />
+        {f.sources ? "Connected — waiting for the first sync." : "No live sources yet."}
+        {integrations(f.sources ? "See Integrations →" : "Connect them in Integrations →")}
+      </p>
+    );
+  }
+  const behind =
+    f.hourlySources > 0 && inWorkHours(f.now, timezone) && (!f.lastHourlySync || f.now.getTime() - f.lastHourlySync.getTime() > STALE_MINUTES * 60_000);
+  const nextDay = dayKeyInTz(f.nextBrain, timezone);
+  const next =
+    nextDay === dayKeyInTz(f.now, timezone)
+      ? formatTime(f.nextBrain, timezone)
+      : nextDay === dayKeyInTz(new Date(f.now.getTime() + 86_400_000), timezone)
+        ? `tomorrow, ${formatTime(f.nextBrain, timezone)}`
+        : formatDateTime(f.nextBrain, timezone);
+  const items = [
+    <>
+      Synced {timeAgo(f.lastSync, f.now)}
+      {behind && <> — {integrations("check Integrations")}</>}
+    </>,
+    f.lastBrain && <>Brain updated {timeAgo(f.lastBrain, f.now)}</>,
+    <>Next update {next}</>,
+    <>Hourly on {WORK_HOURS_LABEL}</>,
+  ].filter(Boolean);
+  return (
+    <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground max-sm:gap-x-3">
+      <span className={cn("inline-flex items-center gap-1.5 font-medium", behind ? "text-warning-ink" : "text-foreground")}>
+        <span className={cn("size-2 rounded-full", TONE_DOT[behind ? "warning" : "good"])} aria-hidden />
+        {behind ? "Behind schedule" : "Live"}
+      </span>
+      {items.map((item, i) => (
+        <span key={i}>
+          {/* Phones wrap without separators rather than leave one dangling. */}
+          <span aria-hidden className="mr-2 max-sm:hidden">
+            ·
+          </span>
+          {item}
+        </span>
+      ))}
+    </p>
+  );
+}
+
 /**
  * Daily Pulse: where things stand today on one page — the Brain's takeaway,
  * standing flags, the calls only the CEO can make, the investor pipeline and
@@ -44,28 +101,32 @@ export default async function PulsePage() {
 
   return (
     <div className="mx-auto max-w-[1440px] space-y-7">
-      <PageHeader
-        className="pb-0"
-        eyebrow={`CytoHub · Daily Pulse · ${formatDayFull(d.today)}`}
-        title="Where things stand today"
-        description={
-          d.takeaway ? (
-            <>
-              {d.takeaway.text}
-              {!d.takeaway.isToday && <span className="text-ink-3"> (from the {formatDayLong(d.takeaway.date)} brief)</span>}
-            </>
-          ) : (
-            "No Daily Brief yet. Run the morning refresh on Today and the Brain's takeaway appears here."
-          )
-        }
-        actions={
-          <Button size="sm" variant="outline" asChild>
-            <Link href="/">
-              <Sparkles aria-hidden /> Open Today
-            </Link>
-          </Button>
-        }
-      />
+      <LiveRefresh />
+      <div className="space-y-3">
+        <PageHeader
+          className="pb-0"
+          eyebrow={`CytoHub · Daily Pulse · ${formatDayFull(d.today)}`}
+          title="Where things stand today"
+          description={
+            d.takeaway ? (
+              <>
+                {d.takeaway.text}
+                {!d.takeaway.isToday && <span className="text-ink-3"> (from the {formatDayLong(d.takeaway.date)} brief)</span>}
+              </>
+            ) : (
+              "No Daily Brief yet. The Brain writes one at 6:30 each morning, or run a refresh on Today, and its takeaway appears here."
+            )
+          }
+          actions={
+            <Button size="sm" variant="outline" asChild>
+              <Link href="/">
+                <Sparkles aria-hidden /> Open Today
+              </Link>
+            </Button>
+          }
+        />
+        <Freshness f={d.freshness} timezone={d.timezone} />
+      </div>
 
       <section aria-labelledby="pulse-flags">
         <h2 id="pulse-flags" className="sr-only">

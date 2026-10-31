@@ -1,13 +1,11 @@
 # CytoHub CEO Command Center scheduled jobs, in UTC (Lightsail's Ubuntu images use UTC).
 # Install as the ubuntu user with: crontab ~/ceo/deploy/lightsail/ceo.cron
-# (this replaces that user's crontab). Syncs and the processing pipeline run
-# continuously in the worker container; these are the daily and weekly jobs.
+# (this replaces that user's crontab). Syncs, the processing pipeline and the
+# Brain's morning brief and hourly updates run in the worker container, in the
+# CEO's timezone; these are the backup and maintenance jobs.
 
 # 03:00 back up the database, keeping 14 days in ~/ceo-backups.
 0 3 * * * mkdir -p /home/ubuntu/ceo-backups && cd /home/ubuntu/ceo/deploy/lightsail && docker compose exec -T db pg_dump -U ceo -d ceo -Fc > /home/ubuntu/ceo-backups/ceo-$(date +\%F).dump && find /home/ubuntu/ceo-backups -name 'ceo-*.dump' -mtime +14 -delete
-
-# 10:30 the morning Brain refresh (06:30 in New York). Change the hour for another timezone.
-30 10 * * * cd /home/ubuntu/ceo/deploy/lightsail && docker compose exec -T web npm run -s brain:refresh >> /home/ubuntu/ceo-jobs.log 2>&1
 
 # Sundays 05:30 pick up security updates: fresh Caddy and PostgreSQL images, and
 # a rebuild of the app on the latest Node base image.

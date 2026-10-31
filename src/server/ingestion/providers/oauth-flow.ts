@@ -182,7 +182,7 @@ export async function completeOAuthFlow(input: {
     reconnected = true;
   } else {
     const created = await db.sourceConnection.create({
-      data: { ...common, kind: meta.kind, provider, label: `${meta.label} · ${identity.name && meta.kind === "FINANCE" ? identity.name : (identity.email ?? "account")}`, syncFrequency: "HOURLY" },
+      data: { ...common, kind: meta.kind, provider, label: `${meta.label} · ${identity.name && meta.kind === "FINANCE" ? identity.name : (identity.email ?? "account")}`, syncFrequency: "WORK_HOURS" },
     });
     connectionId = created.id;
   }

@@ -2,8 +2,9 @@
  * Long-running ingestion worker for self-hosted deployments:
  *   npm run ingest:worker
  *
- * Every cycle (30 s) it queues syncs that are due and drains the job queue for
- * up to 25 s. Any number of workers (and the /api/ingestion/tick cron) can run
+ * Every cycle (30 s) it queues syncs that are due, drains the job queue for
+ * up to 25 s, and queues the Brain refresh when its slot comes round (the
+ * morning brief, then hourly on weekdays — see src/lib/live-schedule.ts). Any number of workers (and the /api/ingestion/tick cron) can run
  * at once: jobs are claimed with FOR UPDATE SKIP LOCKED. SIGINT / SIGTERM stop
  * it gracefully — the job in progress finishes (or its lock expires and
  * another worker recovers it), then the database connection closes.
@@ -11,6 +12,7 @@
 import "dotenv/config";
 import { randomUUID } from "node:crypto";
 import { db } from "../src/lib/db";
+import { scheduleBrainRefresh } from "../src/server/brain/schedule";
 import { queueSummary } from "../src/server/ingestion/health";
 import { drainQueue } from "../src/server/ingestion/jobs/worker";
 import { scheduleDueSyncs } from "../src/server/ingestion/scheduler";
@@ -59,6 +61,8 @@ async function cycle(n: number) {
       waitingNoted = true;
       return;
     }
+    const brain = await scheduleBrainRefresh();
+    if (brain) console.log(`[ingest:worker] Brain update ${brain} queued`);
     const q = await queueSummary();
     console.log(
       `[ingest:worker] #${n} ${new Date().toISOString()} scheduled=${scheduled} processed=${drain.processed} ok=${drain.succeeded} failed=${drain.failed} dead=${drain.dead} ` +

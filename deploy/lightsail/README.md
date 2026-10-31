@@ -3,13 +3,14 @@
 The same setup as cytolab.ai. One Lightsail server runs everything with Docker
 Compose: the app, the ingestion worker, PostgreSQL, and
 [Caddy](https://caddyserver.com), which serves HTTPS with free Let's Encrypt
-certificates. Route 53 points `ceo.cytolab.ai` at the server, and cron runs the
-morning refresh, nightly backups and weekly updates. Allow about 45 minutes.
+certificates. Route 53 points `ceo.cytolab.ai` at the server. The worker keeps
+data live (syncs and Brain updates through the working day), and cron runs
+nightly backups and weekly updates. Allow about 45 minutes.
 
 ```
 visitor ──https──▶ Caddy (ports 80/443) ──▶ app (Next.js) ──▶ PostgreSQL
-                     certificates            worker (syncs every 30 s) ──┘   private network only
-cron 03:00 UTC ──▶ backup · 10:30 UTC ──▶ morning refresh · Sun 05:30 ──▶ security updates
+                     certificates            worker (syncs + Brain) ─────┘   private network only
+cron 03:00 UTC ──▶ backup · Sun 05:30 ──▶ security updates
 ```
 
 **Use a separate server from cytolab.ai.** This app holds the CEO's mail,
@@ -194,15 +195,28 @@ crontab -l
 These then run on their own (times in UTC):
 
 - **03:00 daily**: database backup to `~/ceo-backups`, keeping 14 days.
-- **10:30 daily**: the morning Brain refresh (06:30 in New York). To change it,
-  edit the hour in `ceo.cron` and install it again.
 - **Sundays 05:30**: security updates. Fresh Caddy and PostgreSQL images are
   pulled and the app is rebuilt on the latest Node base image, with about
   10 seconds of downtime.
 
-Email, calendar and document syncs don't need cron: the worker runs them
-continuously, hourly or daily per connection. Job output goes to
-`~/ceo-jobs.log`.
+Job output goes to `~/ceo-jobs.log`.
+
+Live updates don't need cron: the worker container runs them, in the CEO's
+timezone (set on the CEO's profile; `DEFAULT_TIMEZONE` until then):
+
+- **Syncs**: every hour on weekdays, 7 AM–7 PM, for connections on
+  "Hourly, work hours" (the default). Each connection's frequency can be
+  changed in Settings → Integrations. Read AI arrives the moment a meeting ends.
+- **The Brain**: the morning brief at 6:30 AM every day, then an update every
+  hour on weekdays until 7 PM, so new deals, payments, signature requests and
+  meeting notes reach the Inbox and the Daily Pulse within the hour.
+
+`docker compose logs -f worker` shows each cycle (`scheduled=` syncs queued,
+`Brain update … queued`).
+
+If you installed an earlier `ceo.cron` that ran the morning refresh at 10:30,
+install the current one again (the command above) to drop that line. Until you
+do, it may add an extra morning refresh, which is harmless.
 
 ## 12. Connect CytoHub's systems
 

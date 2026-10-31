@@ -5,11 +5,12 @@
  * read live from the workspace; sections that depend on a source that isn't
  * connected say which one to connect.
  */
-import type { InboxType } from "@/generated/prisma/enums";
+import type { InboxType, SyncFrequency } from "@/generated/prisma/enums";
 import type { Tone } from "@/lib/domain";
 import { db } from "@/lib/db";
 import { addDays, dayKey, dayKeyInTz, dayStartInstant, daysBetween, toDay } from "@/lib/dates";
 import { formatCurrency } from "@/lib/format";
+import { nextBrainSlot } from "@/lib/live-schedule";
 import { getCeoContext } from "@/server/context";
 
 export interface PulseFlag {
@@ -49,11 +50,23 @@ export interface PulseData {
   meetings: { day: string; count: number }[];
   meetingsWithNotes: number;
   connected: { crm: boolean; calendar: boolean; notes: boolean };
+  /** How fresh the page is: last successful sync, last Brain update, next scheduled update. */
+  freshness: {
+    now: Date;
+    lastSync: Date | null;
+    /** Last success among sources polled at least hourly (webhook-only and daily sources can't fall behind an hour). */
+    lastHourlySync: Date | null;
+    hourlySources: number;
+    lastBrain: Date | null;
+    nextBrain: Date;
+    sources: number;
+  };
 }
 
 /** Inbox items that are a call only the CEO can make. */
 const CALL_TYPES: InboxType[] = ["DECISION", "APPROVAL", "HIRING_DECISION", "ESCALATION"];
 const MEETING_DAYS = 14;
+const HOURLY_FREQUENCIES: SyncFrequency[] = ["WORK_HOURS", "HOURLY", "REALTIME"];
 const OPEN_TASK = { notIn: ["DONE", "CANCELLED"] as ("DONE" | "CANCELLED")[] };
 
 function plural(n: number, word: string) {
@@ -67,7 +80,7 @@ export async function getPulseData(): Promise<PulseData> {
   const windowStartInstant = dayStartInstant(windowStart, timezone);
   const windowEndInstant = dayStartInstant(addDays(today, 1), timezone);
 
-  const [brief, overdueTasks, overdueCommitments, risks, calls, reviewPending, deals, meetings, looseNotes, connections] = await Promise.all([
+  const [brief, overdueTasks, overdueCommitments, risks, calls, reviewPending, deals, meetings, looseNotes, connections, lastSync, hourly, lastBrain] = await Promise.all([
     db.dailyBrief.findUnique({ where: { date: today } }).then((b) => b ?? db.dailyBrief.findFirst({ orderBy: { date: "desc" } })),
     db.task.findMany({ where: { status: OPEN_TASK, dueDate: { lt: today } }, orderBy: { dueDate: "asc" }, select: { title: true, dueDate: true }, take: 50 }),
     db.commitment.findMany({ where: { status: "OPEN", direction: "OUTBOUND", dueDate: { lt: today } }, orderBy: { dueDate: "asc" }, select: { title: true, dueDate: true }, take: 50 }),
@@ -92,6 +105,9 @@ export async function getPulseData(): Promise<PulseData> {
     // Notes (Granola, Read AI, typed in) that matched no calendar meeting still count as a meeting logged.
     db.sourceItem.findMany({ where: { kind: "MEETING_NOTES", meetingId: null, occurredAt: { gte: windowStartInstant, lt: windowEndInstant } }, select: { occurredAt: true } }),
     db.sourceConnection.groupBy({ by: ["kind"], where: { status: { not: "DISCONNECTED" } }, _count: true }),
+    db.sourceConnection.aggregate({ where: { status: { not: "DISCONNECTED" } }, _max: { lastSuccessAt: true } }),
+    db.sourceConnection.aggregate({ where: { status: { not: "DISCONNECTED" }, syncFrequency: { in: HOURLY_FREQUENCIES } }, _max: { lastSuccessAt: true }, _count: true }),
+    db.brainRefresh.findFirst({ where: { status: { in: ["SUCCEEDED", "PARTIAL"] } }, orderBy: { startedAt: "desc" }, select: { completedAt: true, startedAt: true } }),
   ]);
 
   // ── Standing flags ──
@@ -153,5 +169,14 @@ export async function getPulseData(): Promise<PulseData> {
     meetings: [...byDay.entries()].map(([day, count]) => ({ day, count })),
     meetingsWithNotes: withNotes,
     connected: { crm: kinds.has("CRM"), calendar: kinds.has("CALENDAR"), notes: kinds.has("MEETINGS") },
+    freshness: {
+      now: ceo.now,
+      lastSync: lastSync._max.lastSuccessAt,
+      lastHourlySync: hourly._max.lastSuccessAt,
+      hourlySources: hourly._count,
+      lastBrain: lastBrain ? (lastBrain.completedAt ?? lastBrain.startedAt) : null,
+      nextBrain: nextBrainSlot(ceo.now, timezone),
+      sources: connections.reduce((n, c) => n + c._count, 0),
+    },
   };
 }
